@@ -19,6 +19,7 @@ New games follow the shared shape:
 - top-level `let` state;
 - `reset()`, `step(dt)` and a read-only `render()`;
 - `onKey(e)` on `e.code` via `document.addEventListener`;
+- pointer input, if any, via `document.addEventListener('pointerdown', …)`;
 - a rAF `frame` loop;
 - a `test-<name>.mjs` that uses `load()` from `harness.mjs`.
 
