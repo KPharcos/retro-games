@@ -1,0 +1,7 @@
+# BMAD agent framework: reinstall with the command in README.md
+_bmad/
+.agents/
+.claude/
+.qwen/
+.opencode/
+.github/agents/
