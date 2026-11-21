@@ -36,12 +36,32 @@ for (const [code, d] of [['ArrowUp', [0, -1]], ['KeyS', [0, 1]], ['KeyD', [1, 0]
 }
 run('reset(); food = { x: 0, y: 0 }'); key('KeyW'); run('tick()'); key('KeyA'); run('tick()');
 assert.deepEqual(head(), { x: 9, y: 9 });
-run('reset(); food = { x: 0, y: 0 }'); key('ArrowDown'); run('tick()'); key('ArrowLeft');
+run('reset(); food = { x: 0, y: 0 }'); key('ArrowDown'); run('tick()');
+assert.deepEqual(head(), { x: 10, y: 11 });
+key('ArrowUp');
+assert.deepEqual(json('nextDir'), [0, 1], 'vertical reverse (ArrowUp) accepted');
+key('KeyW');
+assert.deepEqual(json('nextDir'), [0, 1], 'vertical reverse (KeyW) accepted');
+key('ArrowLeft');
 assert.deepEqual(json('nextDir'), [-1, 0]);
 
 // Reverse ignored (arrow and WASD)
 run('reset()'); key('ArrowLeft'); key('KeyA');
 assert.deepEqual(json('nextDir'), [1, 0]);
+
+// Space mid-run is a no-op, live or paused
+run('reset(); food = { x: 0, y: 0 }; tick()');
+const live = run('JSON.stringify([snake, score, food])');
+key('Space');
+assert.equal(run('JSON.stringify([snake, score, food])'), live, 'Space reset a live run');
+key('KeyP'); key('Space');
+assert.deepEqual([run('paused'), run('JSON.stringify([snake, score, food])')], [true, live], 'Space reset a paused run');
+
+// keydown without a code (synthetic event) neither throws nor changes state
+run('reset(); food = { x: 0, y: 0 }');
+const noCode = run('JSON.stringify([snake, dir, nextDir, paused, wrap, over])');
+listeners.keydown({ preventDefault() {} });
+assert.equal(run('JSON.stringify([snake, dir, nextDir, paused, wrap, over])'), noCode);
 
 // Quick double key: Up queued, Left rejected (checked against last move, right)
 run('reset(); food = { x: 0, y: 0 }'); key('ArrowUp'); key('ArrowLeft');
@@ -216,12 +236,21 @@ const h = load('./snake.html', { localStorage: storage });
 assert.equal(h.run('high'), 30);
 h.texts.length = 0; h.run('render()');
 assert.ok(h.texts.includes('High: 30'));
+// HUD shows the live best while a run beats the record; the stored high itself is untouched
+h.texts.length = 0; h.run('score = 50; render()');
+assert.ok(h.texts.includes('High: 50'));
+assert.equal(h.run('high'), 30);
+h.texts.length = 0; h.run('score = 10; render()');
+assert.ok(h.texts.includes('High: 30'));
 h.run('reset(); score = 20; end(false)');
 assert.deepEqual([store.snakeHighScore, h.run('high')], ['30', 30]);
 h.run('reset(); score = 40; end(false)');
 assert.deepEqual([store.snakeHighScore, h.run('high')], ['40', 40]);
 h.run('reset(); score = 40; end(false)');
 assert.equal(store.snakeHighScore, '40');
+// a win saves the high score too
+h.run(`reset(); score = 3960; snake = ${JSON.stringify(path.slice(0, 399).reverse())}; food = { x: 0, y: 19 }; dir = nextDir = [-1, 0]; tick()`);
+assert.deepEqual([h.run('won'), h.run('high'), store.snakeHighScore], [true, 3970, '3970']);
 // garbage in storage reads as 0
 assert.equal(load('./snake.html', { localStorage: { getItem: () => 'junk', setItem() {} } }).run('high'), 0);
 

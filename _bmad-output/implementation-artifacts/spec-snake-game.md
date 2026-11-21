@@ -6,6 +6,7 @@ status: 'done'
 baseline_revision: '1582f4cc9cc33dcdfa106ff23b0f2d532dcea2da'
 review_loop_iteration: 0
 followup_review_recommended: false
+followup_pass: true
 context: ['{project-root}/CLAUDE.md']
 warnings: ['oversized']
 deferred:
@@ -13,6 +14,13 @@ deferred:
       docs/CODEBASE_MAP.md drift after Snake: frontmatter total_tokens and last_mapped not refreshed, no Snake entry in the navigation guide, the Snake spec tree line has no status note, and the tail-rule wording still says "unless eating".
     evidence: |-
       Review pass 1 (blind-hunter, edge-case-hunter, intent-alignment). The map is cartographer output linked from CLAUDE.md, so the fix edits an agent-context doc; a cartographer re-map refreshes it.
+    location: >-
+      docs/CODEBASE_MAP.md
+    severity: low
+  - summary: >-
+      docs/CODEBASE_MAP.md new Snake drift: total_files says 11 but git tracks 12, Gotchas does not say a stubbed Math must be built with Object.create(Math), and the test list claims it covers every spec matrix row.
+    evidence: |-
+      Follow-up review pass (blind-hunter, intent-alignment). The map is cartographer output linked from CLAUDE.md, so the fix edits an agent-context doc; a cartographer re-map refreshes it.
     location: >-
       docs/CODEBASE_MAP.md
     severity: low
@@ -128,27 +136,70 @@ deferred:
   - `[low]` `[defer]` Map frontmatter totals stale (edge) — same as the blind-hunter row; deferred.
   - `[low]` `[reject]` Blocked storage shows the session best after a run, not 0 (edge) — showing the session best is the better behaviour and the test pins it; the only fix is rewording this build's spec acceptance line.
 
+### 2026-11-21 — Review pass (follow-up)
+- verdicts: 39 findings — high 0, medium 0, low 36, false 3, maybe-false 0
+- findings:
+  - `[low]` `[reject]` No ready state and no restart lockout, so Space mashing at death skips the game over screen (blind-hunter) — ready part carried — same as the pass-1 row (the intent says it starts moving right); Space is not a play key, so mashing it at death is unlikely, and a timed gate is a state the intent does not ask for.
+  - `[low]` `[reject]` carried — HUD text drawn over playfield row 0 (blind-hunter). Same claim as the pass-1 render-layout row; cosmetic.
+  - `[low]` `[patch]` `High:` in the HUD stays below the current Score during a run that beats the record (blind-hunter) — grouped with the edge-case HUD row. Patched: HUD draws `Math.max(high, score)`; saving in end() is unchanged. The closing-tab record-loss part is the carried reject below.
+  - `[low]` `[reject]` carried — T works mid-run and one high score covers wrap and wall modes (blind-hunter). Same claims as the pass-1 rows.
+  - `[low]` `[reject]` carried — a quick second turn is dropped (blind-hunter). Same as the pass-1 turn-buffer row.
+  - `[low]` `[reject]` carried — no auto-pause on blur (blind-hunter). Same as the pass-1 row.
+  - `[low]` `[reject]` carried — no touch input, dead page on phones (blind-hunter). The spec's Never list excludes touch controls and the README says keyboard only.
+  - `[low]` `[patch]` Hint says "Space: restart" but Space does nothing mid-run (blind-hunter) — patched: hint reads "Space: restart after game over".
+  - `[low]` `[patch]` Tests do not assert Space is a no-op in a live run, nor vertical reversals (blind-hunter) — Space part patched: Space during a run and while paused leaves state unchanged. Vertical part grouped with the verification steering row.
+  - `[low]` `[reject]` Weak assertions: removed `!over` guard, `typeof high`, status writes after a win, attribute-order regexes (blind-hunter) — the first claim is refuted: the win-path test fails without the guard (mutant check). The rest are negligible test-style nits.
+  - `[low]` `[reject]` carried — stored high score is not validated (blind-hunter). Same as the pass-1 row; only reachable by hand-editing storage.
+  - `[low]` `[patch]` `e.code.startsWith` throws on a keydown with no `code`; modifier chords steer (blind-hunter) — grouped with the edge-case and intent rows. Patched: `String(e.code).startsWith('Arrow')`, with a test. The modifier part carried — same as the pass-1 row, rejected.
+  - `[low]` `[reject]` carried — no speed cap (blind-hunter). Same as the pass-1 row; the intent has no cap.
+  - `[low]` `[defer]` CODEBASE_MAP: file count 11 vs 12, stale totals and timestamp, no Snake nav entry, spec tree line, tail wording, Object.create(Math) gotcha (blind-hunter) — carried — the stale totals, nav entry, tree line and tail wording are already in `deferred`; the new file-count and Object.create items were added as one new `deferred` entry.
+  - `[low]` `[reject]` carried — a two-slot turn queue would keep a lost second turn (edge). Same as the turn-buffer row.
+  - `[low]` `[reject]` carried — Ctrl/Meta/Alt chords steer, pause or toggle wrap (edge). Same as the pass-1 row.
+  - `[low]` `[patch]` keydown with undefined `e.code` makes `startsWith` throw (edge) — grouped with the blind-hunter and intent rows; patched as there.
+  - `[low]` `[reject]` carried — stored high of Infinity, negative or fractional (edge). Same as the pass-1 row.
+  - `[low]` `[reject]` carried — two tabs: a lower score overwrites a higher stored one (edge). Same as the pass-1 row.
+  - `[low]` `[reject]` carried — a record is lost when the tab closes mid-run (edge). Same as the pass-1 row; writing on every eat adds work the intent does not ask for.
+  - `[low]` `[patch]` HUD shows Score above High during a run (edge) — grouped with the blind-hunter HUD row; patched there.
+  - `[low]` `[reject]` carried — blur or visibilitychange does not pause (edge). Same as the pass-1 row.
+  - `[false]` `[reject]` step() or render() throwing would stop the rAF loop, e.g. getContext returning null (edge) — refutation: getContext('2d') on a fresh canvas does not return null and no throwing path was shown.
+  - `[low]` `[defer]` carried — code always checks `snake.slice(0, -1)`, so the spec and map wording "unless eating" describes a branch that does not exist (edge). The map wording is already in `deferred`; the spec's intent contract is read-only, and both readings are equivalent because food never spawns on the snake.
+  - `[low]` `[reject]` carried — blocked storage still shows the session best after a run, not 0 (edge). Same as the pass-1 row.
+  - `[low]` `[defer]` carried — map frontmatter totals stale, file count 11 vs 12 (edge). Stale totals are already in `deferred`; the count is in the new entry.
+  - `[low]` `[patch]` The win path's high-score save is unverified; swapping `score += 10` and `placeFood()` or skipping the save on a win still passes (verification) — patched: the full-board win on a storage-stub load asserts `high === 3970` and the stored value '3970'.
+  - `[low]` `[patch]` ArrowDown mapping and vertical 180° turns are unasserted (verification) — patched: ArrowDown moves the head to y+1; while moving down, ArrowUp and KeyW leave `nextDir` unchanged. Grouped with the blind-hunter vertical-reversal claim.
+  - `[low]` `[reject]` Board drawing (food, body, head, cell coordinates) has no assertion (verification) — hypothetical regression; the fix needs a recording canvas stub, more than a direct correction; the reviewer's `defer` does not apply because it is not pre-existing; same call as the Gapwing geometry row.
+  - `[low]` `[defer]` carried — map tail wording says "unless eating" (verification). Already in `deferred`.
+  - `[low]` `[reject]` carried — tests exercise only the node:vm stub, not a real browser (intent). Same as the pass-1 logic-layer row.
+  - `[low]` `[reject]` carried — Up then Right drops the Up (intent probe). Same as the turn-buffer row.
+  - `[low]` `[patch]` carried — forced food on the tail cell survives (intent probe). Same as the pass-1 dead-branch row: already fixed by always checking `snake.slice(0, -1)`; the state is unreachable.
+  - `[low]` `[reject]` carried — direction keys still queue a turn while paused (intent probe). Same as the pass-1 row.
+  - `[false]` `[reject]` T is ignored on the game-over screen (intent probe) — matches the spec: other game input is ignored while over; no defect.
+  - `[low]` `[patch]` A keydown without `code` throws in onKey (intent probe) — grouped with the blind-hunter and edge-case rows; patched as there.
+  - `[low]` `[reject]` carried — modifier keys steer; a stored '-5' gives a negative high (intent probe). Same as the pass-1 rows.
+  - `[low]` `[defer]` Docs claim test-snake.mjs covers every spec matrix row, while the eat-plus-tail state is unreachable (intent) — fix edits CODEBASE_MAP; added to the new `deferred` entry.
+  - `[false]` `[reject]` Scope: docs edited beyond the two named files, spec edit not in the diff, `Score: N` drawn twice (intent) — docs and spec are repo conventions, the diff excludes the spec on purpose, and the test counts the two draws deliberately; no defect.
+
 ## Auto Run Result
 
-- **Summary:** Built Snake as `snake.html` in the shared shape, with `test-snake.mjs`. It covers the full intent and both stretch goals (T wrap toggle, P pause), plus a full-board win.
+- **Summary:** Built Snake as `snake.html` in the shared shape, with `test-snake.mjs`. It covers the full intent and both stretch goals (T wrap toggle, P pause), plus a full-board win. A follow-up review pass changed the HUD High value, the hint text and one key guard, and added tests.
 - **Files changed:**
-  - `snake.html` -- the game.
-  - `test-snake.mjs` -- every I/O matrix row, storage blocked or missing, dt cap, rAF wiring, render purity, status text.
+  - `snake.html` -- the game; follow-up: HUD `High:` uses `Math.max(high, score)`, hint says "Space: restart after game over", `String(e.code)` guard.
+  - `test-snake.mjs` -- every I/O matrix row, storage blocked or missing, dt cap, rAF wiring, render purity, status text; follow-up: live High, no-code keydown, vertical steering, Space no-op, win-path save.
   - `README.md` -- games table (keyboard only), Play link, controls, test command.
   - `CLAUDE.md`, `docs/CODEBASE_MAP.md` -- games list, test command, Snake section.
-- **Review findings:** 30 findings: 0 high, 0 medium, 29 low, 1 false.
-  - Patched: 8 low.
-  - Deferred: 4 low rows, all map drift, as one `deferred` item.
-  - Rejected: 18 (17 low, 1 false). Reasons are in the triage log.
-- **Follow-up review recommended:** false. No high was patched and fewer than two medium.
-- **Verification:**
-  - `node test-gapwing.mjs && node test-snake.mjs` passes.
-  - The implementer checked 9 mutants (tail rule, double-key reverse, storage fallback, P repeat, speed-up step, over-input, `!over` guard, overlay score, wrap eating); each fails the suite.
+- **Review findings, pass 1:** 30 findings: 0 high, 0 medium, 29 low, 1 false. 8 patched, 4 deferred rows (map drift), 18 rejected.
+- **Review findings, follow-up:** 39 findings: 0 high, 0 medium, 36 low, 3 false.
+  - Patched: 10 rows in 5 fixes (HUD High, hint wording, no-code key guard, steering and Space tests, win-path save test); one row is the carried dead-branch fix, already applied.
+  - Deferred: 5 rows, all CODEBASE_MAP; one new `deferred` entry (file count, Object.create(Math) gotcha, matrix-coverage wording).
+  - Rejected: 21 low, most carried from pass 1 (turn buffer, blur pause, modifier keys, storage edge cases, touch input, speed cap, stub-only tests). 3 false.
+- **Follow-up review recommended:** false. No high was patched, so the work has converged.
+- **Verification:** `node test-gapwing.mjs && node test-snake.mjs` passes. The implementer checked 7 mutants of the new asserts (6 fail the suite); I re-ran 3 (ArrowDown flipped, `score += 10` after `placeFood()`, HUD showing plain `high`), all caught. The surviving mutant is a vertical same-direction press that cancels a queued turn; no spec row covers it.
 - **Residual risks:**
   - Not played in a real browser.
   - HUD text on the top row can overlap the snake.
   - No speed cap, so the late game gets very fast.
-  - Keyboard only.
+  - Keyboard only; no touch.
+  - No ready state: the snake moves at once and hits the wall after about 1.25 s without input.
   - The README Play link stays dead until merge and GitHub Pages rebuild.
 
 ## Design Notes

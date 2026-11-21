@@ -41,7 +41,7 @@
     <div id="game-container">
         <canvas id="gameCanvas" width="400" height="400" role="img" aria-label="Snake game: steer the snake to eat food without hitting walls or itself"></canvas>
         <div id="status" aria-live="polite"></div>
-        <div id="hint">Arrows / WASD: steer · P: pause · T: wrap walls · Space: restart</div>
+        <div id="hint">Arrows / WASD: steer · P: pause · T: wrap walls · Space: restart after game over</div>
     </div>
 
 <script>
@@ -105,7 +105,7 @@ function step(dt) {
 }
 
 function onKey(e) {
-  if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
+  if (e.code === 'Space' || String(e.code).startsWith('Arrow')) e.preventDefault(); // String(): synthetic events may lack code
   if (over) { if (e.code === 'Space') reset(); return; }
   if (e.code === 'KeyP' && !e.repeat) paused = !paused;
   else if (e.code === 'KeyT' && !e.repeat) wrap = !wrap;
@@ -139,7 +139,7 @@ function render() {
   ctx.textAlign = 'left';
   ctx.fillText('Score: ' + score, 6, 16);
   ctx.textAlign = 'right';
-  ctx.fillText('High: ' + high, W - 6, 16);
+  ctx.fillText('High: ' + Math.max(high, score), W - 6, 16); // a run beating the record shows it live; saved only in end()
   if (wrap) { ctx.textAlign = 'center'; ctx.fillText('Wrap', W / 2, 16); }
 
   if (over || paused) {
