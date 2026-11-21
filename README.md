@@ -4,39 +4,13 @@ Small retro browser games. Each game is one self-contained HTML file with no bui
 
 | Game | File | What it is |
 |---|---|---|
-| Snake | `snake.html` | Classic grid snake with a high score, pause and wrap-around mode |
-| Stackfall | `stackfall.html` | An original falling-block puzzle with a 7-bag randomizer, hold, ghost piece and lock delay |
 | Gapwing | `gapwing.html` | An original one-button flyer: flap a bird through gaps between scrolling pillars |
 
 ## Play
 
-Play online: [Snake](https://kpharcos.github.io/retro-games/snake.html) · [Stackfall](https://kpharcos.github.io/retro-games/stackfall.html) · [Gapwing](https://kpharcos.github.io/retro-games/gapwing.html)
+Play online: [Gapwing](https://kpharcos.github.io/retro-games/gapwing.html)
 
-You can also clone the repo and open any of the HTML files in a browser.
-
-### Snake controls
-
-| Key | Action |
-|---|---|
-| Arrows / WASD | Steer |
-| P | Pause |
-| T | Toggle wrap-around |
-| Space | Restart after game over |
-
-Each food is worth 10 points, and the snake speeds up every 50 points. Your high score is saved in the browser.
-
-### Stackfall controls
-
-| Key | Action |
-|---|---|
-| ← → | Move |
-| ↑ | Rotate |
-| ↓ | Soft drop |
-| Space | Hard drop |
-| C / Shift | Hold |
-| R | Restart after game over |
-
-Line clears score 100 / 300 / 500 / 800 × level. The level goes up every 10 lines.
+You can also clone the repo and open `gapwing.html` in a browser.
 
 ### Gapwing controls
 
@@ -51,14 +25,14 @@ Each pillar scores 1 point when its right edge passes the bird's centre. The gap
 The tests need Node 18+ and nothing else:
 
 ```sh
-node test.mjs && node test-snake.mjs && node test-gapwing.mjs
+node test-gapwing.mjs
 ```
 
 `harness.mjs` loads a game's inline `<script>` into `node:vm` with a stub DOM, so the tests can drive game state and key presses directly.
 
 ## Adding a game
 
-Copy the shape of `snake.html`:
+Copy the shape of `gapwing.html`:
 
 - exactly one bare `<script>`
 - state in top-level `let`s
@@ -70,7 +44,7 @@ Then add a `test-<name>.mjs` that calls `load('./<name>.html')` from `harness.mj
 
 ## AI tooling (optional)
 
-The games were planned with the [BMAD Method](https://github.com/bmad-code-org/BMAD-METHOD) agent framework. The design specs are in `_bmad-output/implementation-artifacts/`. The framework itself is not committed. To restore it:
+The game was planned with the [BMAD Method](https://github.com/bmad-code-org/BMAD-METHOD) agent framework. The design spec is in `_bmad-output/implementation-artifacts/`. The framework itself is not committed. To restore it:
 
 ```sh
 npx bmad-method@6.12.4 install --directory . --modules bmm,gds,cis,tea,bmb,bmad-loop \
