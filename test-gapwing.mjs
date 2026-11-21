@@ -54,9 +54,29 @@ hover(89);
 assert.equal(run('pipes.length'), 1);
 hover(1);
 assert.deepEqual([run('pipes.length'), run('pipes[0].x'), run('pipes[1].x')], [2, 220, 400]);
+assert.equal(run('dist'), 2 * 180);
+// Culling: a pillar is dropped once its right edge reaches x = 0
+run('reset(); state = "playing"');
+hover(319);
+assert.deepEqual([run('pipes.length'), run('pipes[0].x')], [3, -58]);
+hover(1);
+assert.equal(run('pipes.length'), 2);
 for (let i = 0; i < 200; i++) {
   run('reset(); spawnPipe()');
   assert.ok(run('pipes[0].top >= MARGIN && pipes[0].top + pipes[0].gap <= GROUND - MARGIN'), 'gap out of range');
+}
+// Literal bounds at the extremes of Math.random: gap spans y = 60 .. 480 (ground 540 - 60)
+let rnd = 0;
+const stubMath = Object.assign(Object.create(Math), { random: () => rnd }); // spread would be empty: Math's props are non-enumerable
+const m = load('./gapwing.html', { Math: stubMath });
+for (const s of [0, 25, 50]) {
+  rnd = 0;
+  m.run(`reset(); score = ${s}; spawnPipe()`);
+  assert.equal(m.run('pipes[0].top'), 60);
+  rnd = 0.999999;
+  m.run(`reset(); score = ${s}; spawnPipe()`);
+  const bottom = m.run('pipes[0].top + pipes[0].gap');
+  assert.ok(bottom < 480 && bottom > 479.9, `gap bottom ${bottom} at score ${s}`);
 }
 
 // Score: +1 once, when the right edge passes the bird's x
@@ -94,11 +114,20 @@ assert.equal(run('state'), 'over');
 run('reset(); state = "playing"; y = -50; vy = -0.5; tick()');
 assert.equal(run('state'), 'playing', 'flying above the screen with no pillar is fine');
 
+// Death mid-step stops the frame loop: step(100) runs exactly one tick here
+run('reset(); state = "playing"; y = GROUND - BIRD_R - 1; vy = 0.6; pipes = [{ x: 42, top: 200, gap: 150, scored: false }]; step(100)');
+assert.deepEqual([run('state'), run('score'), run('pipes[0].x')], ['over', 0, 40]);
+assert.ok(Math.abs(run('y') - 528.1) < 1e-9, 'more than one tick ran');
+
 // Ground: 1 px above is fine; bird bottom reaching the ground ends the run
 run('reset(); state = "playing"; y = GROUND - BIRD_R - 1; vy = -0.5; tick()');
 assert.equal(run('state'), 'playing');
 run('reset(); state = "playing"; y = GROUND - BIRD_R - 1; vy = 0.5; tick()');
 assert.equal(run('state'), 'over');
+
+const distOver = run('dist');
+run('step(1000); overTime = 0');
+assert.equal(run('dist'), distOver, 'scrolled while over');
 
 // Game over screen; early restart ignored; restart after 500 ms
 texts.length = 0;
@@ -116,6 +145,8 @@ run('render()');
 assert.ok(texts.includes('tap or Space to restart'));
 key('Space');
 assert.deepEqual([run('state'), run('score'), run('pipes.length')], ['ready', 0, 0]);
+run('acc = 5; spawnT = 7; overTime = 600; dist = 99; reset()');
+assert.deepEqual([run('acc'), run('spawnT'), run('overTime'), run('dist')], [0, 0, 0, 0]);
 // Restart by pointer too
 run('reset(); state = "playing"; y = GROUND; tick(); step(500)');
 listeners.pointerdown({ button: 0 });
@@ -124,7 +155,7 @@ assert.equal(run('state'), 'ready');
 // frame() caps dt at 100 ms: a 5 s gap runs ~6 frames, not 300
 run('reset(); state = "playing"; y = 300; vy = 0; last = null; frame(0); frame(5000)');
 assert.equal(run('state'), 'playing');
-assert.ok(run('vy') <= 3, 'dt not capped');
+assert.equal(run('vy'), 2.5, 'dt cap: expected exactly 5 ticks'); // 100 ms / 16.67 = 6 in exact maths; float leftover gives 5
 
 // Playing: score drawn on the canvas
 run('reset(); state = "playing"; score = 3');
@@ -133,12 +164,18 @@ run('render()');
 assert.ok(texts.includes('3'));
 
 // Ramp: gap shrinks 5 px per 5 points, floor 100; each pillar keeps its spawn gap
-run('reset(); score = 10; spawnPipe()');
-assert.equal(run('pipes[0].gap'), 140);
+for (const [s, gap] of [[0, 150], [4, 150], [9, 145], [10, 140]]) {
+  run(`reset(); score = ${s}; spawnPipe()`);
+  assert.equal(run('pipes[0].gap'), gap, `gap at score ${s}`);
+}
 run('score = 50; spawnPipe()');
 assert.deepEqual([run('pipes[0].gap'), run('pipes[1].gap')], [140, 100]);
 run('score = 90; spawnPipe()');
 assert.equal(run('pipes[2].gap'), 100);
+// Ramp through tick(), not only spawnPipe()
+run('reset(); state = "playing"; score = 10');
+hover(90);
+assert.equal(run('pipes[0].gap'), 140);
 
 // Space prevents page scroll; other keys untouched
 let prevented = 0;
@@ -150,18 +187,25 @@ for (const code of ['ArrowUp', 'ArrowDown', 'KeyW', 'F5', 'Tab'])
 assert.equal(prevented, 2, 'non-game key prevented');
 
 // #status (aria-live) follows the state; this stub keeps one element per id so the text sticks
-const els = {}, docListeners = {};
+const els = {}, docListeners = {}, writes = {};
 const ctxStub = new Proxy({}, { get: () => () => {}, set: () => true });
 const g = load('./gapwing.html', { document: {
-  getElementById: (id) => (els[id] ??= { getContext: () => ctxStub, textContent: '' }),
+  getElementById: (id) => (els[id] ??= (() => {
+    let text = '';
+    writes[id] = 0;
+    return { getContext: () => ctxStub, get textContent() { return text; }, set textContent(v) { text = v; writes[id]++; } };
+  })()),
   addEventListener: (type, fn) => { docListeners[type] = fn; },
 } });
-g.run('render()');
+g.run('render(); render()');
 assert.equal(els.status.textContent, 'Ready. Tap or press Space to flap.');
+assert.equal(writes.status, 1, 'live region rewritten every render');
 docListeners.keydown({ code: 'Space', repeat: false, preventDefault() {} });
-g.run('render()');
+g.run('render(); render()');
 assert.equal(els.status.textContent, 'Flying.');
-g.run('score = 4; y = GROUND; tick(); render()');
+assert.equal(writes.status, 2);
+g.run('score = 4; y = GROUND; tick(); render(); render()');
 assert.equal(els.status.textContent, 'Game Over. Score: 4. Tap or press Space to restart.');
+assert.equal(writes.status, 3);
 
 console.log('all gapwing tests passed');

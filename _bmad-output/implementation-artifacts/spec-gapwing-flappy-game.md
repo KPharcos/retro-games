@@ -5,7 +5,7 @@ created: '2026-11-21'
 status: 'done'
 baseline_revision: 'cc1e333ac446c0fb9c50b61560eb2e122a164c9c'
 review_loop_iteration: 0
-followup_review_recommended: true
+followup_review_recommended: false
 context: ['{project-root}/CLAUDE.md']
 warnings: []
 deferred:
@@ -20,6 +20,13 @@ deferred:
       docs/CODEBASE_MAP.md sections beyond the overview skip Gapwing: frame diagram notes, pointerdown input, conventions on setText/HUD, navigation guide entry, harness listeners gotcha, spec status annotation.
     evidence: |-
       Implementer updated the overview, tree and test lines only. Fix edits an agent-context doc linked from CLAUDE.md, so deferred; a cartographer re-map covers it.
+    location: >-
+      docs/CODEBASE_MAP.md
+    severity: low
+  - summary: >-
+      docs/CODEBASE_MAP.md gapwing.html section drifts from the code: Constants row omits START_Y, Logic row omits die(), Input row omits the e.button === 0 filter on pointerdown.
+    evidence: |-
+      Follow-up review pass. The map is cartographer output linked from CLAUDE.md, so fixing it edits an agent-context doc; a cartographer re-map refreshes it.
     location: >-
       docs/CODEBASE_MAP.md
     severity: low
@@ -117,23 +124,60 @@ deferred:
   - `[medium]` `[patch]` `#status` aria-live text never checked (verification-gap) — same root cause and fix as the blind-hunter status row.
   - `[low]` `[patch]` Held Space `preventDefault` unchecked (verification-gap) — scroll block now sends `repeat: true` and expects the count to rise.
 
+### 2026-11-21 — Review pass (follow-up)
+- verdicts: 29 findings — high 0, medium 0, low 24, false 5, maybe-false 0
+- findings:
+  - `[low]` `[defer]` CODEBASE_MAP keeps "no commits yet" and stale counts (blind-hunter) — carried: same claim as the first pass; already in `deferred`, not added again.
+  - `[low]` `[defer]` CODEBASE_MAP sections beyond the overview skip Gapwing (blind-hunter) — carried: already in `deferred`, not added again.
+  - `[low]` `[defer]` CODEBASE_MAP gapwing.html section drifts from the code: START_Y, die(), the `e.button === 0` filter (blind-hunter) — new, but the fix edits cartographer output linked from CLAUDE.md; added to `deferred`.
+  - `[low]` `[reject]` No pause or visibilitychange handling; returning to a hidden tab runs one capped burst (blind-hunter) — the spec's 100 ms dt cap is the chosen mitigation (Snake does the same), the burst is at most 6 frames, and the fix adds a listener or paused state beyond the intent's three states.
+  - `[low]` `[reject]` Score is banked on the frame the bird dies (blind-hunter) — carried: same claim as the first pass; matches the intent rule "right edge passes the bird's x", and the only fix edits this build's spec.
+  - `[low]` `[reject]` Consecutive gap tops are unconstrained, so a floor-size gap can follow a far-away one (blind-hunter) — checked by arithmetic: needs a sustained climb above 5 px/frame, which only about 3% of spawns past score 50 demand; the fix changes the spec's random gap placement.
+  - `[low]` `[reject]` No render interpolation at 120/144 Hz, no devicePixelRatio scaling (blind-hunter) — cosmetic, the fixed step is what the intent asks for, Snake and Stackfall draw the same way, and the fix is more than a direct correction.
+  - `[low]` `[reject]` `#status` announces the restart prompt before the 500 ms gate opens (blind-hunter) — a screen reader takes far longer than 500 ms to speak the sentence, so the prompt cannot be acted on early; the fix adds a branch.
+  - `[low]` `[patch]` Spawn-range test runs only at score 0 and never reaches gap 100 (blind-hunter) — added literal-bounds checks at scores 0, 25 and 50 with `Math.random` stubbed to both extremes.
+  - `[low]` `[patch]` Cull, reset fields, `dist` and ramp-through-play are untested (blind-hunter) — added: 3 pillars then 2 at the cull frame, `acc/spawnT/overTime/dist` back to 0 after `reset()`, `dist === 2 * frames`, and gap 140 from a real spawn at score 10.
+  - `[low]` `[patch]` dt-cap check `vy <= 3` accepts any cap from about 100 to 116 ms (blind-hunter) — now asserts `vy === 2.5` (exactly 5 ticks); a 117 ms cap fails.
+  - `[false]` `[reject]` No Enter/ArrowUp/KeyW alternative and the README does not mention right-click (blind-hunter) — the intent names Space, click and tap only; no harm named.
+  - `[low]` `[reject]` Score banked on the death frame (edge-case-hunter) — carried: same claim and route as the blind-hunter row above.
+  - `[false]` `[reject]` Negative rAF delta would stall physics (edge-case-hunter) — timestamps of successive rAF callbacks do not decrease, and Snake uses the same pattern; no reachable input shown.
+  - `[low]` `[reject]` No visibilitychange handling (edge-case-hunter) — same root cause and reasoning as the blind-hunter row above.
+  - `[low]` `[reject]` Ctrl/Alt/Meta+Space is swallowed by `preventDefault` and flaps (edge-case-hunter) — negligible on a game page, same pattern as Snake; the fix adds a branch.
+  - `[false]` `[reject]` `getContext` returning null or `render()` throwing would stop the rAF loop (edge-case-hunter) — `getContext('2d')` on a fresh canvas does not return null and no throwing path was shown.
+  - `[low]` `[defer]` CODEBASE_MAP:17 stale "no commits yet" (edge-case-hunter) — carried: already in `deferred`.
+  - `[low]` `[defer]` CODEBASE_MAP:234 frame note skips Gapwing (edge-case-hunter) — carried: already in `deferred`.
+  - `[low]` `[reject]` Below about 10 fps game time runs slower than real time (edge-case-hunter) — the 100 ms dt cap is required by the spec; the fix edits this build's spec.
+  - `[low]` `[patch]` Gap ramp step size unverified: `GAP0 - s` still passed (verification-gap) — now asserts gap 150, 150, 145, 140 at scores 0, 4, 9, 10; the mutant fails.
+  - `[low]` `[patch]` Death partway through a multi-frame `step` does not stop the simulation, and no test notices (verification-gap) — added a `step(100)` case that must run exactly one tick; removing the `playing` check fails.
+  - `[low]` `[patch]` Parallax `dist` is only checked at rest (verification-gap) — `dist === 360` after 180 frames and unchanged while over; deleting `dist += SPEED` fails.
+  - `[low]` `[patch]` `setText` write guard is unobserved (verification-gap) — the status stub now counts writes; two renders per state give one write.
+  - `[low]` `[patch]` Gap placement is checked against the script's own constants with no random stub (verification-gap) — same fix as the spawn-range row above.
+  - `[low]` `[patch]` Off-screen pillars are never verified as removed (verification-gap) — same fix as the cull row above; the reviewer's `defer` disposition was not taken because the fix is a direct test assertion.
+  - `[false]` `[reject]` The `e.button === 0` guard narrows the spec's `pointerdown` input (intent-alignment) — `PointerEvent.button` is 0 for a left click and for touch and pen contact, so nothing the intent names is excluded; only right/middle buttons are.
+  - `[low]` `[reject]` Tests run on the logic layer in `node:vm`; no refresh-rate sequences, pixel or CSS checks (intent-alignment) — carried: same claim as the first pass; the repo has no browser test setup and the step-boundary and dt-cap tests cover the accumulator.
+  - `[false]` `[reject]` Additions beyond the intent: `#status`, moon, wing, docs (intent-alignment) — none touches the intent's Never list and no harm is named.
+
 ## Auto Run Result
 
-- **Summary:** Added Gapwing, an original one-button flyer with fixed 60 Hz physics, 1.5 s pillar spawns, a ready/playing/over flow with a 500 ms restart gate, parallax layers and a gap ramp, plus its harness test and doc updates.
+- **Summary:** Added Gapwing, an original one-button flyer with fixed 60 Hz physics, 1.5 s pillar spawns, a ready/playing/over flow with a 500 ms restart gate, parallax layers and a gap ramp, plus its harness test and doc updates. A follow-up review pass changed only the tests.
 - **Files changed:**
-  - `gapwing.html` -- the game.
-  - `test-gapwing.mjs` -- covers every I/O matrix row, the review gaps and the status line.
+  - `gapwing.html` -- the game (unchanged in the follow-up pass).
+  - `test-gapwing.mjs` -- covers every I/O matrix row, the first-pass review gaps and the follow-up gaps.
   - `README.md` -- games table, controls, test command, Play link.
   - `CLAUDE.md` -- games list and test command.
   - `docs/CODEBASE_MAP.md` -- overview, tree and test lines.
-- **Review findings:** 17 findings, 4 medium and 13 low.
-  - 12 patched, in 9 distinct fixes: 3 medium entries and 6 low entries.
-  - 3 deferred: the CODEBASE_MAP rows, low.
-  - 2 rejected, both low: score timing (its only fix edits the spec) and browser-level tests (no browser test setup in the repo).
-- **Follow-up review recommended:** true. 3 medium entries were patched on the first pass. Unverified risk: the patched `pointerdown` button filter and the frame dt cap have only run under the `node:vm` stub. They have not run on real mouse or touch hardware.
-- **Verification:** `node test.mjs && node test-snake.mjs && node test-gapwing.mjs` all pass after patching. The implementer also took a headless Firefox screenshot of a run in progress.
+- **Review findings, first pass:** 17 findings, 4 medium and 13 low. 12 patched in 9 fixes (3 medium entries, 6 low), 3 deferred (CODEBASE_MAP, low), 2 rejected (score timing, browser-level tests).
+- **Review findings, follow-up pass:** 29 findings, 0 high, 0 medium, 24 low, 5 false.
+  - Patched: 9 low, in 9 test additions: gap ramp steps, death mid-step, `dist` scroll, status write count, spawn bounds with stubbed random, pillar cull, `reset()` fields, ramp through real play, exact dt-cap frame count.
+  - Deferred: 5 low, all `docs/CODEBASE_MAP.md`. 4 are carried from the first pass; 1 is new (gapwing.html section drift).
+  - Rejected, low: 10 (hidden-tab burst, reported twice; score on the death frame, reported twice and carried; gap reachability; render interpolation and DPR; early status prompt; Ctrl/Alt/Meta+Space; slow-motion below 10 fps; logic-layer-only tests, carried). Reasons are in the triage log.
+  - False: 5 (alternate keys, negative rAF delta, `getContext` null, pointer button filter, additions beyond intent).
+- **Follow-up review recommended:** false. The follow-up pass patched no `high` entry, so the work has converged.
+- **Verification:** `node test.mjs && node test-snake.mjs && node test-gapwing.mjs` all pass after the patches. I re-ran 5 mutants of `gapwing.html` against the new tests (no `dist` scroll, smooth gap shrink, 117 ms dt cap, no `playing` check in the step loop, no cull); all 5 fail the suite, and the game file is unchanged.
 - **Residual risks:**
-  - Feel and difficulty have not been played by hand.
+  - Feel and difficulty have not been played by hand, and the `button === 0` filter and dt cap have not run on real mouse or touch hardware.
+  - The exact dt-cap assertion (`vy === 2.5`) depends on float rounding of `100 / (1000/60)`; changing `FRAME` breaks it even if the game still works.
+  - Returning to a hidden tab resumes the run live after one capped burst (at most 6 frames); there is no pause.
   - The README Play link stays dead until this merges and GitHub Pages rebuilds.
   - `_bmad/config.toml` was edited to remove the `[modules.gds]` path keys that duplicate `[modules.bmm]`. A BMAD reinstall will put them back.
 
