@@ -14,18 +14,20 @@ The totals include roughly 4,100 vendored BMAD skill files: three copies of the 
 
 ## System Overview
 
-The project is two standalone browser games, one HTML file each. Both follow the same testable pattern. A shared Node harness drives them in `node:vm`, and a BMAD agent-framework install produced the specs. There is no build step and no package.json. The project is a git repo with no commits yet.
+The project is three standalone browser games, one HTML file each. All follow the same testable pattern. A shared Node harness drives them in `node:vm`, and a BMAD agent-framework install produced the specs. There is no build step and no package.json. The project is a git repo with no commits yet.
 
 ```mermaid
 graph TB
     subgraph Games["Games (open directly in browser)"]
         Snake[snake.html]
         Stack[stackfall.html]
+        Gap[gapwing.html]
     end
     subgraph Tests
         H[harness.mjs<br/>load: vm + stub DOM]
         TS[test-snake.mjs]
         T[test.mjs]
+        TG[test-gapwing.mjs]
     end
     subgraph BMAD["BMAD tooling (core, bmm, gds, cis, tea, bmb, bmad-loop)"]
         Cfg[_bmad/config.toml + custom/]
@@ -39,8 +41,10 @@ graph TB
     end
     T --> H
     TS --> H
+    TG --> H
     H -->|regex-extracts script| Stack
     H -->|regex-extracts script| Snake
+    H -->|regex-extracts script| Gap
     Skills --> Scripts
     Scripts --> Cfg
     Scripts --> Render
@@ -48,6 +52,7 @@ graph TB
     Skills -->|bmad-build-auto writes| Specs
     Specs -.documents.-> Snake
     Specs -.documents.-> Stack
+    Specs -.documents.-> Gap
 ```
 
 ## Directory Structure
@@ -56,14 +61,17 @@ graph TB
 retro-games/
 ├── snake.html          # Snake: rAF loop, step(dt)/tick(), localStorage high score
 ├── stackfall.html      # Stackfall: falling-block puzzle, rAF loop, step(dt)
+├── gapwing.html        # Gapwing: one-button flyer, fixed 60 Hz frames, step(dt)
 ├── harness.mjs         # load(file, globals): runs a game's <script> in node:vm with stub DOM
 ├── test.mjs            # Stackfall self-check (`node test.mjs`)
 ├── test-snake.mjs      # Snake self-check (`node test-snake.mjs`)
+├── test-gapwing.mjs    # Gapwing self-check (`node test-gapwing.mjs`)
 ├── docs/               # Project knowledge (BMAD project_knowledge path). This map.
 ├── _bmad-output/
 │   └── implementation-artifacts/
 │       ├── spec-snake-game.md       # status: done, change log 2026-11-21
-│       └── spec-stackfall-puzzle.md # status: done, full review log
+│       ├── spec-stackfall-puzzle.md # status: done, full review log
+│       └── spec-gapwing-flappy-game.md
 ├── _bmad/              # BMAD v6.12.4 install: core, bmm, gds 0.7.2, cis 0.3.2, tea 1.27.2, bmb 2.2.2, bmad-loop 0.13.2
 │   ├── config.toml, config.user.toml   # installer-managed. Do not edit.
 │   ├── custom/                         # SAFE to edit: team/personal overrides
@@ -113,7 +121,24 @@ retro-games/
 | Scoring | `POINTS[n] * level`. Level = `1 + floor(lines/10)`. Gravity = `max(50, round(1000·0.8^(level-1)))` ms. |
 | Persistence | None (by spec) |
 
-### harness.mjs, test.mjs, test-snake.mjs
+### gapwing.html
+
+**Purpose**: Original one-button flyer on a 400×600 canvas: flap a circle bird through gaps between scrolling pillars. Art is canvas shapes only, with parallax hills, clouds and ground.
+**Entry point**: open the file in a browser. The bottom of the script calls `reset()` and then starts `requestAnimationFrame(frame)`.
+
+| Item | Detail |
+|---|---|
+| Constants | `W=400`, `H=600`, `GROUND=540`, `FRAME=1000/60`, `GRAVITY=0.5`, `FLAP_VY=-8`, `SPEED=2` (per frame), `BIRD_X=100`, `BIRD_R=12`, `PIPE_W=60`, `SPAWN_EVERY=90` frames, `MARGIN=60`, `GAP0=150`, `GAP_MIN=100`, `RESTART_MS=500` |
+| State | Top-level `let`s: `state` (`ready`/`playing`/`over`), `y`, `vy`, `pipes` (`{x,top,gap,scored}[]`), `score`, `acc`, `spawnT`, `overTime`, `dist` (px scrolled, drives parallax) |
+| Logic | `reset()`, `gapFor(score)`, `spawnPipe()`, `hits(p)` (circle vs pillar column; the top pillar extends upward without limit), `tick()` (one 60 Hz frame), `step(dt)` (frame accumulator; only counts `overTime` while over), `flap()`, `onKey(e)` |
+| Render | `render()` only reads state. `layer()` tiles a scrolled parallax layer. Score, ready hint and game-over text are drawn on the canvas. |
+| Loop | `frame(t)`: `step(min(dt,100))` then `render()` |
+| Input | Space keydown (`preventDefault`, repeat ignored) and `pointerdown` on `document`, both call `flap()`. Ready → playing on the first flap. Over: input is ignored for 500 ms, then resets. |
+| Scoring | +1 when a pillar's right edge passes the bird. Gap = `max(100, 150 - 5·floor(score/5))`, fixed per pillar at spawn. |
+| Persistence | None (by spec) |
+| A11y | Canvas has `role="img"` and an `aria-label`. `#status` is `aria-live="polite"` and changes only with the state. |
+
+### harness.mjs, test.mjs, test-snake.mjs, test-gapwing.mjs
 
 **harness.mjs** exports `load(file, globals = {})`. It:
 - regex-extracts the single bare `<script>`;
@@ -154,7 +179,18 @@ retro-games/
 - frozen game-over input
 - `preventDefault` scope
 
-Run both with `node test.mjs && node test-snake.mjs`. Each uses only Node built-ins plus `node:assert/strict`.
+**test-gapwing.mjs** covers Gapwing:
+- the still ready screen and its hint
+- start and flap via Space and pointerdown, flap not additive, key repeat
+- gravity and 60 Hz frame timing
+- pillar spawn timing and gap range
+- score once per pillar
+- pillar, corner, over-the-top and ground hits
+- the game-over screen, the 500 ms restart gate and reset
+- the gap ramp and its floor
+- `preventDefault` scope
+
+Run all three with `node test.mjs && node test-snake.mjs && node test-gapwing.mjs`. Each uses only Node built-ins plus `node:assert/strict`.
 
 ### _bmad-output/implementation-artifacts
 
@@ -185,7 +221,7 @@ The installer manages all 90 skills for the three tools in `manifest.yaml`: clau
 
 ## Data Flow
 
-### Game frame (same for both games)
+### Game frame (same for every game)
 
 ```mermaid
 sequenceDiagram
@@ -246,7 +282,7 @@ sequenceDiagram
   3. Optionally add `_bmad-output/implementation-artifacts/spec-<name>.md`.
 - **Change Stackfall rules:** the constants are at the top of `stackfall.html`. `step(dt)` handles gravity and locking, and `tryRotate()` handles kicks. Then update `test.mjs`.
 - **Change Snake speed or scoring:** the constants are at the top of the snake script. Eating and speeding up happen in `tick()`. Then update `test-snake.mjs`.
-- **Run the tests:** `node test.mjs && node test-snake.mjs`. Nothing in the repo drives the games in a real browser.
+- **Run the tests:** `node test.mjs && node test-snake.mjs && node test-gapwing.mjs`. Nothing in the repo drives the games in a real browser.
 - **Customize a BMAD agent or workflow:** use `_bmad/custom/<skill>.toml` (team) or `.user.toml` (personal). The `bmad-customize` skill helps with this.
 - **Change BMAD output paths:** set `[core].output_folder` and `[modules.<mod>].*_artifacts` in `_bmad/custom/config.toml`.
 - **Add or remove BMAD modules:** `npx bmad-method@6.12.4 install --directory . --modules bmm,gds,cis,tea,bmb,bmad-loop --tools claude-code,opencode,qwen --set gds.primary_platform=other --action update --yes`. Leaving a module out of `--modules` does not delete its skill directories; remove those by hand.

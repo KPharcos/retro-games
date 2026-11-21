@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gapwing</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #15121f;
+            font-family: Arial, sans-serif;
+            touch-action: manipulation;
+            user-select: none;
+        }
+        canvas {
+            border: 2px solid #333;
+            background-color: #241b3d;
+            max-width: 100%;
+            max-height: 80vh;
+        }
+        #game-container {
+            text-align: center;
+        }
+        #status {
+            color: white;
+            font-size: 16px;
+            min-height: 20px;
+            margin-top: 8px;
+        }
+        #hint {
+            color: #aaa;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="400" height="600" role="img" aria-label="Gapwing game: fly the bird through gaps between pillars"></canvas>
+        <div id="status" aria-live="polite"></div>
+        <div id="hint">Space / click / tap: flap</div>
+    </div>
+
+<script>
+const W = 400, H = 600, GROUND = 540, FRAME = 1000 / 60;
+const GRAVITY = 0.5, FLAP_VY = -8, SPEED = 2;   // per frame
+const BIRD_X = 100, BIRD_R = 12, START_Y = 260;
+const PIPE_W = 60, SPAWN_EVERY = 90, MARGIN = 60;
+const GAP0 = 150, GAP_MIN = 100, RESTART_MS = 500;
+
+let state, y, vy, pipes, score, acc, spawnT, overTime, dist;
+
+function reset() {
+  state = 'ready';
+  y = START_Y; vy = 0;
+  pipes = []; score = 0;
+  acc = 0; spawnT = 0; overTime = 0; dist = 0;
+}
+
+const gapFor = (s) => Math.max(GAP_MIN, GAP0 - 5 * Math.floor(s / 5));
+
+function spawnPipe() {
+  const gap = gapFor(score);
+  const top = MARGIN + Math.random() * (GROUND - MARGIN - gap - MARGIN);
+  pipes.push({ x: W, top, gap, scored: false });
+}
+
+// Circle vs a pillar column; the top pillar extends upward without limit.
+// Caps and beak are cosmetic: the hitbox is only the body circle and pillar shaft, lenient on purpose.
+function hits(p) {
+  const dx = Math.max(p.x, Math.min(BIRD_X, p.x + PIPE_W)) - BIRD_X;
+  const dy = Math.min(Math.max(0, y - p.top), Math.max(0, p.top + p.gap - y)); // distance to the nearer pillar
+  return dx * dx + dy * dy < BIRD_R * BIRD_R;
+}
+
+function die() { state = 'over'; overTime = 0; }
+
+function tick() {
+  vy += GRAVITY;
+  y += vy;
+  for (const p of pipes) p.x -= SPEED;
+  dist += SPEED;
+  pipes = pipes.filter(p => p.x + PIPE_W > 0);
+  if (++spawnT >= SPAWN_EVERY) { spawnT = 0; spawnPipe(); }
+  for (const p of pipes)
+    if (!p.scored && p.x + PIPE_W < BIRD_X) { p.scored = true; score++; }
+  if (y + BIRD_R >= GROUND || pipes.some(hits)) die();
+}
+
+function step(dt) {
+  if (state === 'over') { overTime += dt; return; }
+  if (state !== 'playing') return;
+  acc += dt;
+  while (state === 'playing' && acc >= FRAME) { acc -= FRAME; tick(); }
+}
+
+function flap() {
+  if (state === 'over') { if (overTime >= RESTART_MS) reset(); return; }
+  state = 'playing';
+  vy = FLAP_VY;
+}
+
+function onKey(e) {
+  if (e.code !== 'Space') return;
+  e.preventDefault();
+  if (!e.repeat) flap();
+}
+
+// ---- rendering (reads state only) ----
+const ctx = document.getElementById('gameCanvas').getContext('2d');
+
+function setText(id, v) { const el = document.getElementById(id); if (el.textContent !== v) el.textContent = v; }
+
+// Draws a repeating layer scrolled by `off`, calling draw(x) once per visible tile.
+function layer(off, tile, draw) {
+  for (let x = -(off % tile); x < W; x += tile) draw(x);
+}
+
+function render() {
+  ctx.fillStyle = '#241b3d';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#f4d58d'; // low moon
+  ctx.beginPath(); ctx.arc(310, 120, 34, 0, Math.PI * 2); ctx.fill();
+
+  ctx.fillStyle = '#3a2d5e'; // far hills
+  layer(dist * 0.2, 220, (x) => { ctx.beginPath(); ctx.arc(x + 110, GROUND + 40, 150, Math.PI, 0); ctx.fill(); });
+  ctx.fillStyle = 'rgba(200,190,230,0.35)'; // near clouds
+  layer(dist * 0.5, 260, (x) => {
+    ctx.beginPath();
+    ctx.arc(x + 60, 200, 22, 0, Math.PI * 2); ctx.arc(x + 85, 190, 28, 0, Math.PI * 2); ctx.arc(x + 112, 202, 20, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.fillStyle = '#4e3a78'; // near hills
+  layer(dist * 0.5, 160, (x) => { ctx.beginPath(); ctx.arc(x + 80, GROUND + 20, 70, Math.PI, 0); ctx.fill(); });
+
+  for (const p of pipes) {
+    ctx.fillStyle = '#e07a5f';
+    ctx.fillRect(p.x, 0, PIPE_W, p.top);
+    ctx.fillRect(p.x, p.top + p.gap, PIPE_W, GROUND - p.top - p.gap);
+    ctx.fillStyle = '#a8503a'; // bands at the gap edges
+    ctx.fillRect(p.x - 4, p.top - 14, PIPE_W + 8, 14);
+    ctx.fillRect(p.x - 4, p.top + p.gap, PIPE_W + 8, 14);
+  }
+
+  ctx.fillStyle = '#2b2140'; // ground
+  ctx.fillRect(0, GROUND, W, H - GROUND);
+  ctx.fillStyle = '#3d2f5a';
+  layer(dist, 40, (x) => ctx.fillRect(x, GROUND, 20, 8));
+
+  ctx.fillStyle = '#7fe0d0'; // bird
+  ctx.beginPath(); ctx.arc(BIRD_X, y, BIRD_R, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#4bb3a3';
+  ctx.beginPath(); ctx.moveTo(BIRD_X - 10, y); ctx.lineTo(BIRD_X + 2, y + (vy < 0 ? -10 : 8)); ctx.lineTo(BIRD_X + 2, y); ctx.fill();
+  ctx.fillStyle = '#15121f';
+  ctx.beginPath(); ctx.arc(BIRD_X + 5, y - 4, 2.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#f2a65a';
+  ctx.beginPath(); ctx.moveTo(BIRD_X + 11, y - 3); ctx.lineTo(BIRD_X + 19, y); ctx.lineTo(BIRD_X + 11, y + 3); ctx.fill();
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fff';
+  if (state === 'playing') {
+    ctx.font = 'bold 40px Arial';
+    ctx.fillText(String(score), W / 2, 70);
+  } else if (state === 'ready') {
+    ctx.font = 'bold 40px Arial';
+    ctx.fillText('Gapwing', W / 2, 160);
+    ctx.font = '20px Arial';
+    ctx.fillText('tap or Space to flap', W / 2, 340);
+  } else {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 36px Arial';
+    ctx.fillText('Game Over', W / 2, 250);
+    ctx.font = '22px Arial';
+    ctx.fillText('Score: ' + score, W / 2, 290);
+    if (overTime >= RESTART_MS) ctx.fillText('tap or Space to restart', W / 2, 330);
+  }
+
+  setText('status', state === 'ready' ? 'Ready. Tap or press Space to flap.'
+    : state === 'playing' ? 'Flying.'
+    : 'Game Over. Score: ' + score + '. Tap or press Space to restart.');
+}
+
+let last = null;
+function frame(t) {
+  if (last !== null) step(Math.min(t - last, 100)); // cap so a backgrounded tab doesn't run a burst of frames
+  last = t;
+  render();
+  requestAnimationFrame(frame);
+}
+
+document.addEventListener('keydown', onKey);
+document.addEventListener('pointerdown', (e) => { if (e.button === 0) flap(); }); // primary button; touch and pen report 0 too
+reset();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

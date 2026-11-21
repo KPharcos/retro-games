@@ -6,12 +6,13 @@ Small retro browser games. Each game is one self-contained HTML file with no bui
 |---|---|---|
 | Snake | `snake.html` | Classic grid snake with a high score, pause and wrap-around mode |
 | Stackfall | `stackfall.html` | An original falling-block puzzle with a 7-bag randomizer, hold, ghost piece and lock delay |
+| Gapwing | `gapwing.html` | An original one-button flyer: flap a bird through gaps between scrolling pillars |
 
 ## Play
 
-Play online: [Snake](https://kpharcos.github.io/retro-games/snake.html) · [Stackfall](https://kpharcos.github.io/retro-games/stackfall.html)
+Play online: [Snake](https://kpharcos.github.io/retro-games/snake.html) · [Stackfall](https://kpharcos.github.io/retro-games/stackfall.html) · [Gapwing](https://kpharcos.github.io/retro-games/gapwing.html)
 
-You can also clone the repo and open either HTML file in a browser.
+You can also clone the repo and open any of the HTML files in a browser.
 
 ### Snake controls
 
@@ -37,12 +38,20 @@ Each food is worth 10 points, and the snake speeds up every 50 points. Your high
 
 Line clears score 100 / 300 / 500 / 800 × level. The level goes up every 10 lines.
 
+### Gapwing controls
+
+| Input | Action |
+|---|---|
+| Space / click / tap | Flap; starts a run; from 0.5 s after game over, returns to the ready screen |
+
+Each pillar you pass is worth 1 point. The gap starts at 150 px and shrinks by 5 px every 5 points, down to 100 px.
+
 ## Tests
 
 The tests need Node 18+ and nothing else:
 
 ```sh
-node test.mjs && node test-snake.mjs
+node test.mjs && node test-snake.mjs && node test-gapwing.mjs
 ```
 
 `harness.mjs` loads a game's inline `<script>` into `node:vm` with a stub DOM, so the tests can drive game state and key presses directly.
