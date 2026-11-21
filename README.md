@@ -44,7 +44,7 @@ Line clears score 100 / 300 / 500 / 800 × level. The level goes up every 10 lin
 |---|---|
 | Space / click / tap | Flap; starts a run; from 0.5 s after game over, returns to the ready screen |
 
-Each pillar you pass is worth 1 point. The gap starts at 150 px and shrinks by 5 px every 5 points, down to 100 px.
+Each pillar scores 1 point when its right edge passes the bird's centre. The gap starts at 150 px and shrinks by 5 px every 5 points, down to 100 px. There is no ceiling: the bird can fly above the top of the screen, but a pillar still ends the run if the bird is over it.
 
 ## Tests
 

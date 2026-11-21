@@ -1,9 +1,13 @@
 // Self-check for gapwing.html: runs its <script> in node:vm with a stub DOM and asserts the core rules.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { load } from './harness.mjs';
 
 const { run, key, listeners, texts } = load('./gapwing.html');
-const hover = (n) => run(`for (let i = 0; i < ${n}; i++) { y = 300; vy = 0; tick(); }`); // frames without dying
+const hover = (n) => run(`for (let i = 0; i < ${n}; i++) { y = 300; vy = 0; tick(); }`); // holds the bird at y = 300 for n ticks; does not stop when the bird dies
+
+// Canvas is 400x600
+assert.match(readFileSync(new URL('./gapwing.html', import.meta.url), 'utf8'), /<canvas[^>]*\bwidth="400"[^>]*\bheight="600"/);
 
 // Ready: nothing moves; hint drawn
 run('reset()');
@@ -113,8 +117,13 @@ run('reset(); state = "playing"; pipes = [{ x: 80, top: 200, gap: 150, scored: f
 assert.equal(run('state'), 'over');
 run('reset(); state = "playing"; y = -50; vy = -0.5; tick()');
 assert.equal(run('state'), 'playing', 'flying above the screen with no pillar is fine');
+// A pillar already behind the bird no longer hits it, above or below the gap
+run('reset(); state = "playing"; pipes = [{ x: -10, top: 200, gap: 150, scored: true }]; y = 100; vy = -0.5; tick()');
+assert.equal(run('state'), 'playing');
+run('reset(); state = "playing"; pipes = [{ x: -10, top: 200, gap: 150, scored: true }]; y = 400; vy = -0.5; tick()');
+assert.equal(run('state'), 'playing');
 
-// Death mid-step stops the frame loop: step(100) runs exactly one tick here
+// Death mid-step: the pillar column and the ground both cover the bird on this tick; the check is only that the loop stops after the first tick
 run('reset(); state = "playing"; y = GROUND - BIRD_R - 1; vy = 0.6; pipes = [{ x: 42, top: 200, gap: 150, scored: false }]; step(100)');
 assert.deepEqual([run('state'), run('score'), run('pipes[0].x')], ['over', 0, 40]);
 assert.ok(Math.abs(run('y') - 528.1) < 1e-9, 'more than one tick ran');
@@ -155,13 +164,25 @@ assert.equal(run('state'), 'ready');
 // frame() caps dt at 100 ms: a 5 s gap runs ~6 frames, not 300
 run('reset(); state = "playing"; y = 300; vy = 0; last = null; frame(0); frame(5000)');
 assert.equal(run('state'), 'playing');
-assert.equal(run('vy'), 2.5, 'dt cap: expected exactly 5 ticks'); // 100 ms / 16.67 = 6 in exact maths; float leftover gives 5
+// 100 ms is 6 frames in exact maths; float rounding may give 5; a cap above about 116 ms gives 7 or more
+assert.ok(run('vy') >= 2.5 && run('vy') <= 3, 'dt cap: expected 5 or 6 ticks');
 
-// Playing: score drawn on the canvas
-run('reset(); state = "playing"; score = 3');
+// rAF wiring: the script bootstraps the loop once, and each frame() re-queues itself
+const calls = [];
+const f = load('./gapwing.html', { requestAnimationFrame: (cb) => calls.push(cb) });
+assert.equal(calls.length, 1);
+f.run('state = "playing"; frame(0)'); // score is drawn only while playing
+assert.equal(calls.length, 2);
+assert.ok(f.texts.includes('0'));
+
+// Playing: score drawn on the canvas; render() leaves state alone
+run('reset(); state = "playing"; score = 3; dist = 123; pipes = [{ x: 150, top: 200, gap: 150, scored: false }]');
+const snap = () => run('JSON.stringify([state, y, vy, dist, score, pipes])');
+const before = snap();
 texts.length = 0;
 run('render()');
 assert.ok(texts.includes('3'));
+assert.equal(snap(), before, 'render() changed state');
 
 // Ramp: gap shrinks 5 px per 5 points, floor 100; each pillar keeps its spawn gap
 for (const [s, gap] of [[0, 150], [4, 150], [9, 145], [10, 140]]) {
@@ -176,15 +197,21 @@ assert.equal(run('pipes[2].gap'), 100);
 run('reset(); state = "playing"; score = 10');
 hover(90);
 assert.equal(run('pipes[0].gap'), 140);
+// A pillar keeps its spawn gap when the score changes later
+run('reset(); state = "playing"; score = 0; spawnPipe(); score = 10');
+hover(5);
+assert.equal(run('pipes[0].gap'), 150);
 
 // Space prevents page scroll; other keys untouched
 let prevented = 0;
 listeners.keydown({ code: 'Space', repeat: false, preventDefault: () => prevented++ });
 listeners.keydown({ code: 'Space', repeat: true, preventDefault: () => prevented++ });
 assert.equal(prevented, 2);
+run('reset()');
 for (const code of ['ArrowUp', 'ArrowDown', 'KeyW', 'F5', 'Tab'])
   listeners.keydown({ code, repeat: false, preventDefault: () => prevented++ });
 assert.equal(prevented, 2, 'non-game key prevented');
+assert.deepEqual([run('state'), run('vy')], ['ready', 0], 'non-Space key flapped');
 
 // #status (aria-live) follows the state; this stub keeps one element per id so the text sticks
 const els = {}, docListeners = {}, writes = {};

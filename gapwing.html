@@ -9,7 +9,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
             background-color: #15121f;
             font-family: Arial, sans-serif;
@@ -188,7 +188,7 @@ function render() {
 
 let last = null;
 function frame(t) {
-  if (last !== null) step(Math.min(t - last, 100)); // cap so a backgrounded tab doesn't run a burst of frames
+  if (last !== null) step(Math.min(t - last, 100)); // cap: a backgrounded tab resumes with at most about 6 frames, not hundreds
   last = t;
   render();
   requestAnimationFrame(frame);

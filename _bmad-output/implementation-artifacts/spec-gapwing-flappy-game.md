@@ -6,6 +6,7 @@ status: 'done'
 baseline_revision: 'cc1e333ac446c0fb9c50b61560eb2e122a164c9c'
 review_loop_iteration: 0
 followup_review_recommended: false
+followup_pass: true
 context: ['{project-root}/CLAUDE.md']
 warnings: []
 deferred:
@@ -29,6 +30,13 @@ deferred:
       Follow-up review pass. The map is cartographer output linked from CLAUDE.md, so fixing it edits an agent-context doc; a cartographer re-map refreshes it.
     location: >-
       docs/CODEBASE_MAP.md
+    severity: low
+  - summary: >-
+      CLAUDE.md shape section lists onKey but not pointer input, which Gapwing adds on document pointerdown.
+    evidence: |-
+      Follow-up 2 review pass. The fix edits CLAUDE.md, an agent-context file, so it is deferred; a future game author following the shape doc would miss pointer input.
+    location: >-
+      CLAUDE.md
     severity: low
 ---
 
@@ -157,29 +165,76 @@ deferred:
   - `[low]` `[reject]` Tests run on the logic layer in `node:vm`; no refresh-rate sequences, pixel or CSS checks (intent-alignment) — carried: same claim as the first pass; the repo has no browser test setup and the step-boundary and dt-cap tests cover the accumulator.
   - `[false]` `[reject]` Additions beyond the intent: `#status`, moon, wing, docs (intent-alignment) — none touches the intent's Never list and no harm is named.
 
+### 2026-11-21 — Review pass (follow-up 2)
+- verdicts: 44 findings — high 0, medium 0, low 39, false 5, maybe-false 0
+- findings:
+  - `[low]` `[defer]` carried — CODEBASE_MAP:70 keeps "no commits yet" (blind-hunter). Already in `deferred`.
+  - `[false]` `[reject]` Spec excluded from the diff, so spec and log changes go unreviewed (blind-hunter) — the spec is the edge layer's claims file by design, and the diff excludes it on purpose.
+  - `[low]` `[defer]` carried — CODEBASE_MAP spec tree line has no status note (blind-hunter). Already in `deferred`.
+  - `[low]` `[defer]` carried — CODEBASE_MAP "Common tasks" has no Gapwing bullet (blind-hunter). Same map-section drift already in `deferred`.
+  - `[low]` `[defer]` carried — CODEBASE_MAP Gapwing section omits START_Y, die() and the dt-cap and status tests (blind-hunter). Already in `deferred`.
+  - `[low]` `[defer]` carried — CODEBASE_MAP frame diagram "same for every game" does not cover Gapwing (blind-hunter). Already in `deferred`.
+  - `[false]` `[reject]` CLAUDE.md says render() is read-only, but Gapwing's render() calls setText (blind-hunter) — refutation: read-only means game state is not changed. render() only writes DOM through setText, the same as snake.html's render(), which writes score, high score, wrap and status.
+  - `[low]` `[defer]` CLAUDE.md shape section omits pointer input (blind-hunter) — the fix edits CLAUDE.md, an agent-context file, so deferred. New item in `deferred`.
+  - `[false]` `[reject]` "original" in README and the map reads as false for a flappy-style game (blind-hunter) — refutation: "original" describes the name, art and palette, which are not copied; the repo rules allow mechanics similar to a genre.
+  - `[low]` `[patch]` README says "each pillar you pass" without defining pass (blind-hunter) — patched: README says a pillar scores when its right edge passes the bird's centre.
+  - `[low]` `[reject]` carried — status line gives the restart prompt the instant the bird dies, before the 500 ms gate (blind-hunter). Same claim and verdict as the first follow-up pass.
+  - `[low]` `[patch]` No ceiling: the bird can leave the screen, and this is undocumented (blind-hunter) — grouped with the no-top-clamp (edge) and off-canvas (intent) rows: one open-ceiling root cause. Patched: README states there is no ceiling. The clamp fix is rejected under the edge row.
+  - `[low]` `[reject]` carried — no pause or visibilitychange handling (blind-hunter). Same claim and verdict as the earlier rows.
+  - `[low]` `[patch]` frame() comment "doesn't run a burst of frames" overstates (blind-hunter) — patched: comment says at most about 6 frames.
+  - `[low]` `[patch]` dt-cap assert is exact and depends on float rounding (blind-hunter) — grouped with the verification and intent float rows. Patched: assert accepts 5 or 6 ticks (vy 2.5 to 3); a cap of 117 ms or more still fails.
+  - `[low]` `[patch]` Non-Space keys are not checked for flapping (blind-hunter) — patched: ArrowUp, ArrowDown, KeyW, F5 and Tab leave the game in ready with vy 0.
+  - `[low]` `[patch]` Gap ramp is tested only at spawn; a per-tick recompute passes (blind-hunter) — patched: a pillar spawned at score 0 keeps gap 150 after score rises and 5 ticks run.
+  - `[low]` `[patch]` Death mid-step comment assigns the cause to the pillar column alone (blind-hunter) — patched: comment says the pillar column and the ground both cover the bird on this tick, and the check is only that the loop stops.
+  - `[low]` `[reject]` carried — scoring runs before the death check, so a trailing-edge crash still scores (edge). Same claim as the score-on-death rows.
+  - `[low]` `[patch]` No top clamp: the bird leaves the canvas, and a pillar can kill it unseen (edge) — same open-ceiling root cause as the blind row. Patched: README note. The suggested clamp (y = BIRD_R) is rejected because it changes spec-settled behaviour, and the fix would edit this build's spec.
+  - `[low]` `[reject]` 100 ms step runs 5 ticks, not 6, because of float rounding (edge) — one tick of slop on exact 100 ms steps. The fix adds a tolerance branch to game code; the test is loosened instead (grouped row).
+  - `[low]` `[reject]` carried — Ctrl, Alt, Meta or Shift with Space still flaps (edge). Same claim as the earlier modifier-key row.
+  - `[low]` `[reject]` carried — tab hidden then resumed can kill the bird (edge). Same claim as the pause row.
+  - `[low]` `[patch]` body `height: 100vh` clips the score line on short viewports (edge) — real: the canvas (max 80vh) plus about 117 px of text overflows the flex centre below about 585 px, not 300 px as reported. Patched: `min-height: 100vh` in gapwing.html only; snake.html has the same rule and is not changed.
+  - `[low]` `[defer]` carried — CODEBASE_MAP:17 "no commits yet" (edge). Already in `deferred`.
+  - `[low]` `[reject]` carried — below about 10 Hz, game time runs slow because of the dt cap (edge). Same claim as the earlier row; the cap is required by the spec.
+  - `[low]` `[patch]` frame() loop wiring is not asserted: re-queue, bootstrap and the render call (verification) — patched: recording rAF through load globals; asserts 1 call after load, 2 after frame(0), and the score drawn.
+  - `[low]` `[patch]` A pillar already behind the bird is not asserted, so a max(p.x, BIRD_X) mutant passes (verification) — patched: pillar at x=-10 stays playing with the bird at y=100 and at y=400.
+  - `[low]` `[reject]` Drawn pillar geometry is not asserted (verification) — hypothetical regression; the fix needs a recording canvas harness, more than a direct correction. Draw calls match the hitbox on reading.
+  - `[low]` `[patch]` render() leaving game state alone is not asserted (verification) — patched: state snapshot before and after render().
+  - `[low]` `[reject]` carried — score awarded before the death check (verification). Same as the row above.
+  - `[low]` `[defer]` carried — CODEBASE_MAP:17 "no commits yet" (verification). Already in `deferred`.
+  - `[low]` `[patch]` hover() comment "frames without dying" is wrong (verification) — patched: comment says it holds y at 300 and does not stop on death.
+  - `[low]` `[patch]` exact 5-tick dt-cap assert pins float rounding (verification) — grouped with the blind dt-cap row; patched there.
+  - `[low]` `[patch]` Off-canvas: a pillar can kill the bird while it is above the canvas, and the open-top reading is where no player looks (intent) — grouped with the no-ceiling and no-top-clamp rows: one root cause. Patched: README note. Whether to clamp instead is left to the user.
+  - `[low]` `[patch]` carried — caps and beak are not lethal while drawn outside the hitbox (intent). Fix already applied in the first pass (comment at hits()); no new change.
+  - `[false]` `[reject]` Restart returns to ready, not straight into play (intent) — documented in README and spec; the intent does not specify; no defect shown.
+  - `[low]` `[patch]` 100 ms frame cap gives 5 ticks (intent) — grouped with the blind and verification dt-cap rows; patched there.
+  - `[low]` `[reject]` carried — frame cap stretches the 500 ms gate at low frame rates (intent). Same as the below-10-Hz row.
+  - `[low]` `[patch]` Canvas 400x600 attributes are not asserted (intent) — patched: regex assert on the canvas tag.
+  - `[low]` `[reject]` carried — tests run on the logic layer; no real pointer, touch, click or rAF (intent). Same claim as the earlier rows.
+  - `[false]` `[reject]` 60 px margins and the ramp schedule are the diff's own choices (intent) — the spec documents both and the intent gives neither; no defect shown.
+  - `[low]` `[reject]` Parallax layer speeds are not asserted (intent) — needs draw-call capture through the harness; more than a direct correction.
+  - `[low]` `[reject]` carried — score awarded about 12 px before the body clears the pillar (intent). Same root as the score rows.
+
 ## Auto Run Result
 
-- **Summary:** Added Gapwing, an original one-button flyer with fixed 60 Hz physics, 1.5 s pillar spawns, a ready/playing/over flow with a 500 ms restart gate, parallax layers and a gap ramp, plus its harness test and doc updates. A follow-up review pass changed only the tests.
-- **Files changed:**
-  - `gapwing.html` -- the game (unchanged in the follow-up pass).
-  - `test-gapwing.mjs` -- covers every I/O matrix row, the first-pass review gaps and the follow-up gaps.
-  - `README.md` -- games table, controls, test command, Play link.
-  - `CLAUDE.md` -- games list and test command.
-  - `docs/CODEBASE_MAP.md` -- overview, tree and test lines.
-- **Review findings, first pass:** 17 findings, 4 medium and 13 low. 12 patched in 9 fixes (3 medium entries, 6 low), 3 deferred (CODEBASE_MAP, low), 2 rejected (score timing, browser-level tests).
-- **Review findings, follow-up pass:** 29 findings, 0 high, 0 medium, 24 low, 5 false.
-  - Patched: 9 low, in 9 test additions: gap ramp steps, death mid-step, `dist` scroll, status write count, spawn bounds with stubbed random, pillar cull, `reset()` fields, ramp through real play, exact dt-cap frame count.
-  - Deferred: 5 low, all `docs/CODEBASE_MAP.md`. 4 are carried from the first pass; 1 is new (gapwing.html section drift).
-  - Rejected, low: 10 (hidden-tab burst, reported twice; score on the death frame, reported twice and carried; gap reachability; render interpolation and DPR; early status prompt; Ctrl/Alt/Meta+Space; slow-motion below 10 fps; logic-layer-only tests, carried). Reasons are in the triage log.
-  - False: 5 (alternate keys, negative rAF delta, `getContext` null, pointer button filter, additions beyond intent).
-- **Follow-up review recommended:** false. The follow-up pass patched no `high` entry, so the work has converged.
-- **Verification:** `node test.mjs && node test-snake.mjs && node test-gapwing.mjs` all pass after the patches. I re-ran 5 mutants of `gapwing.html` against the new tests (no `dist` scroll, smooth gap shrink, 117 ms dt cap, no `playing` check in the step loop, no cull); all 5 fail the suite, and the game file is unchanged.
+- **Summary:** Gapwing is built and reviewed. The second follow-up pass changed only tests, one CSS line in `gapwing.html`, one comment, and README wording. Game rules did not change.
+- **Files changed in this pass:**
+  - `gapwing.html` -- body `min-height: 100vh`; frame() cap comment reworded.
+  - `test-gapwing.mjs` -- canvas size assert, cleared-pillar hitbox, render() state snapshot, rAF wiring, per-pillar gap, non-Space keys, dt-cap range, comments.
+  - `README.md` -- pass definition and the open-ceiling note.
+  - `_bmad-output/implementation-artifacts/spec-gapwing-flappy-game.md` -- this record.
+- **Review findings, follow-up 2:** 44 findings, 0 high, 0 medium, 39 low, 5 false.
+  - Patched: 18 rows covering 13 fixes.
+  - Deferred: 8 rows. One is new (CLAUDE.md shape section omits pointer input); the rest are carried CODEBASE_MAP items already in `deferred`.
+  - Rejected: 18 rows (13 low, 5 false). Reasons are in the triage log.
+- **Follow-up review recommended:** false. No high was patched, so the work has converged.
+- **Verification:** `node test.mjs && node test-snake.mjs && node test-gapwing.mjs` all pass after the patches. I re-ran three new asserts against mutants (cleared-pillar hitbox, 117 ms frame cap, missing rAF re-queue); each mutant fails the suite. The implementer reported eight more mutant checks on the other new asserts.
+- **Open design question for the user:** the bird can fly above the top of the screen, and a pillar there can kill it while it is off-canvas. The spec keeps the top open and the README now says so. Decide whether to clamp the bird at the top instead; that changes spec-settled behaviour.
 - **Residual risks:**
-  - Feel and difficulty have not been played by hand, and the `button === 0` filter and dt cap have not run on real mouse or touch hardware.
-  - The exact dt-cap assertion (`vy === 2.5`) depends on float rounding of `100 / (1000/60)`; changing `FRAME` breaks it even if the game still works.
-  - Returning to a hidden tab resumes the run live after one capped burst (at most 6 frames); there is no pause.
+  - `snake.html` has the same `height: 100vh` body rule and clips on short viewports. Not changed here.
+  - The `min-height` change is not checked in a browser at short heights.
+  - Feel and difficulty have not been played by hand. Real mouse, touch and frame cadence have not run in a browser.
+  - The dt-cap assert accepts 5 or 6 ticks, so caps from 101 to 116 ms are not distinguished.
+  - `_bmad/config.toml` was edited to drop duplicate `[modules.gds]` path keys. A BMAD reinstall puts them back.
   - The README Play link stays dead until this merges and GitHub Pages rebuilds.
-  - `_bmad/config.toml` was edited to remove the `[modules.gds]` path keys that duplicate `[modules.bmm]`. A BMAD reinstall will put them back.
 
 ## Design Notes
 
