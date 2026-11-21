@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #10151a;
+            font-family: Arial, sans-serif;
+            user-select: none;
+        }
+        canvas {
+            border: 2px solid #333;
+            background-color: #1b2630;
+            max-width: 100%;
+            max-height: 80vh;
+        }
+        #game-container {
+            text-align: center;
+        }
+        #status {
+            color: white;
+            font-size: 16px;
+            min-height: 20px;
+            margin-top: 8px;
+        }
+        #hint {
+            color: #aaa;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="400" height="400" role="img" aria-label="Snake game: steer the snake to eat food without hitting walls or itself"></canvas>
+        <div id="status" aria-live="polite"></div>
+        <div id="hint">Arrows / WASD: steer · P: pause · T: wrap walls · Space: restart</div>
+    </div>
+
+<script>
+const N = 20, CELL = 20, W = N * CELL;
+const START_SPEED = 8, SPEED_UP = 0.5, HS_KEY = 'snakeHighScore';
+const DIRS = {
+  ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1],
+  ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0],
+};
+
+let snake, dir, nextDir, food, score, speed, acc, over, won, paused;
+let wrap = false; // survives restart
+let high = 0;
+try { high = Number(localStorage.getItem(HS_KEY)) || 0; } catch {} // blocked or missing storage: high stays 0
+
+function reset() {
+  snake = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }];
+  dir = nextDir = DIRS.ArrowRight;
+  score = 0; speed = START_SPEED; acc = 0;
+  over = won = paused = false;
+  placeFood();
+}
+
+const onSnake = (x, y, cells = snake) => cells.some(c => c.x === x && c.y === y);
+
+function placeFood() {
+  const empty = [];
+  for (let y = 0; y < N; y++)
+    for (let x = 0; x < N; x++)
+      if (!onSnake(x, y)) empty.push({ x, y });
+  if (!empty.length) { food = null; return end(true); }
+  food = empty[Math.floor(Math.random() * empty.length)];
+}
+
+function end(win) {
+  over = true; won = win;
+  if (score > high) {
+    high = score;
+    try { localStorage.setItem(HS_KEY, String(high)); } catch {}
+  }
+}
+
+function tick() {
+  dir = nextDir;
+  let x = snake[0].x + dir[0], y = snake[0].y + dir[1];
+  if (wrap) { x = (x + N) % N; y = (y + N) % N; }
+  const eats = food && x === food.x && y === food.y;
+  // tail cell is free: it moves away this tick, and an eating head is never on the snake (food only spawns on empty cells)
+  if (x < 0 || y < 0 || x >= N || y >= N || onSnake(x, y, snake.slice(0, -1))) return end(false);
+  snake.unshift({ x, y });
+  if (!eats) { snake.pop(); return; }
+  score += 10;
+  if (score % 50 === 0) speed += SPEED_UP;
+  placeFood();
+}
+
+function step(dt) {
+  if (over || paused) return;
+  acc += dt;
+  while (!over && acc >= 1000 / speed) { acc -= 1000 / speed; tick(); }
+}
+
+function onKey(e) {
+  if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
+  if (over) { if (e.code === 'Space') reset(); return; }
+  if (e.code === 'KeyP' && !e.repeat) paused = !paused;
+  else if (e.code === 'KeyT' && !e.repeat) wrap = !wrap;
+  const d = DIRS[e.code];
+  // checked against the last completed move, so two keys in one tick can't reverse
+  if (d && (d[0] !== -dir[0] || d[1] !== -dir[1])) nextDir = d;
+}
+
+// ---- rendering (reads state only) ----
+const ctx = document.getElementById('gameCanvas').getContext('2d');
+
+function setText(id, v) { const el = document.getElementById(id); if (el.textContent !== v) el.textContent = v; }
+
+const cell = (c, inset) => ctx.fillRect(c.x * CELL + inset, c.y * CELL + inset, CELL - 2 * inset, CELL - 2 * inset);
+
+function render() {
+  ctx.fillStyle = '#1b2630';
+  ctx.fillRect(0, 0, W, W);
+  ctx.fillStyle = '#222f3b'; // checker
+  for (let y = 0; y < N; y++)
+    for (let x = (y % 2); x < N; x += 2) cell({ x, y }, 0);
+
+  if (food) { ctx.fillStyle = '#e8574e'; cell(food, 3); }
+  ctx.fillStyle = '#5fd17a';
+  snake.forEach((c, i) => { if (i) cell(c, 1); });
+  ctx.fillStyle = '#b6f5a8';
+  cell(snake[0], 1);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  ctx.font = '14px Arial';
+  ctx.textAlign = 'left';
+  ctx.fillText('Score: ' + score, 6, 16);
+  ctx.textAlign = 'right';
+  ctx.fillText('High: ' + high, W - 6, 16);
+  if (wrap) { ctx.textAlign = 'center'; ctx.fillText('Wrap', W / 2, 16); }
+
+  if (over || paused) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, W, W);
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 36px Arial';
+    if (paused) ctx.fillText('Paused', W / 2, W / 2);
+    else {
+      ctx.fillText(won ? 'You win!' : 'Game over', W / 2, 160);
+      ctx.font = '22px Arial';
+      ctx.fillText('Score: ' + score, W / 2, 200);
+      ctx.fillText('Press Space to restart', W / 2, 240);
+    }
+  }
+
+  setText('status', over ? (won ? 'You win!' : 'Game over.') + ' Score: ' + score + '. Press Space to restart.'
+    : paused ? 'Paused. Press P to resume.'
+    : 'Playing. Wrap ' + (wrap ? 'on' : 'off') + '.');
+}
+
+let last = null;
+function frame(t) {
+  if (last !== null) step(Math.min(t - last, 100)); // cap: a resumed tab catches up at most 100 ms of ticks, not the whole gap
+  last = t;
+  render();
+  requestAnimationFrame(frame);
+}
+
+document.addEventListener('keydown', onKey);
+reset();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

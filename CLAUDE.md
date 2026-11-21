@@ -2,11 +2,11 @@
 
 ## Codebase Overview
 
-Standalone retro browser games, one self-contained HTML file each. Currently one: `gapwing.html` (an original one-button flyer). `harness.mjs` runs a game's inline script in `node:vm` with a stub DOM, and `test-gapwing.mjs` asserts the rules. Specs from BMAD workflows live in `_bmad-output/implementation-artifacts/`.
+Standalone retro browser games, one self-contained HTML file each. Currently two: `gapwing.html` (an original one-button flyer) and `snake.html` (classic grid snake). `harness.mjs` runs a game's inline script in `node:vm` with a stub DOM, and `test-gapwing.mjs` / `test-snake.mjs` assert the rules. Specs from BMAD workflows live in `_bmad-output/implementation-artifacts/`.
 
 **Stack**:
 - Game code: vanilla JS, Canvas 2D, inline CSS.
-- No build and no dependencies. Node is used only for tests: `node test-gapwing.mjs`.
+- No build and no dependencies. Node is used only for tests: `node test-gapwing.mjs && node test-snake.mjs`.
 - Agent tooling: BMAD v6.12.4 with the core, bmm, gds, cis, tea, bmb and bmad-loop modules.
 
 **Structure**:
