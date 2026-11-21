@@ -11,7 +11,7 @@ context: ['{project-root}/CLAUDE.md']
 warnings: ['oversized']
 deferred:
   - summary: >-
-      docs/CODEBASE_MAP.md drift after Snake: frontmatter total_tokens and last_mapped not refreshed, no Snake entry in the navigation guide, the Snake spec tree line has no status note, and the tail-rule wording still says "unless eating".
+      docs/CODEBASE_MAP.md drift after Snake: frontmatter total_tokens and last_mapped not refreshed, no Snake entry in the navigation guide, the Snake spec tree line has no status note, and the tail-rule wording still says "unless eating", and Snake's layout note does not say it has no touch input (Gapwing's lists touch-action).
     evidence: |-
       Review pass 1 (blind-hunter, edge-case-hunter, intent-alignment). The map is cartographer output linked from CLAUDE.md, so the fix edits an agent-context doc; a cartographer re-map refreshes it.
     location: >-
@@ -23,6 +23,13 @@ deferred:
       Follow-up review pass (blind-hunter, intent-alignment). The map is cartographer output linked from CLAUDE.md, so the fix edits an agent-context doc; a cartographer re-map refreshes it.
     location: >-
       docs/CODEBASE_MAP.md
+    severity: low
+  - summary: >-
+      test-gapwing.mjs looks up the canvas through the shared harness stub, which returns an element for any id, so a rename of the canvas id in gapwing.html would not fail the suite.
+    evidence: |-
+      Follow-up 2 verification review on snake.html; the same stub pattern is used in test-gapwing.mjs. Out of this change's scope, so deferred; the fix edits a test file not in this change.
+    location: >-
+      test-gapwing.mjs
     severity: low
 ---
 
@@ -179,27 +186,98 @@ deferred:
   - `[low]` `[defer]` Docs claim test-snake.mjs covers every spec matrix row, while the eat-plus-tail state is unreachable (intent) — fix edits CODEBASE_MAP; added to the new `deferred` entry.
   - `[false]` `[reject]` Scope: docs edited beyond the two named files, spec edit not in the diff, `Score: N` drawn twice (intent) — docs and spec are repo conventions, the diff excludes the spec on purpose, and the test counts the two draws deliberately; no defect.
 
+### 2026-11-21 — Review pass (follow-up 2)
+- verdicts: 64 findings — high 0, medium 0, low 56, false 8, maybe-false 0
+- findings:
+  - `[false]` `[reject]` Scope: diff base is 1582f4c, not main, and against main the branch also deletes Stackfall files (blind-hunter) — the review baseline is the spec's baseline_revision by design; the Stackfall deletion is an earlier commit.
+  - `[false]` `[reject]` carried — spec not in the diff (blind-hunter). Same as the pass-1 spec-exclusion row.
+  - `[low]` `[defer]` carried — CODEBASE_MAP says test-snake covers every spec matrix row, which is overstated (blind-hunter). Already in `deferred`.
+  - `[low]` `[patch]` README has no tail rule (blind-hunter) — patched: README says stepping into the cell the tail is leaving is allowed.
+  - `[low]` `[reject]` carried — no ready state; the snake moves from load (blind-hunter). Same as the pass-2 row.
+  - `[low]` `[reject]` carried — no speed cap (blind-hunter). Same as the pass-1 row.
+  - `[low]` `[patch]` README: "wrap-around walls" reads as on by default (blind-hunter) — patched: "optional wrap-around walls (T)".
+  - `[low]` `[reject]` Live Pages link may serve the old game or 404 until merge (blind-hunter) — post-merge check; recorded as a residual risk.
+  - `[low]` `[reject]` carried — test command copied into three docs (blind-hunter). Same as the pass-2 row.
+  - `[low]` `[defer]` carried — CODEBASE_MAP total_files says 11 but git tracks 12 (blind-hunter). Already in `deferred`.
+  - `[low]` `[defer]` carried — CODEBASE_MAP last_mapped and total_tokens stale; header still says auto-generated (blind-hunter). Already in `deferred`.
+  - `[low]` `[defer]` carried — CODEBASE_MAP tail wording "unless eating" (blind-hunter). Already in `deferred`.
+  - `[low]` `[defer]` carried — CODEBASE_MAP Common changes has no Snake recipe (blind-hunter). Already in `deferred`.
+  - `[low]` `[defer]` CODEBASE_MAP touch parity: Gapwing's layout row lists touch-action, Snake's does not say no touch (blind-hunter) — new; folded into the map drift item.
+  - `[low]` `[reject]` carried — held Space restarts before game over shows (blind-hunter). Same as the pass-2 edge row.
+  - `[low]` `[reject]` carried — T mid-run toggles wrap and can escape a wall (blind-hunter). Same as the pass-2 row.
+  - `[low]` `[reject]` carried — live High not saved until run end (blind-hunter). Same as the pass-2 row.
+  - `[low]` `[reject]` carried — stored high not validated (blind-hunter). Same as the pass-1 row.
+  - `[low]` `[reject]` carried — no modifier-key check (blind-hunter). Same as the pass-2 row.
+  - `[low]` `[reject]` carried — one-slot turn queue drops a turn (blind-hunter). Same as the pass-1 row.
+  - `[low]` `[reject]` carried — no pause on blur or visibility change (blind-hunter). Same as the pass-1 row.
+  - `[low]` `[reject]` carried — HUD drawn over row 0 (blind-hunter). Same as the pass-2 row.
+  - `[low]` `[reject]` Red food and green body are hard to tell apart for some colour-blind players (blind-hunter) — colour is outside the spec's A11y clause; a shape cue is more than a direct correction.
+  - `[low]` `[patch]` test: `['KeyD', [1, 0]]` passes even if KeyD is ignored, since reset() already faces right (blind-hunter) — patched: dir set to up first.
+  - `[low]` `[patch]` test: the two reverse-rejected asserts say "accepted" (blind-hunter) — patched: messages say "rejected".
+  - `[low]` `[reject]` carried — held Space at game over is untested (blind-hunter). Same as the pass-2 edge row.
+  - `[low]` `[patch]` test: Space while over is not checked in the prevent-count block (blind-hunter) — patched.
+  - `[low]` `[patch]` test: wrap seam into the snake's own body is untested (blind-hunter) — patched: wrap on, head into body cell over the seam gives over. Same root as the verification wrap row.
+  - `[low]` `[reject]` Serpentine setup copy-pasted in three tests (blind-hunter) — refactor with no behaviour effect.
+  - `[low]` `[patch]` Inherited key names (`constructor`, `__proto__`) turn the direction into a non-array and the head goes NaN (edge) — patched: Object.hasOwn lookup. Browsers never send these codes; the fix is one token.
+  - `[low]` `[reject]` carried — stored Infinity read as the high score (edge). Same as the pass-1 row.
+  - `[low]` `[reject]` carried — held Space restarts at game over (edge). Same as the blind-hunter row above.
+  - `[low]` `[patch]` Another tab saves a higher record and this run overwrites it with a lower score (edge) — revised from the pass-2 carried reject: the I/O matrix row "run ends above stored high" decides it (see the intent row). Patched: end() re-reads the stored value before comparing.
+  - `[low]` `[reject]` carried — Ctrl, Meta or Alt chords act as game keys (edge). Same as the pass-2 row.
+  - `[low]` `[reject]` carried — blur does not pause (edge). Same as the pass-1 row.
+  - `[low]` `[reject]` carried — blocked storage shows the session best after a run, not 0 (edge). Same as the pass-1 row.
+  - `[low]` `[patch]` Wrap-on body collision untested (verification) — patched: wrap on, self-death and body-cell tests give over.
+  - `[low]` `[patch]` Wrap-on tail shed and tail exemption untested (verification) — patched: non-eating wrap move keeps length; head into the vacating tail survives.
+  - `[low]` `[patch]` Canvas id lookup not checked against the markup (verification) — patched: document stub asserts each id looked up is in the html.
+  - `[low]` `[reject]` carried — board drawing geometry not observed (verification). Same as the pass-2 row: a recording canvas stub is more than a direct correction.
+  - `[low]` `[patch]` 'Wrap' not asserted absent when wrap is off (verification) — patched.
+  - `[low]` `[defer]` carried — CODEBASE_MAP says test-snake covers every matrix row (verification). Already in `deferred`.
+  - `[low]` `[defer]` test-gapwing.mjs has the same canvas-id blind spot (verification) — pre-existing, outside this change; new `deferred` item.
+  - `[low]` `[reject]` carried — steering: last key wins within a tick, and a turn may be dropped (intent). Same as the turn-buffer row.
+  - `[low]` `[reject]` carried — steering while paused is accepted and applies on resume (intent). Same as the pass-2 row; harmless.
+  - `[low]` `[reject]` carried — Space held restarts. The intent names repeat-ignore only for P and T, so restart on repeat is the literal reading (intent). Same as the pass-2 row.
+  - `[low]` `[patch]` Stored record: the I/O row says "run ends above stored high", but the diff compares with the value read at load, so a higher record from another tab is overwritten (intent) — same defect as the edge row above; patched there.
+  - `[false]` `[reject]` Tail rule: the literal and structural readings differ only if food sits on the tail, which cannot happen. A 74,402-tick fuzz found 0 food-on-snake and 0 eat-into-tail (intent).
+  - `[false]` `[reject]` carried — render() writes #status through setText (intent). Same as the Gapwing read-only row: "read-only" means no game-state change.
+  - `[low]` `[reject]` Wrap toggle announced on the aria-live line (intent) — the status line includes wrap state; the intent is ambiguous and announcing a setting change is reasonable; no defect.
+  - `[false]` `[reject]` Canvas 400 is the bitmap size, and CSS scales it down (intent). Same reading as Gapwing.
+  - `[low]` `[reject]` carried — canvas text checked only as drawn strings, not layout (intent). Same as the pass-2 row.
+  - `[low]` `[reject]` carried — the snake moves from load with no ready state (intent). Same as the blind-hunter row above.
+  - `[low]` `[reject]` carried — tests set state directly instead of playing from reset() through keys and step (intent). Same as the pass-1 logic-layer row.
+  - `[low]` `[patch]` No test asserts storage after a death driven through tick() (intent) — patched: wall death through tick() with score 40 stores '40'.
+  - `[low]` `[reject]` Game-over screen is set by end(false), not by a played death (intent). Test structure; the overlay text is asserted.
+  - `[low]` `[reject]` Tail-on-eat combined with the tail rule is untested (intent). The state cannot occur in play; pinning it would pin an impossible state, which pass 2 removed on purpose.
+  - `[false]` `[reject]` Accumulator remainder across calls is never asserted (intent). Refuted: step(124) then step(1) gives exactly one tick only if the 124 carries across calls.
+  - `[low]` `[reject]` Uniform food pinned only at Math.random 0 and 0.999999 (intent). The extremes pin the index mapping; a fuller check would be statistical, not a rule check.
+  - `[low]` `[reject]` carried — static canvas, aria and script checks use regex (intent). Same as the pass-1 row.
+  - `[false]` `[reject]` carried — docs edited beyond the two named files (intent). Same as the pass-2 scope row.
+  - `[false]` `[reject]` carried — spec not in the diff, shown as modified (intent). Same as the pass-1 row.
+  - `[low]` `[reject]` Live Pages link needs a deploy outside the diff (intent) — post-merge check; residual risk.
+  - `[low]` `[defer]` carried — CODEBASE_MAP last_mapped unchanged after hand edits (intent). Already in `deferred`.
+
 ## Auto Run Result
 
-- **Summary:** Built Snake as `snake.html` in the shared shape, with `test-snake.mjs`. It covers the full intent and both stretch goals (T wrap toggle, P pause), plus a full-board win. A follow-up review pass changed the HUD High value, the hint text and one key guard, and added tests.
-- **Files changed:**
-  - `snake.html` -- the game; follow-up: HUD `High:` uses `Math.max(high, score)`, hint says "Space: restart after game over", `String(e.code)` guard.
-  - `test-snake.mjs` -- every I/O matrix row, storage blocked or missing, dt cap, rAF wiring, render purity, status text; follow-up: live High, no-code keydown, vertical steering, Space no-op, win-path save.
-  - `README.md` -- games table (keyboard only), Play link, controls, test command.
+- **Summary:** Built Snake as `snake.html` in the shared shape, with `test-snake.mjs`. It covers the full intent and both stretch goals (T wrap toggle, P pause), plus a full-board win. Three follow-up passes hardened the HUD, storage re-read, key guards, wrap rules and tests, and clarified the README.
+- **Files changed (whole change):**
+  - `snake.html` -- the game. Latest pass: `Object.hasOwn` key lookup, `end()` re-reads the stored high before comparing, HUD `High:` uses `Math.max(high, score)`, hint wording, `String(e.code)` guard.
+  - `test-snake.mjs` -- every I/O matrix row, storage blocked or missing, dt cap, rAF wiring, render purity, status text, and the follow-up tests (wrap rules, canvas-id check, `Wrap` label, tick-driven storage, inherited keys, cross-tab record).
+  - `README.md` -- games table (optional wrap, keyboard only), Play link, controls and tail rule, test command.
   - `CLAUDE.md`, `docs/CODEBASE_MAP.md` -- games list, test command, Snake section.
-- **Review findings, pass 1:** 30 findings: 0 high, 0 medium, 29 low, 1 false. 8 patched, 4 deferred rows (map drift), 18 rejected.
-- **Review findings, follow-up:** 39 findings: 0 high, 0 medium, 36 low, 3 false.
-  - Patched: 10 rows in 5 fixes (HUD High, hint wording, no-code key guard, steering and Space tests, win-path save test); one row is the carried dead-branch fix, already applied.
-  - Deferred: 5 rows, all CODEBASE_MAP; one new `deferred` entry (file count, Object.create(Math) gotcha, matrix-coverage wording).
-  - Rejected: 21 low, most carried from pass 1 (turn buffer, blur pause, modifier keys, storage edge cases, touch input, speed cap, stub-only tests). 3 false.
-- **Follow-up review recommended:** false. No high was patched, so the work has converged.
-- **Verification:** `node test-gapwing.mjs && node test-snake.mjs` passes. The implementer checked 7 mutants of the new asserts (6 fail the suite); I re-ran 3 (ArrowDown flipped, `score += 10` after `placeFood()`, HUD showing plain `high`), all caught. The surviving mutant is a vertical same-direction press that cancels a queued turn; no spec row covers it.
+- **Review findings, follow-up 2:** 64 findings: 0 high, 0 medium, 56 low, 8 false.
+  - Patched: 14 rows in 5 fixes. One row (cross-tab record) is revised from an earlier carried reject: the I/O matrix row says "run ends above stored high", so the stored value must be re-read.
+  - Deferred: 9 rows, all as deferred items (map drift, and test-gapwing's canvas-id stub).
+  - Rejected: 33 low and the 8 false. Most are carried from earlier passes; reasons are in the triage log.
+- **Follow-up review recommended:** false. No high was patched and no medium was patched, so the work has converged.
+- **Verification:**
+  - `node test-gapwing.mjs && node test-snake.mjs` pass.
+  - The implementer checked 13 mutants of the new asserts, one per item. I re-ran three (re-read removed, key guard reverted, `Wrap` always drawn); each is caught.
 - **Residual risks:**
   - Not played in a real browser.
-  - HUD text on the top row can overlap the snake.
-  - No speed cap, so the late game gets very fast.
+  - No ready state: the snake moves from load and hits the wall after about 1.25 s without input.
+  - No speed cap; the late game gets very fast.
   - Keyboard only; no touch.
-  - No ready state: the snake moves at once and hits the wall after about 1.25 s without input.
+  - The HUD text on row 0 can overlap the snake.
+  - Two tabs ending a run at exactly the same instant can still race on storage.
+  - `Object.hasOwn` needs Chrome 93, Firefox 92 or Safari 15.4 or newer.
   - The README Play link stays dead until merge and GitHub Pages rebuild.
 
 ## Design Notes

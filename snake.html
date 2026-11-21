@@ -77,6 +77,7 @@ function placeFood() {
 }
 
 function end(win) {
+  try { high = Math.max(high, Number(localStorage.getItem(HS_KEY)) || 0); } catch {} // another tab may have raised it since load
   over = true; won = win;
   if (score > high) {
     high = score;
@@ -109,7 +110,7 @@ function onKey(e) {
   if (over) { if (e.code === 'Space') reset(); return; }
   if (e.code === 'KeyP' && !e.repeat) paused = !paused;
   else if (e.code === 'KeyT' && !e.repeat) wrap = !wrap;
-  const d = DIRS[e.code];
+  const d = Object.hasOwn(DIRS, e.code) ? DIRS[e.code] : null; // not inherited names like constructor
   // checked against the last completed move, so two keys in one tick can't reverse
   if (d && (d[0] !== -dir[0] || d[1] !== -dir[1])) nextDir = d;
 }

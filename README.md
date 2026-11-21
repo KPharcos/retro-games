@@ -5,7 +5,7 @@ Small retro browser games. Each game is one self-contained HTML file with no bui
 | Game | File | What it is |
 |---|---|---|
 | Gapwing | `gapwing.html` | An original one-button flyer: flap a bird through gaps between scrolling pillars |
-| Snake | `snake.html` | Classic grid snake on a 20x20 board, with a saved high score, wrap-around walls and pause (keyboard only) |
+| Snake | `snake.html` | Classic grid snake on a 20x20 board, with a saved high score, optional wrap-around walls (T) and pause (keyboard only) |
 
 ## Play
 
@@ -30,7 +30,7 @@ Each pillar scores 1 point when its right edge passes the bird's centre. The gap
 | T | Toggle wrap-around walls (kept across restarts) |
 | Space | Restart after the run ends |
 
-The snake starts at length 3 and 8 moves per second. Each food adds 1 length and 10 points, and every 50 points the snake speeds up by 0.5 moves per second. Hitting a wall (with wrap off) or the body ends the run; filling the whole board wins it. The high score is kept in `localStorage`.
+The snake starts at length 3 and 8 moves per second. Each food adds 1 length and 10 points, and every 50 points the snake speeds up by 0.5 moves per second. Hitting a wall (with wrap off) or the body ends the run, but moving into the cell the tail is leaving is allowed; filling the whole board wins it. The high score is kept in `localStorage`.
 
 ## Tests
 

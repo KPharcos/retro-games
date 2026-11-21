@@ -30,8 +30,8 @@ assert.deepEqual(head(), { x: 11, y: 10 });
 assert.equal(run('snake.length'), 3);
 
 // Steering: arrows and WASD
-for (const [code, d] of [['ArrowUp', [0, -1]], ['KeyS', [0, 1]], ['KeyD', [1, 0]], ['KeyW', [0, -1]]]) {
-  run('reset()'); key(code);
+for (const [code, d, from] of [['ArrowUp', [0, -1], [1, 0]], ['KeyS', [0, 1], [1, 0]], ['KeyD', [1, 0], [0, -1]], ['KeyW', [0, -1], [1, 0]]]) {
+  run(`reset(); dir = nextDir = [${from}]`); key(code); // from: a heading the key must change
   assert.deepEqual(json('nextDir'), d, code);
 }
 run('reset(); food = { x: 0, y: 0 }'); key('KeyW'); run('tick()'); key('KeyA'); run('tick()');
@@ -39,9 +39,9 @@ assert.deepEqual(head(), { x: 9, y: 9 });
 run('reset(); food = { x: 0, y: 0 }'); key('ArrowDown'); run('tick()');
 assert.deepEqual(head(), { x: 10, y: 11 });
 key('ArrowUp');
-assert.deepEqual(json('nextDir'), [0, 1], 'vertical reverse (ArrowUp) accepted');
+assert.deepEqual(json('nextDir'), [0, 1], 'vertical reverse (ArrowUp) must be rejected');
 key('KeyW');
-assert.deepEqual(json('nextDir'), [0, 1], 'vertical reverse (KeyW) accepted');
+assert.deepEqual(json('nextDir'), [0, 1], 'vertical reverse (KeyW) must be rejected');
 key('ArrowLeft');
 assert.deepEqual(json('nextDir'), [-1, 0]);
 
@@ -62,6 +62,14 @@ run('reset(); food = { x: 0, y: 0 }');
 const noCode = run('JSON.stringify([snake, dir, nextDir, paused, wrap, over])');
 listeners.keydown({ preventDefault() {} });
 assert.equal(run('JSON.stringify([snake, dir, nextDir, paused, wrap, over])'), noCode);
+// inherited names are not directions
+for (const code of ['constructor', '__proto__']) {
+  run('reset(); food = { x: 0, y: 0 }'); key(code);
+  assert.ok(run('Array.isArray(nextDir)'), `${code} set nextDir to a non-array`);
+  assert.deepEqual(json('nextDir'), [1, 0], code);
+  run('tick()');
+  assert.deepEqual(head(), { x: 11, y: 10 }, code);
+}
 
 // Quick double key: Up queued, Left rejected (checked against last move, right)
 run('reset(); food = { x: 0, y: 0 }'); key('ArrowUp'); key('ArrowLeft');
@@ -132,10 +140,18 @@ for (const [h, d, to] of [[[19, 5], [1, 0], [0, 5]], [[0, 5], [-1, 0], [19, 5]],
 // eating across the wrapped edge
 run('reset(); wrap = true; snake = [{ x: 19, y: 5 }, { x: 18, y: 5 }]; food = { x: 0, y: 5 }; tick()');
 assert.deepEqual([run('over'), run('snake.length'), run('score'), head()], [false, 3, 10, { x: 0, y: 5 }]);
+// wrap on: body still kills (plain and across the edge); tail cell still free and length kept across the edge
+run('reset(); wrap = true; food = { x: 0, y: 0 }; snake = [{x:5,y:5},{x:6,y:5},{x:6,y:6},{x:5,y:6},{x:4,y:6}]; dir = nextDir = [0, 1]; tick()');
+assert.equal(run('over'), true, 'wrap on: self hit survived');
+run('reset(); wrap = true; food = { x: 10, y: 10 }; snake = [{x:0,y:5},{x:1,y:5},{x:1,y:4},{x:0,y:4},{x:19,y:4},{x:19,y:5},{x:18,y:5}]; dir = nextDir = [-1, 0]; tick()');
+assert.equal(run('over'), true, 'wrap on: body across the edge survived');
+run('reset(); wrap = true; food = { x: 10, y: 10 }; snake = [{x:0,y:5},{x:0,y:4},{x:19,y:4},{x:19,y:5}]; dir = nextDir = [-1, 0]; tick()');
+assert.deepEqual([run('over'), head(), run('snake.length')], [false, { x: 19, y: 5 }, 4]);
 run('wrap = false');
 
 // Wrap toggle: T flips, repeat ignored, survives restart; drawn on canvas
 run('wrap = false; reset()');
+assert.ok(!rendered().includes('Wrap'), 'Wrap drawn with wrap off');
 key('KeyT');
 assert.equal(run('wrap'), true);
 key('KeyT', true);
@@ -203,9 +219,11 @@ run('reset()');
 for (const code of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space']) press(code);
 press('ArrowUp', true);
 run('end(false)'); press('ArrowDown');
-assert.equal(prevented, 7);
+assert.equal(run('over'), true);
+press('Space'); // restarts, and is still prevented
+assert.equal(prevented, 8);
 for (const code of ['KeyW', 'KeyA', 'KeyP', 'KeyT', 'F5', 'Tab']) press(code);
-assert.equal(prevented, 7, 'non-game key prevented');
+assert.equal(prevented, 8, 'non-game key prevented');
 
 // frame() caps dt at 100 ms: at 20 ticks/s a 5 s gap gives 2 moves, not 100
 run('reset(); wrap = false; food = { x: 0, y: 0 }; speed = 20; last = null; frame(0); frame(5000)');
@@ -231,7 +249,8 @@ assert.notEqual(before, before2);
 
 // High score: read at load, written only when beaten
 const store = { snakeHighScore: '30' };
-const storage = { getItem: (k) => store[k] ?? null, setItem: (k, v) => { store[k] = String(v); } };
+const memStorage = (s) => ({ getItem: (k) => s[k] ?? null, setItem: (k, v) => { s[k] = String(v); } });
+const storage = memStorage(store);
 const h = load('./snake.html', { localStorage: storage });
 assert.equal(h.run('high'), 30);
 h.texts.length = 0; h.run('render()');
@@ -251,6 +270,17 @@ assert.equal(store.snakeHighScore, '40');
 // a win saves the high score too
 h.run(`reset(); score = 3960; snake = ${JSON.stringify(path.slice(0, 399).reverse())}; food = { x: 0, y: 19 }; dir = nextDir = [-1, 0]; tick()`);
 assert.deepEqual([h.run('won'), h.run('high'), store.snakeHighScore], [true, 3970, '3970']);
+// another tab raised the record after this tab loaded: end() re-reads it, so a lower run doesn't overwrite it
+const store2 = {};
+const o = load('./snake.html', { localStorage: memStorage(store2) });
+store2.snakeHighScore = '50';
+o.run('reset(); score = 40; end(false)');
+assert.deepEqual([store2.snakeHighScore, o.run('high')], ['50', 50]);
+// a death through tick() saves too, not only end() called directly
+const store3 = {};
+const w = load('./snake.html', { localStorage: memStorage(store3) });
+w.run('reset(); score = 40; food = { x: 0, y: 0 }; snake = [{ x: 19, y: 5 }]; tick()');
+assert.deepEqual([w.run('over'), store3.snakeHighScore], [true, '40']);
 // garbage in storage reads as 0
 assert.equal(load('./snake.html', { localStorage: { getItem: () => 'junk', setItem() {} } }).run('high'), 0);
 
@@ -290,5 +320,18 @@ assert.equal(els.status.textContent, 'Game over. Score: 70. Press Space to resta
 assert.equal(writes.status, 4);
 g.run('score = 80; end(true); render()');
 assert.equal(els.status.textContent, 'You win! Score: 80. Press Space to restart.');
+
+// every id the script looks up exists in the markup
+const looked = new Set();
+const idCheck = load('./snake.html', { document: {
+  getElementById: (id) => {
+    assert.ok(html.includes(`id="${id}"`), `no element with id="${id}"`);
+    looked.add(id);
+    return { getContext: () => ctxStub, textContent: '', addEventListener() {} };
+  },
+  addEventListener() {},
+} });
+idCheck.run('frame(0)'); // render() only runs from frame, and it looks up #status
+assert.deepEqual([...looked].sort(), ['gameCanvas', 'status']);
 
 console.log('all snake tests passed');
