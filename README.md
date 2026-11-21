@@ -9,7 +9,9 @@ Small retro browser games. Each game is one self-contained HTML file with no bui
 
 ## Play
 
-Clone the repo and open either HTML file in a browser.
+Play online: [Snake](https://kpharcos.github.io/retro-games/snake.html) · [Stackfall](https://kpharcos.github.io/retro-games/stackfall.html)
+
+You can also clone the repo and open either HTML file in a browser.
 
 ### Snake controls
 
