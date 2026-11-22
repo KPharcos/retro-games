@@ -6,11 +6,12 @@ status: 'done'
 baseline_revision: 'baf2047e364b6c337e3454fcabdd65b0250fb4d6'
 review_loop_iteration: 0
 followup_review_recommended: false
+followup_pass: true
 context: ['{project-root}/CLAUDE.md']
 warnings: ['oversized']
 deferred:
   - summary: >-
-      docs/CODEBASE_MAP.md drift after Twofold: the spec tree line has no status note, total_tokens and last_mapped are stale, "All three draw their score on the canvas" now reads as if Twofold were included, and the harness gotcha does not list the DOM stub surface Twofold needs (createElement, appendChild, style, hidden, disabled, remove, focus).
+      docs/CODEBASE_MAP.md drift after Twofold: the spec tree line has no status note, total_tokens and last_mapped are stale, "All three draw their score on the canvas" now reads as if Twofold were included, and the harness gotcha does not list the DOM stub surface Twofold needs (createElement, appendChild, style, hidden, disabled, remove, focus, closest on pointer targets), and the Twofold Input row omits the Enter and C continue keys and the pointer guards.
     evidence: |-
       Review pass 1 (blind-hunter). The map is cartographer output linked from CLAUDE.md, so the fix edits an agent-context doc; a cartographer re-map refreshes it.
     location: >-
@@ -123,27 +124,62 @@ deferred:
   - `[low]` `[reject]` Ctrl, Alt or Meta chords act as game keys (edge) — same as the blind-hunter row.
   - `[low]` `[reject]` Stored best of Infinity, negative or fractional (edge) — same as the blind-hunter row.
 
+### 2026-11-22 — Review pass (follow-up)
+- verdicts: 32 findings — high 0, medium 2, low 27, false 3, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` Undo after Continue leaves keepPlaying true, so re-reaching 2048 shows no message (blind-hunter) — patched: prev stores keepPlaying and undo restores it; a test covers win, Continue, Undo, re-merge. Grouped with the edge row.
+  - `[low]` `[reject]` carried — role="grid" has no row or gridcell children (blind-hunter). Same as the pass-1 row; the spec requires role="grid".
+  - `[low]` `[patch]` White text on the 16 tile is 2.90:1 (blind-hunter) — patched: dark text #1d1b2e, 5.8:1; the background is unchanged.
+  - `[low]` `[defer]` carried — map total_files, total_tokens and last_mapped are stale (blind-hunter). Already in `deferred`.
+  - `[low]` `[defer]` carried — map prose drift: spec tree line, "All three", harness gotcha (blind-hunter). Already in `deferred`.
+  - `[low]` `[defer]` Map Input row omits Enter and C and the pointer guards (blind-hunter) — map fix; folded into the existing `deferred` item.
+  - `[low]` `[patch]` A rejected pointerdown leaves a stale swipe start (blind-hunter) — patched: any primary press that cannot start a swipe clears it; tests added. Grouped with the edge row.
+  - `[low]` `[reject]` Undo re-rolls the spawn, so repeated undo can fish for a good tile, and best can include an undone score (blind-hunter) — the spec defines undo as restoring board and score only; replaying the spawn adds rules; best is meant to be the highest score reached.
+  - `[low]` `[reject]` carried — New game gives no confirm and can't be undone (blind-hunter). Same as the pass-1 row.
+  - `[low]` `[reject]` carried — modified arrow keys are swallowed (blind-hunter). Same as the pass-1 row; same call as the other games.
+  - `[low]` `[patch]` No browser baseline is stated (blind-hunter) — patched: README says a browser from about 2022 or later is needed.
+  - `[medium]` `[patch]` Win, Continue, Undo leaves keepPlaying true (edge) — grouped with the blind-hunter row; patched there.
+  - `[low]` `[reject]` carried — Ctrl, Meta or Alt chords act as game keys (edge). Same as the blind-hunter row.
+  - `[low]` `[reject]` Best is compared with the in-memory value, so a second tab can overwrite a higher saved best (edge) — the intent's row is "score beats best" with best as loaded; needs two tabs; unlike Snake, the intent does not say "stored high".
+  - `[low]` `[reject]` carried — stored best accepts Infinity, negatives or fractions (edge). Same as the pass-1 row.
+  - `[low]` `[patch]` A rejected pointerdown leaves an older swipeFrom (edge) — grouped with the blind-hunter row; patched there.
+  - `[low]` `[patch]` No tests for Continue then Undo or for a stale swipe start (edge) — patched with the two fixes above; the modifier-key part is rejected above.
+  - `[low]` `[defer]` carried — map total_files says 17 but git tracks 18 (edge). Already in `deferred`.
+  - `[low]` `[defer]` carried — map total_tokens and last_mapped are stale (edge). Already in `deferred`.
+  - `[low]` `[defer]` carried — map Input row omits Enter and C (edge). Already in `deferred`.
+  - `[low]` `[patch]` Tile row and column are mapped to a CSS transform and asserted only at (0,0), so a row/column swap passes (verification) — patched: exact transforms at (1,3) and (2,2).
+  - `[low]` `[patch]` nextId never being reset after New game is unpinned (verification) — patched: new tiles must be elements not in the old set.
+  - `[low]` `[reject]` carried — tests drive a stub DOM, not a real browser; motion, touch, real localStorage and aria are not exercised (intent). Same as the pass-1 rows.
+  - `[low]` `[reject]` Pure functions are reachable only after the page script loads under a DOM stub with createElement (intent) — consequence of the single-file DOM design; documented in CLAUDE.md; the functions are pure and tested directly through run().
+  - `[low]` `[reject]` Swipe tests need hand-built events with isPrimary, button and a target.closest (intent) — real PointerEvents carry these fields; the gating came from review.
+  - `[low]` `[patch]` The swipe threshold was read as the dominant-axis component, so a 25 by 25 drag (about 35 px) was ignored (intent) — the intent says "a drag of at least 30 px"; patched: the drag's length counts, the larger component picks the axis, a tie goes vertical; tests updated.
+  - `[false]` `[reject]` addTile draws the cell first and the value second (intent) — matches the matrix, which fixes only the value draw; no defect.
+  - `[false]` `[reject]` reset() does not render while move() renders and focuses (intent) — allowed by the spec; render() itself stays read-only.
+  - `[false]` `[reject]` Extras: docs edits, and a test that bans rAF, href and src in the HTML (intent) — repo conventions and the spec's Never list; no defect.
+  - `[low]` `[reject]` Whether the arrangement resembles 2048's layout (intent) — the 4x4 grid is required; name, palette and header differ; nothing copied.
+  - `[low]` `[reject]` carried — transitions, tile geometry, the hidden overlay, touch-action and real events are not exercised (intent). Same as the pass-1 rows.
+  - `[low]` `[defer]` carried — CODEBASE_MAP is hand-edited though headed as generated (intent). Already in `deferred`.
+
 ## Auto Run Result
 
-- **Summary:** Built Twofold as `twofold.html`: pure board functions (`emptyBoard`, `track`, `slide`, `addTile`, `canMove`, `hasTile`), a DOM grid whose tiles keep their elements so CSS transitions animate slides and merges, arrow keys and swipe, win at 2048 with Continue, game over, one-step undo and a saved best score. `test-twofold.mjs` drives it through `harness.mjs`.
-- **Files changed:**
+- **Summary:** Built Twofold as `twofold.html`: pure board functions, a DOM grid whose tiles keep their elements so CSS transitions animate, arrow keys and swipe, win at 2048 with Continue, game over, one-step undo and a saved best score. A follow-up pass fixed undo after Continue, stale swipe starts, the swipe length rule and tile-16 contrast, and added tests.
+- **Files changed (whole change):**
   - `twofold.html` -- the game.
-  - `test-twofold.mjs` -- pure functions directly through `run()`, every I/O matrix row, tile identity across moves, swipe edge cases, reset and undo state, status text.
-  - `README.md` -- games table, controls (Continue keys, swipe on the board), test command.
-  - `CLAUDE.md` -- game list, test command, and a note that turn-based DOM games may skip canvas, `step(dt)` and rAF.
-  - `docs/CODEBASE_MAP.md` -- Twofold section.
-- **Review findings:** 27 findings: 0 high, 6 medium, 19 low, 2 false.
-  - Patched: 12 rows in 6 fixes. The medium rows are one entry: swipe handling (pointer id, pointercancel, board-only start, no drags from buttons).
-  - Deferred: 2 rows (map drift) as one `deferred` item.
-  - Rejected: 11 low and the 2 false. Reasons are in the triage log.
+  - `test-twofold.mjs` -- pure functions through `run()`, every I/O matrix row, tile identity and positions, swipe edge cases, reset and undo state, status text.
+  - `README.md` -- games table, controls, browser baseline, test command.
+  - `CLAUDE.md`, `docs/CODEBASE_MAP.md` -- game list, test command, DOM-game note, Twofold section.
+- **Review findings:** pass 1 had 27 findings (6 medium, 19 low, 2 false). Follow-up: 32 findings: 0 high, 2 medium, 27 low, 3 false.
+  - Patched: 10 rows in 7 fixes. The medium entry is undo after Continue.
+  - Deferred: 7 rows (map drift), all in the one existing `deferred` item.
+  - Rejected: 12 low and 3 false. Reasons are in the triage log.
 - **Follow-up review recommended:** false. No high was patched and only one medium entry.
-- **Verification:**
-  - All four suites pass.
-  - The implementer broke each new guard on purpose and each failed the suite. I re-checked one: removing the `pointercancel` handler fails the suite.
+- **Verification:** all four suites pass. The implementer broke each fix on purpose and each failed the suite; I re-ran two (undo not restoring keepPlaying, per-axis swipe threshold): both caught.
 - **Residual risks:**
   - Not played on a real phone or in Firefox; motion checked only as still screenshots.
-  - `role="grid"` has no row or cell children, as the spec asks, so screen readers get no board structure.
-  - Modifier keys are not filtered (Ctrl+N, Ctrl+U act).
+  - `role="grid"` has no row or cell children, as the spec asks.
+  - Modifier keys are not filtered.
+  - Undo re-rolls the next spawn.
+  - A browser from about 2022 or later is needed.
   - The README Play link stays dead until merge and GitHub Pages rebuild.
 
 ## Design Notes

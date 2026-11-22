@@ -147,6 +147,11 @@ assert.deepEqual(json('board'), [[4, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0
 assert.equal(run('score'), 4);
 assert.equal(g.els.score.textContent, '4');
 
+// Tile position: translate x by column, y by row
+g.setBoard([[0, 0, 0, 0], [0, 0, 0, 2], [0, 0, 4, 0], [0, 0, 0, 0]]);
+assert.equal(run('els.get(ids[1][3])').style.transform, 'translate(calc(3 * (100% + var(--gap))), calc(1 * (100% + var(--gap))))');
+assert.equal(run('els.get(ids[2][2])').style.transform, 'translate(calc(2 * (100% + var(--gap))), calc(2 * (100% + var(--gap))))');
+
 // Tile identity: a sliding tile keeps its element and its transform changes; a merged-away tile slides under its partner
 g.setBoard([[0, 0, 0, 2], [0, 0, 0, 0], [0, 0, 0, 0], [4, 0, 0, 4]]);
 const elAt = (r, c) => run(`els.get(ids[${r}][${c}])`);
@@ -189,11 +194,11 @@ for (const code of ['KeyW', 'Space', 'Tab', 'F5', 'Enter', 'constructor', undefi
 assert.equal(g.prevented(), 4, 'non-game key prevented');
 assert.equal(snap(), kb, 'non-game key changed state');
 
-// Swipe: >= 30 px picks the dominant axis; shorter drags and non-primary buttons do nothing
+// Swipe: a drag of length >= 30 px moves along the larger component (tie: vertical); shorter drags and non-primary buttons do nothing
 g.setBoard([[0, 0, 0, 0], [0, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]);
 const at = () => { const b = json('board'); const r = b.findIndex(row => row.includes(2)); return [r, b[r].indexOf(2)]; };
 rnd = 0.95; // spawns are 4s, so the 2 stays traceable
-g.swipe(29, 0); g.swipe(-29, 29); g.swipe(40, 0, { button: 2 }); g.swipe(40, 0, { isPrimary: false, pointerId: 2 });
+g.swipe(29, 0); g.swipe(21, 21); g.swipe(0, -29.9); g.swipe(40, 0, { button: 2 }); g.swipe(40, 0, { isPrimary: false, pointerId: 2 });
 // drags starting on a button (outside or inside the board area) or outside the board area do nothing
 g.swipe(40, 0, { target: onUndoButton }); g.swipe(40, 0, { target: onContinue }); g.swipe(40, 0, { target: outside });
 // pointercancel clears the start; a pointerup from another pointer is ignored
@@ -212,6 +217,21 @@ assert.deepEqual(at(), [0, 1]);
 g.setBoard([[0, 0, 0, 0], [0, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]);
 g.swipe(30, 0);
 assert.deepEqual(at(), [1, 3]);
+g.setBoard([[0, 0, 0, 0], [0, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]);
+g.swipe(-29, 29); // ~41 px long, equal components: vertical
+assert.deepEqual(at(), [3, 1]);
+g.setBoard([[0, 0, 0, 0], [0, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]);
+g.swipe(25, -25); // ~35 px long, though each component is under 30
+assert.deepEqual(at(), [0, 1]);
+// 2: a start whose pointerup was lost is dropped by the next primary press that can't start a swipe
+g.setBoard([[0, 0, 0, 0], [0, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]);
+g.down(); // no pointerup
+g.down({ target: onUndoButton });
+assert.equal(run('swipeFrom'), null);
+g.up(40, 0);
+g.down(); g.down({ target: outside }); g.up(40, 0);
+g.down(); g.down({ button: 2 }); g.up(40, 0);
+assert.deepEqual([at(), count(json('board'))], [[1, 1], 1]);
 g.setBoard([[0, 0, 0, 0], [0, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]);
 g.swipe(40, -50);
 assert.deepEqual(at(), [0, 1]);
@@ -244,6 +264,18 @@ run('board[0][0] = 1024; board[0][1] = 1024; ids[0][1] = ++nextId; render()');
 g.key('ArrowLeft');
 assert.ok(run('hasTile(board, 2048)'));
 assert.deepEqual([g.els.message.hidden, g.els.status.textContent], [true, ''], 'win message shown again');
+// Undo past a Continue: keepPlaying comes back too, so re-reaching 2048 shows the message and focuses Continue again
+rnd = 0;
+g.setBoard([[1024, 1024, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]);
+g.key('ArrowLeft'); g.key('KeyC');
+assert.equal(run('keepPlaying'), true);
+g.key('KeyU');
+assert.deepEqual([run('won'), run('keepPlaying')], [false, false]);
+g.focused.el = null;
+g.key('ArrowLeft');
+assert.deepEqual([g.els.message.hidden, g.els.continue.hidden, g.els['message-text'].textContent], [false, false, 'You reached 2048!']);
+assert.equal(g.focused.el, g.els.continue, 'Continue not focused after re-reaching 2048');
+
 // Enter and C also continue, only while the message is up
 for (const code of ['Enter', 'KeyC']) {
   rnd = 0;
@@ -347,6 +379,11 @@ g.key('KeyU');
 assert.equal(g.els.status.textContent, 'Move undone.');
 g.key('KeyN');
 cleanStart('U, N');
+// tile ids keep counting across games, so a new game never reuses an old tile's element
+const oldTiles = new Set(g.tiles());
+g.key('KeyN');
+assert.equal(g.tiles().length, 2);
+assert.ok(g.tiles().every(t => !oldTiles.has(t)), 'new game reused a tile element');
 
 // #status (aria-live) is written only when its text changes
 const w = g.writes.status;

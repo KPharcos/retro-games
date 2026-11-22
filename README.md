@@ -55,7 +55,7 @@ Rotation only tries one column of shift sideways and never shifts up, so a piece
 
 | Input | Action |
 |---|---|
-| Arrow keys / swipe (drag 30 px or more, starting on the board) | Slide all tiles; holding a key repeats |
+| Arrow keys / swipe (drag 30 px or longer, starting on the board) | Slide all tiles; holding a key repeats |
 | Enter / C / Continue button | Keep playing after the 2048 message |
 | U / Undo button | Undo the last move (one step) |
 | N / New game button | Start a new game at any time |
@@ -63,6 +63,8 @@ Rotation only tries one column of shift sideways and never shifts up, so a piece
 Every tile slides as far as it can. Two equal tiles that meet merge into their sum, which is added to the score; a tile merges at most once per move, and with three equal in a row the pair nearest the wall merges. After a move that changed the board, a new tile appears on a random empty cell: a 2 (90%) or a 4 (10%). The first 2048 tile shows a message with Continue; after that it doesn't show again. The game is over when no slide can change the board. Undo also works from the game-over and 2048 screens. The best score is kept in `localStorage`.
 
 Twofold is DOM-based: tiles are positioned `<div>`s that slide with a CSS transition, so there is no canvas and no animation loop.
+
+Twofold needs a browser from about 2022 or later (it uses CSS `scale` in keyframes, `aspect-ratio` and `Object.hasOwn`).
 
 ## Tests
 
