@@ -17,14 +17,16 @@ assert.match(html, /\.tile \{[^}]*transition: transform/);
 function makeDoc() {
   const els = {}, listeners = {}, writes = {}, focused = { el: null };
   const node = (id) => {
-    let text = '';
+    let text = '', hidden = false;
     if (id) writes[id] = 0;
     return {
-      id, style: {}, className: '', hidden: false, disabled: false, children: [], parent: null,
+      id, style: {}, className: '', disabled: false, children: [], parent: null,
+      get hidden() { return hidden; },
+      set hidden(v) { hidden = v; if (v && focused.el === this) focused.el = null; }, // as in Chrome 157: hiding the focused control drops focus to <body>
       get textContent() { return text; },
       set textContent(v) { text = String(v); if (id) writes[id]++; },
       appendChild(c) { this.children.push(c); c.parent = this; return c; },
-      focus() { focused.el = this; },
+      focus() { assert.equal(this.hidden, false, 'focus() on a hidden element'); focused.el = this; },
       remove() { this.parent.children.splice(this.parent.children.indexOf(this), 1); this.parent = null; },
     };
   };
@@ -34,6 +36,7 @@ function makeDoc() {
       return (els[id] ??= node(id));
     },
     createElement: () => node(),
+    get activeElement() { return focused.el; },
     addEventListener: (type, fn) => { listeners[type] = fn; },
   };
   return { document, els, listeners, writes, focused };
@@ -115,8 +118,41 @@ assert.deepEqual(json(`addTile(${JSON.stringify(full)}, () => 0)`), full); // fu
 assert.equal(run(`canMove(${JSON.stringify(full)})`), false);
 assert.equal(run(`canMove(${JSON.stringify([[2, 4, 2, 4], [4, 2, 4, 2], [2, 4, 2, 4], [4, 2, 4, 4]])})`), true); // equal neighbours
 assert.equal(run(`canMove(${JSON.stringify(sample)})`), true);
+// each board has exactly one legal slide, and canMove sees it
+const DIR4 = ['left', 'right', 'up', 'down'];
+for (const [dir, b] of [
+  ['left', [[0, 0, 2, 4], [0, 0, 4, 2], [0, 0, 8, 16], [0, 0, 32, 64]]],
+  ['right', [[4, 2, 0, 0], [2, 4, 0, 0], [16, 8, 0, 0], [64, 32, 0, 0]]],
+  ['up', [[0, 0, 0, 0], [0, 0, 0, 0], [2, 4, 8, 32], [4, 2, 16, 64]]],
+  ['down', [[2, 4, 8, 32], [4, 2, 16, 64], [0, 0, 0, 0], [0, 0, 0, 0]]],
+]) {
+  assert.deepEqual(DIR4.map(d => run(`slide(${JSON.stringify(b)}, '${d}').moved`)), DIR4.map(d => d === dir), dir);
+  assert.equal(run(`canMove(${JSON.stringify(b)})`), true, `canMove missed ${dir}`);
+}
+assert.equal(run(`canMove(${JSON.stringify(full)})`), false);
 assert.equal(run(`hasTile(${JSON.stringify(sample)}, 8)`), true);
 assert.equal(run(`hasTile(${JSON.stringify(sample)}, 16)`), false);
+
+// Seeded property check: every slide keeps the tile sum, `moved` means the board changed,
+// and canMove is true exactly when some direction changes the board
+let seed = 20261122;
+const prng = () => (seed = (seed * 16807) % 2147483647) / 2147483647; // Park-Miller: fits in a double exactly
+const pick = (xs) => xs[Math.floor(prng() * xs.length)];
+const SPARSE = [0, 0, 0, 2, 2, 4, 8], DENSE = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]; // dense: full boards, often stuck
+const boards = Array.from({ length: 400 }, (_, i) => Array.from({ length: 4 }, () => Array.from({ length: 4 }, () => pick(i % 2 ? DENSE : SPARSE))));
+const results = json(`${JSON.stringify(boards)}.map(b => [canMove(b), ...${JSON.stringify(DIR4)}.map(d => slide(b, d))])`);
+const total = (b) => b.flat().reduce((a, v) => a + v, 0);
+let stuck = 0;
+results.forEach(([can, ...slides], i) => {
+  const b = boards[i], changed = slides.map(s => JSON.stringify(s.board) !== JSON.stringify(b));
+  slides.forEach((s, k) => {
+    assert.equal(total(s.board), total(b), `tile sum changed: ${JSON.stringify(b)} ${DIR4[k]}`);
+    assert.equal(s.moved, changed[k], `moved wrong: ${JSON.stringify(b)} ${DIR4[k]}`);
+  });
+  assert.equal(can, changed.some(Boolean), `canMove wrong: ${JSON.stringify(b)}`);
+  if (!can) stuck++;
+});
+assert.ok(stuck > 0 && stuck < boards.length, `property boards not varied enough (stuck: ${stuck})`);
 
 // ---- shell ----
 const count = (b) => b.flat().filter(Boolean).length;
@@ -167,6 +203,7 @@ assert.equal(keeper.textContent, '8');
 assert.match(keeper.className, /\bv8\b/);
 assert.ok(g.tiles().includes(merger) && /\bgone\b/.test(merger.className), 'merged-away tile not kept as a ghost');
 assert.equal(merger.style.transform, keeper.style.transform);
+assert.equal(merger.textContent, '4', 'merged-away tile shows the merged value');
 assert.equal(g.tiles().length, 4); // slider, keeper, ghost, spawn
 rnd = 0;
 run('move("right")'); // next move drops the ghost
@@ -189,9 +226,12 @@ g.key('ArrowDown', true);
 assert.notEqual(snap(), kb, 'repeat did not move');
 g.key('ArrowLeft'); g.key('ArrowUp');
 assert.equal(g.prevented(), 4);
+g.setBoard([[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [2, 0, 0, 0]]);
+g.key('ArrowUp');
+assert.equal(json('board')[0][0], 2, 'ArrowUp');
 kb = snap();
-for (const code of ['KeyW', 'Space', 'Tab', 'F5', 'Enter', 'constructor', undefined]) g.key(code);
-assert.equal(g.prevented(), 4, 'non-game key prevented');
+for (const code of ['KeyW', 'Space', 'Tab', 'F5', 'Enter', 'NumpadEnter', 'KeyC', 'constructor', undefined]) g.key(code);
+assert.equal(g.prevented(), 5, 'non-game key prevented');
 assert.equal(snap(), kb, 'non-game key changed state');
 
 // Swipe: a drag of length >= 30 px moves along the larger component (tie: vertical); shorter drags and non-primary buttons do nothing
@@ -207,6 +247,16 @@ g.down(); g.up(40, 0, 7);
 assert.deepEqual([at(), count(json('board'))], [[1, 1], 1]);
 g.up(40, 0); // ...and the recorded pointer still swipes after it
 assert.deepEqual(at(), [1, 3]);
+// a pointercancel from another pointer leaves the recorded start alone
+g.setBoard([[0, 0, 0, 0], [0, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]);
+g.down(); g.listeners.pointercancel({ pointerId: 7 }); g.up(40, 0);
+assert.deepEqual(at(), [1, 3]);
+// a handled key drops a drag still under way: the board moves by the key only
+g.setBoard([[0, 0, 0, 0], [0, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]);
+g.down(); g.key('ArrowLeft');
+assert.equal(run('swipeFrom'), null);
+g.up(40, 0);
+assert.deepEqual([at(), count(json('board'))], [[1, 0], 2]);
 // a second finger's pointerdown doesn't overwrite the first
 g.setBoard([[0, 0, 0, 0], [0, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]);
 g.down();
@@ -238,10 +288,10 @@ assert.deepEqual(at(), [0, 1]);
 g.setBoard([[0, 0, 0, 0], [0, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]);
 g.swipe(-60, 20);
 assert.deepEqual(at(), [1, 0]);
-g.setBoard([[0, 0, 0, 0], [0, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]);
+g.setBoard([[0, 0, 0, 0], [0, 0, 0, 0], [0, 2, 0, 0], [0, 0, 0, 0]]);
 g.swipe(5, 31);
 assert.deepEqual(at(), [3, 1]);
-g.listeners.pointerup({ pointerId: 1, clientX: 0, clientY: 300 }); // pointerup with no pointerdown
+g.up(100, -200); // a stray pointerup after the swipe finished: would slide up if the old start were kept
 assert.deepEqual(at(), [3, 1]);
 
 // Win: first 2048 shows the message with Continue; moves wait; Continue resumes and the message never returns
@@ -276,17 +326,29 @@ g.key('ArrowLeft');
 assert.deepEqual([g.els.message.hidden, g.els.continue.hidden, g.els['message-text'].textContent], [false, false, 'You reached 2048!']);
 assert.equal(g.focused.el, g.els.continue, 'Continue not focused after re-reaching 2048');
 
-// Enter and C also continue, only while the message is up
-for (const code of ['Enter', 'KeyC']) {
+// Enter, numpad Enter and C also continue, only while the message is up; focus then goes to New game, not the hidden Continue
+for (const code of ['Enter', 'NumpadEnter', 'KeyC']) {
   rnd = 0;
   g.setBoard([[1024, 1024, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]);
-  g.key('KeyC'); g.key('Enter');
+  g.key('KeyC'); g.key('Enter'); g.key('NumpadEnter');
   assert.equal(run('keepPlaying'), false, 'continued before the message');
   g.key('ArrowLeft');
-  assert.equal(g.els.message.hidden, false);
+  assert.deepEqual([g.els.message.hidden, g.focused.el], [false, g.els.continue]);
+  const p = g.prevented();
   g.key(code);
   assert.deepEqual([run('keepPlaying'), g.els.message.hidden, g.els.status.textContent], [true, true, ''], code);
+  assert.equal(g.prevented(), p + 1, `${code}: not prevented, so its keypress could click the newly focused button`);
+  assert.equal(g.focused.el, g.els.new, `${code}: focus left on the hidden Continue`);
 }
+// a Continue click with no message up does nothing, so the message still shows at 2048
+rnd = 0;
+g.setBoard([[1024, 1024, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]);
+g.click('continue');
+assert.equal(run('keepPlaying'), false, 'Continue click without the message');
+g.key('ArrowLeft');
+assert.deepEqual([g.els.message.hidden, g.els.continue.hidden, g.focused.el], [false, false, g.els.continue]);
+g.click('continue');
+assert.deepEqual([run('keepPlaying'), g.focused.el], [true, g.els.new]);
 // tiles past 2048 keep a style
 run('board[0][0] = 4096; render()');
 assert.match(run('els.get(ids[0][0])').className, /\bvbig\b.*\bd4\b/);
@@ -329,8 +391,9 @@ assert.equal(snap(), afterUndo, 'second undo changed state');
 g.key('ArrowRight');
 assert.equal(g.els.status.textContent, '', 'status kept "Move undone." after a move');
 g.key('KeyU');
-g.key('ArrowLeft'); g.click('undo');
+g.key('ArrowLeft'); g.els.undo.focus(); g.click('undo');
 assert.deepEqual([json('board'), run('score')], [b0, 0]);
+assert.deepEqual([g.els.undo.disabled, g.focused.el], [true, g.els.new], 'focus left on the disabled Undo');
 g.key('ArrowLeft'); g.key('KeyN');
 const fresh = snap();
 g.key('KeyU');

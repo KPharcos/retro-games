@@ -17,6 +17,20 @@ deferred:
     location: >-
       docs/CODEBASE_MAP.md
     severity: low
+  - summary: >-
+      docs/CODEBASE_MAP.md Twofold section: total_files should be 18 (18 tracked files, not 17), and the prev shape omits keepPlaying.
+    evidence: |-
+      Follow-up 2 review pass (blind-hunter, edge-case-hunter). The map is cartographer output linked from CLAUDE.md, so the fix edits an agent-context doc; a cartographer re-map refreshes it.
+    location: >-
+      docs/CODEBASE_MAP.md
+    severity: low
+  - summary: >-
+      CLAUDE.md turn-based DOM note omits the rule that render() must reuse one element per tile id, or tiles jump instead of sliding.
+    evidence: |-
+      Follow-up 2 review pass (blind-hunter). The rule lives only in the map; CLAUDE.md is an agent-context file, so the fix is deferred.
+    location: >-
+      CLAUDE.md
+    severity: low
 ---
 
 <intent-contract>
@@ -160,24 +174,78 @@ deferred:
   - `[low]` `[reject]` carried — transitions, tile geometry, the hidden overlay, touch-action and real events are not exercised (intent). Same as the pass-1 rows.
   - `[low]` `[defer]` carried — CODEBASE_MAP is hand-edited though headed as generated (intent). Already in `deferred`.
 
+### 2026-11-22 — Review pass (follow-up 2)
+- verdicts: 46 findings — high 0, medium 0, low 44, false 2, maybe-false 0
+- findings:
+  - `[low]` `[reject]` carried — name Twofold, not 2048 (intent). Same as the pass-1 name row: the repo rule against recreating a specific game's name or look; the mechanics and the 2048 goal are kept.
+  - `[low]` `[reject]` Touch swipe uses pointer events, not touch events (intent) — pointer events cover touch in every browser that runs the page; the spec names pointerdown and pointerup.
+  - `[low]` `[reject]` carried — visible sliding is checked by regex and stub, not in a browser (intent). Same as the pass-1 rows.
+  - `[low]` `[reject]` carried — persistence is checked with a stub store, not real localStorage (intent). Same as the pass-1 Best row.
+  - `[low]` `[reject]` Turn logic (spawn gate, undo snapshot, win and over latches) lives in move() and undo(), not in pure units (intent) — the spec defines move() as the shell that calls the pure functions; the rules are pure and tested directly.
+  - `[low]` `[reject]` slide returns an object and track adds moves for animation (intent) — the spec fixes slide's return shape; track is a helper with the same rules.
+  - `[low]` `[patch]` carried — swipe starts only on the board, not anywhere (intent). Already applied in the earlier follow-up; no new change.
+  - `[low]` `[patch]` Undo past Continue re-arms the 2048 message, while the README says it doesn't show again (intent) — same defect as the blind and edge README rows; patched there.
+  - `[low]` `[reject]` carried — CLAUDE.md relaxes the shared shape for DOM games (intent). Repo convention for turn-based DOM games, added on purpose.
+  - `[false]` `[reject]` carried — spec file not in the reviewed diff (intent). Same as the earlier rows; the spec is the claims file by design.
+  - `[false]` `[reject]` carried — spec excluded from the reviewed diff, and its status flip is uncommitted (blind-hunter). The spec is the claims file by design; the flip is the workflow's own step.
+  - `[low]` `[defer]` total_files says 17 but 18 files are tracked (blind-hunter) — new detail, folded into the Twofold map deferred item.
+  - `[low]` `[defer]` carried — total_tokens and last_mapped are stale (blind-hunter). Already in `deferred`.
+  - `[low]` `[defer]` carried — the Twofold spec tree entry has no status tag (blind-hunter). Already in `deferred`.
+  - `[low]` `[defer]` The map prev shape omits keepPlaying (blind-hunter) — map fix; added to the new Twofold map deferred item.
+  - `[low]` `[defer]` carried — the map Input row omits Enter and C (blind-hunter). Already in `deferred`.
+  - `[low]` `[patch]` README "doesn't show again" is false (blind-hunter) — same defect as the intent and edge rows; patched: the README describes the re-arm after undo.
+  - `[low]` `[reject]` carried — New game cannot be undone and has no confirm (blind-hunter). Same as the pass-1 row.
+  - `[low]` `[patch]` README says the best is kept, but not that the current run is lost on reload (blind-hunter) — patched: one sentence added.
+  - `[low]` `[defer]` The CLAUDE.md turn-based note omits the one-element-per-tile-id rule (blind-hunter) — CLAUDE.md is agent-context; new deferred item.
+  - `[low]` `[reject]` carried — role="grid" with plain divs and no row or gridcell children (blind-hunter). Same as the pass-1 row; the spec requires role="grid".
+  - `[low]` `[patch]` Focus is lost after Continue, and the click path skipped the win guard (blind-hunter) — grouped with the edge focus rows; patched.
+  - `[low]` `[reject]` carried — modifier keys reach game handlers (blind-hunter). Same as the other three games.
+  - `[low]` `[reject]` carried — the stored best accepts Infinity, negatives or fractions (blind-hunter). Same as the pass-1 row.
+  - `[low]` `[reject]` slide() duplicates track() minus moves (blind-hunter) — the spec lists slide as a pure function, and canMove uses it.
+  - `[low]` `[patch]` No seeded or property check of slide and canMove invariants (blind-hunter) — patched: a 400-board seeded loop checks tile sum, moved and canMove.
+  - `[low]` `[reject]` Markup checks are substring-only, so tag balance is unchecked (blind-hunter) — presence checks by design; a validator is outside this repo.
+  - `[low]` `[reject]` prefers-reduced-motion is never asserted (blind-hunter) — CSS is not testable in this harness; the repo says so.
+  - `[low]` `[reject]` carried — Ctrl, Alt or Meta with arrow, N, U, C or Enter act as game keys (edge). Same as the blind row.
+  - `[low]` `[patch]` The Continue click path has no guard, so keepPlaying can be set without a win (edge) — grouped with the blind focus row; patched.
+  - `[low]` `[reject]` carried — the stored best accepts Infinity, negative or fractional values (edge). Same as the pass-1 row.
+  - `[low]` `[patch]` Focus drops to body when Continue or Undo is hidden or disabled (edge) — grouped with the blind focus row; patched: focus moves to New game.
+  - `[low]` `[patch]` Numpad Enter does not continue (edge) — patched: NumpadEnter accepted.
+  - `[low]` `[patch]` A pending drag can move the board on release after a key acts (edge) — patched: any handled key clears the pending swipe first.
+  - `[low]` `[patch]` README "doesn't show again" (edge) — grouped with the README row above; patched there.
+  - `[low]` `[defer]` carried — the map prev shape omits keepPlaying (edge). Same as the blind row above.
+  - `[low]` `[defer]` carried — the map Input row omits Enter and C (edge). Same as the blind row above.
+  - `[low]` `[defer]` carried — map total_files should be 18 (edge). Same as the blind row above.
+  - `[low]` `[patch]` canMove is never checked per direction, so dropping a DIRS entry passes (verification) — patched: four boards, each with one legal slide, assert canMove true.
+  - `[low]` `[patch]` ArrowUp's direction is never asserted (verification) — patched: a 2 at row 3 ends at row 0 after ArrowUp.
+  - `[low]` `[patch]` The ghost tile's text is not asserted (verification) — patched: the sliding merged-away tile shows 4.
+  - `[low]` `[patch]` The focus stub accepts hidden elements, so the focus assert cannot see a regression (verification) — patched: the stub rejects hidden focus; the render fix checked against it.
+  - `[low]` `[patch]` A pointercancel from another pointer id is not checked, so it can cancel the real swipe (verification) — patched: id 7 cancel leaves the swipe working.
+  - `[low]` `[patch]` A stray pointerup after a finished swipe is not checked (verification) — patched: the stray pointerup does not move the board.
+  - `[low]` `[reject]` carried — modifier keys reach game handlers (verification, other findings). Same as the blind row.
+  - `[low]` `[patch]` The spec's Auto Run Result said every fix was broken and caught, but the cancel and stray-pointerup mutants survived (verification) — both now have tests; the run result below is corrected.
+
 ## Auto Run Result
 
-- **Summary:** Built Twofold as `twofold.html`: pure board functions, a DOM grid whose tiles keep their elements so CSS transitions animate, arrow keys and swipe, win at 2048 with Continue, game over, one-step undo and a saved best score. A follow-up pass fixed undo after Continue, stale swipe starts, the swipe length rule and tile-16 contrast, and added tests.
+- **Summary:** Built Twofold as `twofold.html`: pure board functions, a DOM grid whose tiles keep their elements so CSS transitions animate, arrow keys and swipe, win at 2048 with Continue, game over, one-step undo and a saved best score. Two follow-up passes fixed undo after Continue, stale and cancelled swipes, keyboard focus after Continue or Undo hides, the swipe length rule, the tile-16 contrast, and added tests that catch each of those bugs.
 - **Files changed (whole change):**
-  - `twofold.html` -- the game.
-  - `test-twofold.mjs` -- pure functions through `run()`, every I/O matrix row, tile identity and positions, swipe edge cases, reset and undo state, status text.
-  - `README.md` -- games table, controls, browser baseline, test command.
+  - `twofold.html` -- the game. Latest pass: Continue keys (Enter, NumpadEnter, C) with one guard for keys and click, focus moved off a hidden control, pending swipe cleared by any handled key.
+  - `test-twofold.mjs` -- pure functions through `run()`, every I/O matrix row, tile identity and positions, canMove per direction, a seeded invariant loop, swipe edge cases, reset and undo state, focus rules, status text.
+  - `README.md` -- games table, controls, browser baseline, the win message and undo wording, and the note that the current run is not saved.
   - `CLAUDE.md`, `docs/CODEBASE_MAP.md` -- game list, test command, DOM-game note, Twofold section.
-- **Review findings:** pass 1 had 27 findings (6 medium, 19 low, 2 false). Follow-up: 32 findings: 0 high, 2 medium, 27 low, 3 false.
-  - Patched: 10 rows in 7 fixes. The medium entry is undo after Continue.
-  - Deferred: 7 rows (map drift), all in the one existing `deferred` item.
-  - Rejected: 12 low and 3 false. Reasons are in the triage log.
-- **Follow-up review recommended:** false. No high was patched and only one medium entry.
-- **Verification:** all four suites pass. The implementer broke each fix on purpose and each failed the suite; I re-ran two (undo not restoring keepPlaying, per-axis swipe threshold): both caught.
+- **Review findings, follow-up 2:** 46 findings: 0 high, 0 medium, 44 low, 2 false.
+  - Patched: 18 rows in 10 fixes (the implementer's ten items, grouped by defect).
+  - Deferred: 9 rows (map drift, and one CLAUDE.md note) in the deferred list.
+  - Rejected: 17 low and 2 false. Reasons are in the triage log.
+- **Follow-up review recommended:** false. No high or medium was patched.
+- **Verification:**
+  - All four suites pass.
+  - The implementer broke each fix on purpose and each break failed the suite (17 of 17).
+  - I re-ran five of those breaks (no focus fix, no click guard, no pending-swipe clear, no NumpadEnter, Continue keys not prevented); each is caught.
+  - The cancel-id and stray-pointerup mutants that survived the previous round are now caught.
 - **Residual risks:**
-  - Not played on a real phone or in Firefox; motion checked only as still screenshots.
+  - Focus and keypress behaviour checked only in headless Chrome; not in Firefox or Safari; real touch not tried.
   - `role="grid"` has no row or cell children, as the spec asks.
-  - Modifier keys are not filtered.
+  - Modifier keys are not filtered (Ctrl+N, Ctrl+U act).
   - Undo re-rolls the next spawn.
   - A browser from about 2022 or later is needed.
   - The README Play link stays dead until merge and GitHub Pages rebuild.

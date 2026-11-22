@@ -128,6 +128,7 @@
 const SIZE = 4, GOAL = 2048, SWIPE = 30, BEST_KEY = 'twofoldBest';
 const DIRS = ['left', 'right', 'up', 'down'];
 const KEYS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
+const CONTINUE_KEYS = ['Enter', 'NumpadEnter', 'KeyC'];
 
 // ---- pure rules: boards in, new boards out ----
 const emptyBoard = () => Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
@@ -240,10 +241,15 @@ function undo() {
 }
 
 function onKey(e) {
-  if (Object.hasOwn(KEYS, e.code)) { e.preventDefault(); move(KEYS[e.code]); } // not inherited names like constructor
+  const dir = Object.hasOwn(KEYS, e.code) ? KEYS[e.code] : null; // not inherited names like constructor
+  const goOn = CONTINUE_KEYS.includes(e.code) && won && !keepPlaying;
+  if (dir || goOn) e.preventDefault(); // for Enter this also stops the keypress that would click the newly focused button
+  else if (e.code !== 'KeyN' && e.code !== 'KeyU') return; // other keys untouched
+  swipeFrom = null; // the key acts first, so a drag still under way can't move the board as well
+  if (dir) move(dir);
+  else if (goOn) keepGoing();
   else if (e.code === 'KeyN') { reset(); render(); }
-  else if (e.code === 'KeyU') undo();
-  else if ((e.code === 'Enter' || e.code === 'KeyC') && won && !keepPlaying) keepGoing();
+  else undo();
 }
 
 // ---- rendering (reads game state; writes only the DOM) ----
@@ -254,6 +260,7 @@ const els = new Map(); // tile id -> element
 function setText(id, v) { const el = $(id); if (el.textContent !== v) el.textContent = v; }
 
 function render() {
+  const had = document.activeElement; // read first: Chrome drops focus to <body> the moment a focused control is hidden
   const live = new Set();
   const place = (id, r, c, v, extra) => {
     let el = els.get(id);
@@ -278,6 +285,7 @@ function render() {
   setText('status', winMsg ? 'You reached 2048! Continue or start a new game.'
     : over ? overText + ' (U or N).'
     : undone ? 'Move undone.' : '');
+  if (had && (had.hidden || had.disabled)) $('new').focus(); // a control just hidden or disabled would strand keyboard focus
 }
 
 let swipeFrom = null;
@@ -300,7 +308,7 @@ document.addEventListener('click', (e) => {
   const id = e.target && e.target.id;
   if (id === 'new') { reset(); render(); }
   else if (id === 'undo') undo();
-  else if (id === 'continue') keepGoing();
+  else if (id === 'continue' && won && !keepPlaying) keepGoing(); // same guard as the keys
 });
 reset();
 render();
