@@ -16,6 +16,7 @@
             user-select: none;
         }
         canvas {
+            box-sizing: border-box;
             border: 2px solid #333;
             background-color: #1f1c2b;
             max-width: 100%;
@@ -56,7 +57,7 @@ const SHAPES = {
   L: [[0, 0, 1], [1, 1, 1], [0, 0, 0]],
 };
 const KEYS = Object.keys(SHAPES);
-const COLORS = { I: '#e07a5f', O: '#81b29a', T: '#f2cc8f', S: '#6d9dc5', Z: '#b388eb', J: '#ef6f9f', L: '#9ccf5a' };
+const COLORS = { I: '#e07a5f', O: '#81b29a', T: '#f2cc8f', S: '#6d9dc5', Z: '#b388eb', J: '#ef6f9f', L: '#4c5ae6' };
 const POINTS = [0, 100, 300, 500, 800];
 
 let board, piece, bag, nextK, holdK, canHold, score, lines, dropAcc, lockTimer, over;

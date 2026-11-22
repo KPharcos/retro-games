@@ -44,9 +44,9 @@ The snake starts at length 3 and 8 moves per second. Each food adds 1 length and
 | C / Shift | Hold (once per piece) |
 | R | Restart after game over |
 
-Pieces come from a 7-bag: each bag holds all seven shapes once, in random order, and a held piece can reappear sooner. The level is 1 + lines / 10 (rounded down), and pieces fall one row every max(50, 1000 · 0.8^(level-1)) ms. A resting piece locks 500 ms after it lands; only falling a row restarts that timer. Clearing 1 / 2 / 3 / 4 rows scores 100 / 300 / 500 / 800 × level, using the level before the clear; soft and hard drops score nothing. The game ends when a new piece has no room to spawn.
+Pieces come from a 7-bag: each bag holds all seven shapes once, in random order, and a held piece can reappear sooner. The level is 1 + lines / 10 (rounded down), and pieces fall one row every max(50, round(1000 · 0.8^(level-1))) ms. A piece locks after 500 ms of total resting time since it last fell a row; time in the air does not count, and sliding on a rest spot does not restart the timer. Clearing 1 / 2 / 3 / 4 rows scores 100 / 300 / 500 / 800 × level, using the level before the clear; soft and hard drops score nothing. The game ends when a new piece has no room to spawn. The ghost is an outline of where the piece would land.
 
-←, → and ↓ repeat while held; ↑, Space and hold act once per press. There is no pause.
+←, → and ↓ repeat while held; ↑, Space and hold act once per press. There is no pause. There is no high score; nothing is saved between runs.
 
 Rotation only tries one column of shift sideways and never shifts up, so a piece resting flat on the floor or on a flat stack cannot rotate, and an upright I flush against either wall cannot rotate from one of its two vertical positions; move it one column away from the wall first.
 

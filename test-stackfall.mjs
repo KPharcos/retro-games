@@ -69,7 +69,7 @@ assert.deepEqual([json('piece.m'), ...pos()], [JSON.parse(T_RIGHT), 4, 5]);
 key('ArrowUp', true);
 assert.deepEqual(json('piece.m'), JSON.parse(T_RIGHT), 'repeat rotated');
 key('ArrowUp'); key('ArrowUp'); key('ArrowUp');
-assert.deepEqual(json('piece.m'), [[0, 1, 0], [1, 1, 1], [0, 0, 0]], 'four turns is not identity');
+assert.deepEqual(json('piece.m'), [[0, 1, 0], [1, 1, 1], [0, 0, 0]], 'four turns return to start');
 run('spawn("O")'); key('ArrowUp');
 assert.deepEqual([json('piece.m'), ...pos()], [[[1, 1], [1, 1]], 4, 0]);
 
@@ -86,10 +86,25 @@ assert.deepEqual([json('piece.m'), ...pos()], [JSON.parse(I_VERT), 4, 5]);
 run('reset(); board[8][5] = board[8][4] = board[8][6] = "Z"'); put('I', 3, 5); key('ArrowUp');
 assert.deepEqual([json('piece.m'), ...pos()], [json('SHAPES.I'), 3, 5], 'rotated with all three blocked');
 
+// Rotation limits (README): no upward kick, one column of sideways kick
+const I_COL1 = '[[0,1,0,0],[0,1,0,0],[0,1,0,0],[0,1,0,0]]';
+const I_ROW2 = [[0, 0, 0, 0], [0, 0, 0, 0], [1, 1, 1, 1], [0, 0, 0, 0]];
+run('reset()'); put('T', 3, 18); key('ArrowUp');
+assert.deepEqual([json('piece.m'), ...pos()], [json('SHAPES.T'), 3, 18], 'flat T rotated on the floor');
+put('I', -2, 5, I_VERT); key('ArrowUp'); // flush left, cells in box column 2
+assert.deepEqual([json('piece.m'), ...pos()], [JSON.parse(I_VERT), -2, 5], 'I rotated flush left from column 2');
+put('I', 8, 5, I_COL1); key('ArrowUp'); // flush right, cells in box column 1
+assert.deepEqual([json('piece.m'), ...pos()], [JSON.parse(I_COL1), 8, 5], 'I rotated flush right from column 1');
+// the other vertical position at each wall does rotate
+put('I', -1, 5, I_COL1); key('ArrowUp');
+assert.deepEqual([json('piece.m'), ...pos()], [json('SHAPES.I'), 0, 5], 'I flush left from column 1');
+put('I', 7, 5, I_VERT); key('ArrowUp');
+assert.deepEqual([json('piece.m'), ...pos()], [I_ROW2, 6, 5], 'I flush right from column 2');
+
 // Soft drop: one row per keydown, repeat accepted, resets the lock timer
 run('reset()'); put('T', 3, 5); run('lockTimer = 300');
 key('ArrowDown'); key('ArrowDown', true);
-assert.deepEqual([...pos(), run('lockTimer')], [3, 7, 0]);
+assert.deepEqual([...pos(), run('lockTimer'), run('score')], [3, 7, 0, 0]);
 // resting: no move, lock timer keeps running
 put('T', 3, 18); run('step(300)'); key('ArrowDown');
 assert.deepEqual([...pos(), run('lockTimer')], [3, 18, 300]);
@@ -145,7 +160,7 @@ assert.deepEqual([run('piece.y'), run('lockTimer')], [18, 0]);
 run('step(499)');
 assert.ok(empty());
 
-// Floor stall: sliding and rotating on the floor do not extend the delay
+// Floor stall: sliding on the floor (plus a rotation press, blocked here) does not extend the delay
 run('reset()'); put('T', 3, 18);
 run('step(150)'); key('ArrowLeft'); run('step(150)'); key('ArrowUp'); key('ArrowRight'); run('step(150)'); key('ArrowLeft'); key('ArrowRight');
 run('step(49)');
@@ -161,6 +176,15 @@ run('step(199)');
 assert.ok(empty(), 'locked early');
 run('step(1)');
 assert.ok(!empty(), 'floor rotation stalled the lock');
+// time in the air does not count: rest 300 ms, slide off a ledge for 500 ms (no fall), slide back
+run('reset(); board[10][0] = "Z"'); put('O', 0, 8);
+assert.equal(run('ghostY()'), 8);
+run('step(300)'); key('ArrowRight'); run('step(500)');
+assert.deepEqual([...pos(), run('lockTimer')], [1, 8, 300], 'air time counted, or the piece fell');
+key('ArrowLeft'); run('step(199)');
+assert.deepEqual([...pos(), run('board[8][0]')], [0, 8, ''], 'locked early: air time counted');
+run('step(1)');
+assert.equal(run('board[8][0]'), 'O', 'not locked after 500 ms of rest');
 
 // Gravity wait after a soft drop: no extra row from the old accumulator
 run('reset()'); put('T', 3, 5); run('dropAcc = 990');
@@ -208,6 +232,8 @@ for (const [n, pts] of [[1, 100], [2, 300], [3, 500], [4, 800]]) {
   run(`reset(); for (let y = ${20 - n}; y < 20; y++) for (let x = 0; x < 9; x++) board[y][x] = 'Z'; board[15][0] = 'S'`);
   put('I', 7, 0, I_VERT); key('Space');
   assert.deepEqual([run('lines'), run('score'), run(`board[${15 + n}][0]`), run('board[15][0]')], [n, pts, 'S', ''], `${n} rows`);
+  const hud = rendered();
+  assert.ok(hud.includes(`Score: ${pts}`) && hud.includes(`Lines: ${n}`) && hud.includes('Level: 1'), `${n} rows: panel HUD`);
   assert.equal(run(`board.filter(r => r[9] === 'I').length`), 4 - n, `${n} rows: I cells above the clear`);
   if (n < 2) continue;
   // refilled rows are separate arrays: a T locked into rows 0-1 (over a near-full row 2) fills only its own cells
@@ -220,6 +246,8 @@ assert.deepEqual([run('lines'), run('score'), run('level()'), empty()], [13, 800
 run(`reset(); lines = 10; score = 5; for (let x = 0; x < 9; x++) board[19][x] = 'Z'`);
 put('I', 7, 0, I_VERT); key('Space');
 assert.deepEqual([run('lines'), run('score')], [11, 205]);
+const hud2 = rendered();
+assert.ok(hud2.includes('Level: 2') && hud2.includes('Lines: 11') && hud2.includes('Score: 205'), 'HUD after level-up');
 // a lock with no full row scores nothing and keeps the board
 run('reset()'); put('T', 3, 0); key('Space');
 assert.deepEqual([run('lines'), run('score')], [0, 0]);
@@ -236,8 +264,10 @@ for (let i = 0; i < 8; i++) { // crosses a bag boundary without topping out
 run('reset()');
 const [k1, n1] = [run('piece.k'), run('nextK')];
 key('ArrowRight'); key('ArrowDown');
+const bagBefore = json('bag'); // the first hold takes exactly one bag piece, the next one, into the preview
 key('KeyC');
 assert.deepEqual([run('holdK'), run('piece.k'), run('canHold')], [k1, n1, false]);
+assert.deepEqual([run('nextK'), json('bag')], [bagBefore.at(-1), bagBefore.slice(0, -1)], 'first hold did not take exactly one bag piece');
 const [k2, n2] = [run('piece.k'), run('nextK')];
 assert.notEqual(n2, n1, 'nextK not advanced by the first hold');
 key('ShiftLeft');
@@ -248,7 +278,9 @@ assert.equal(k3, n2, 'spawn after hold skipped the bag');
 key('ShiftRight', true);
 assert.deepEqual([run('holdK'), run('piece.k')], [k1, k3], 'repeat held');
 key('ArrowLeft'); key('ArrowDown');
+const queue = run('JSON.stringify([nextK, bag])');
 key('ShiftRight');
+assert.equal(run('JSON.stringify([nextK, bag])'), queue, 'swap changed next or the bag');
 assert.deepEqual([run('holdK'), run('piece.k'), run('piece.y'), run('piece.x'), run('canHold')], [k3, k1, 0, k1 === 'O' ? 4 : 3, false]);
 assert.deepEqual(json('piece.m'), json(`SHAPES.${k1}`));
 // a swapped-in held piece with no room at spawn ends the game
@@ -292,12 +324,14 @@ assert.ok(onBoard(drawn(`reset(); spawn('T'); render()`)).some(d => d[1] === col
 const overDraws = drawn(`reset(); board[1][4] = 'Z'; spawn('T'); render()`);
 assert.equal(gh.run('over'), true);
 assert.deepEqual(onBoard(overDraws).map(d => d[1]), [colorOf('Z')], 'piece drawn while over');
+assert.ok(!overDraws.some(d => d[0] === 'strokeRect'), 'ghost drawn while over');
 
 // Game over: spawn collides; overlay drawn; only R acts
 run('reset(); board[1][4] = "Z"; spawn("T")');
 assert.equal(run('over'), true);
 for (const t of ['Game over', 'Press R to restart']) assert.ok(rendered().includes(t), t);
-run('score = 1234'); run('render()');
+run('score = 1234');
+assert.equal(rendered().filter(t => t === 'Score: 1234').length, 2, 'panel and overlay both show score');
 const snap = () => run('JSON.stringify([board, piece, nextK, holdK, canHold, score, lines, dropAcc, lockTimer, over])');
 const overSnap = snap();
 for (const code of ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'KeyC', 'ShiftLeft', 'Enter']) key(code);
@@ -328,12 +362,16 @@ for (const code of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) press(co
 press('ArrowUp', true); press('Space', true);
 run('over = true'); press('ArrowDown'); press('Space');
 assert.equal(prevented, 8);
+run('reset()'); // mid-game, so KeyR below can't be what ends 'over'
 for (const code of ['KeyC', 'ShiftLeft', 'KeyR', 'KeyW', 'F5', 'Tab']) press(code);
 assert.equal(prevented, 8, 'non-game key prevented');
 
 // frame() caps dt at 100 ms: at 50 ms per row a 5 s gap falls 2 rows, not 100
 run('reset(); lines = 200'); put('T', 3, 0); run('last = null; frame(0); frame(5000)');
 assert.deepEqual(pos(), [3, 2]);
+// exact cap: a resting piece over a 120 ms gap gains 100 ms of lock time
+run('reset()'); put('T', 3, 18); run('last = null; frame(0); frame(120)');
+assert.equal(run('lockTimer'), 100, 'cap not 100 ms');
 
 // rAF wiring: bootstraps once, each frame() re-queues
 const calls = [];

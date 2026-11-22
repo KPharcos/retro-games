@@ -17,6 +17,13 @@ deferred:
     location: >-
       docs/CODEBASE_MAP.md
     severity: low
+  - summary: >-
+      gapwing.html and snake.html canvas rule has the same 2 px border past max-width 100%, so under about 404 px (Gapwing) and 404 px (Snake) the page scrolls sideways.
+    evidence: |-
+      Follow-up 2 edge-case review of stackfall.html. Stackfall fixed its own copy with box-sizing: border-box; the two older games share the rule and predate this change, so their fix is deferred.
+    location: >-
+      gapwing.html, snake.html
+    severity: low
 ---
 
 <intent-contract>
@@ -159,29 +166,68 @@ deferred:
   - `[low]` `[patch]` Bag counting versus hold respawns is ambiguous (intent) — grouped with the edge bag row; patched there.
   - `[low]` `[reject]` carried — modifier combinations and real key events are not exercised (intent). Same as the Ctrl/Meta/Alt row.
 
+### 2026-11-22 — Review pass (follow-up 2)
+- verdicts: 35 findings — high 0, medium 0, low 33, false 2, maybe-false 0
+- findings:
+  - `[low]` `[reject]` carried — Ctrl, Meta or Alt chords reach game keys, so Alt+Left is blocked and Ctrl+C holds (blind-hunter). Same as the pass-1 Stackfall modifier row; the same decision was made for Gapwing and Snake.
+  - `[low]` `[patch]` O (#81b29a) and L (#9ccf5a) are both green and hard to tell apart (blind-hunter) — patched: L changed to royal blue #4c5ae6; all seven hues checked distinct, closest pair unchanged from the palette already in use.
+  - `[low]` `[reject]` Canvas has no aria-describedby to the hint, and hold-used is shown only as a grey box (blind-hunter). Same as the pass-1 accessibility row; the spec's A11y clause defines the status text.
+  - `[low]` `[patch]` carried — no upward kick, so a flat piece cannot rotate (blind-hunter). Same as the pass-2 rows; the README note is already in place. Open question for the user: whether to add an upward kick.
+  - `[low]` `[reject]` Canvas is not devicePixelRatio-scaled and looks soft on HiDPI screens (blind-hunter) — cosmetic; the fix changes markup and a pinned width assert, more than a direct correction; same call as Gapwing and Snake.
+  - `[low]` `[patch]` Test message "four turns is not identity" sits on an assert that checks identity (blind-hunter) — patched: message now says "four turns return to start".
+  - `[low]` `[patch]` over is set before the "other keys untouched" loop, so KeyR runs reset() inside the check and the loop never runs mid-game (blind-hunter) — patched: reset before the loop.
+  - `[low]` `[patch]` No asserts pin the README rotation limits, so they can drift silently (blind-hunter) — patched: flat T on the floor cannot rotate; upright I at x=-2 and at x=8 cannot rotate; two rotating cases included.
+  - `[low]` `[patch]` README says "locks 500 ms after it lands", but the timer keeps its value while the piece is airborne (blind-hunter) — patched: README states total resting time since the last fall, air time excluded; a test pins the air-time pause.
+  - `[low]` `[patch]` README interval formula omits round (blind-hunter) — patched: round added.
+  - `[low]` `[patch]` README never explains "ghost" (blind-hunter) — patched: one sentence added.
+  - `[low]` `[patch]` README does not say that no high score is kept (blind-hunter) — patched: "There is no high score; nothing is saved between runs."
+  - `[low]` `[reject]` README Play link is dead until merge and GitHub Pages rebuild (blind-hunter) — post-merge check; recorded as a residual risk.
+  - `[low]` `[defer]` carried — map spec tree line says in-progress (blind-hunter). Already in `deferred`.
+  - `[low]` `[defer]` carried — map last_mapped and total_tokens are stale (blind-hunter). Already in `deferred`.
+  - `[low]` `[defer]` carried — map Gotchas has no Stackfall entries (blind-hunter). Already in `deferred`.
+  - `[low]` `[reject]` carried — Ctrl, Meta or Alt chords reach game keys (edge). Same as the blind-hunter row above.
+  - `[low]` `[reject]` Holding R at game over restarts before the game-over screen shows (edge). Same reasoning as the Snake held-Space rows: the intent names key repeat for some keys only, and a held restart key is the player's choice.
+  - `[low]` `[patch]` The canvas border adds 4 px past max-width 100%, so under about 454 px the page scrolls sideways (edge) — patched: box-sizing: border-box on the canvas. Gapwing and Snake share the rule and are deferred as a new item.
+  - `[false]` `[reject]` getContext('2d') returning null would throw and stop the loop (edge) — refutation: getContext('2d') on a fresh canvas does not return null in any browser that runs the page; no throwing path was shown. Same call as the Snake row.
+  - `[low]` `[patch]` HUD Score, Lines and Level are never checked during play (verification) — patched: panel text checked after a clear and a level-up, and the overlay score on game over.
+  - `[low]` `[patch]` Soft-drop score is never asserted (verification) — patched: score stays 0 after ArrowDown presses.
+  - `[low]` `[patch]` Hold queue effects are only partly asserted (verification) — patched: the first hold advances the queue exactly once and a swap leaves nextK and the bag unchanged. Checked with three real mutants (no advance, extra take, swap advances): all caught.
+  - `[low]` `[patch]` Ghost outline while game over is not asserted (verification) — patched: no strokeRect on the game-over screen. The spec's triage log said this was pinned; it was not, and this patch makes it true.
+  - `[low]` `[patch]` The dt cap is pinned only to the 100–149 ms range (verification) — patched: a 120 ms stall adds exactly 100 ms of lock time. A 110 ms cap mutant is caught.
+  - `[low]` `[patch]` The comment about the floor-rotation test is wrong (verification) — patched: the blocked ArrowUp is described as blocked; the successful rotation is in the next block.
+  - `[low]` `[patch]` Sideways landing can lock early, which the README did not say (intent) — same README claim as the blind-hunter lock row; patched there.
+  - `[low]` `[patch]` Canvas Score, Lines and Level are not checked by value (intent) — same as the verification HUD row; patched there.
+  - `[low]` `[reject]` "Every 10 lines" is tested as the interval table rather than as observed fall speed (intent) — the table is the spec's rule; observed speed needs a browser, which this repo does not drive.
+  - `[low]` `[reject]` The dt cap means a slow frame or a resumed tab advances game time by at most 100 ms (intent) — spec-defined cap; intended.
+  - `[low]` `[reject]` The 7-bag is not kept under hold, since hold respawns bypass it (intent) — the intent is silent on hold; the spec and the README document it.
+  - `[low]` `[reject]` Keys in tests are synthetic: OS auto-repeat and real page scroll are not exercised (intent) — same as the pass-1 logic-layer rows; the repo does not drive a browser.
+  - `[low]` `[reject]` Name and colours are not tested (intent) — judgement rather than a rule; the colour clash is covered by the palette patch.
+  - `[low]` `[reject]` The in-game hint lists keys only; the rules are in the README (intent) — the hint follows the shared shape; the README documents the rules.
+  - `[false]` `[reject]` carried — the spec file is not in the diff (intent). Same as the pass-1 row.
+
 ## Auto Run Result
 
-- **Summary:** Built Stackfall as `stackfall.html` in the shared shape, with `test-stackfall.mjs`. It covers the full intent and both stretch goals (hold and ghost). A follow-up review pass changed only README text and tests; the game did not change.
+- **Summary:** Built Stackfall as `stackfall.html` in the shared shape, with `test-stackfall.mjs`. It covers the full intent and both stretch goals (hold and ghost). Two follow-up passes changed only the README, the tests, one CSS line and one colour; the game rules did not change.
 - **Files changed (whole change):**
-  - `stackfall.html` -- the game.
-  - `test-stackfall.mjs` -- every I/O matrix row plus the review gaps (spawn timers, resting-branch gravity reset, refilled rows, live piece position, first-frame guard).
-  - `README.md` -- games table, controls, rules (scoring level, drops, key repeat, no pause, bag wording, rotation limits), test command.
+  - `stackfall.html` -- the game. Latest pass: `box-sizing: border-box` on the canvas, L colour changed to royal blue.
+  - `test-stackfall.mjs` -- every I/O matrix row plus the review gaps (spawn timers, resting-branch gravity reset, refilled rows, live piece position, first-frame guard, HUD text, soft-drop score, hold queue, ghost while over, dt cap, rotation limits, air-time pause).
+  - `README.md` -- games table, controls, rules (scoring level, drops, key repeat, no pause, bag wording, rotation limits, lock timing, round, ghost, no high score), test command.
   - `CLAUDE.md`, `docs/CODEBASE_MAP.md` -- games list, test command, Stackfall section.
-- **Review findings, pass 1:** 29 findings: 0 high, 3 medium, 24 low, 2 false. 12 rows patched in 8 fixes (one medium: gravity time not cleared after a soft drop or landing), 3 deferred, 14 rejected.
-- **Review findings, follow-up:** 28 findings: 0 high, 0 medium, 23 low, 5 false.
-  - Patched: 13 rows in 8 fixes (README corrections and five test additions).
-  - Deferred: 2 rows (map drift); the Gotchas gap was added to the existing `deferred` item.
-  - Rejected: 8 low and 5 false. Reasons are in the triage log.
-- **Follow-up review recommended:** false. No high was patched, so the work has converged.
+- **Review findings, follow-up 2:** 35 findings: 0 high, 0 medium, 33 low, 2 false.
+  - Patched: 18 rows in 13 fixes. One row (upward kick) is already covered by the README note from an earlier pass.
+  - Deferred: 3 rows (map drift, already in `deferred`) and one new item (the same canvas overflow in Gapwing and Snake).
+  - Rejected: 12 low and 2 false. Reasons are in the triage log.
+- **Follow-up review recommended:** false. No high or medium was patched, so the work has converged.
 - **Verification:**
-  - `node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs` passes, and the Stackfall suite passed 150 of 150 repeat runs.
-  - The implementer broke the game on purpose for each new assert; each failed the suite. I re-ran three (no first-frame guard, live piece drawn at the ghost row, shared refill rows): all caught.
-- **Open design question for the user:** rotation only shifts sideways, as the intent says, so a piece resting flat on the floor or on a flat stack cannot rotate, which makes the 500 ms lock delay much less useful. An upward kick would fix it but is excluded by the spec's Never list. The README now says so.
+  - `node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs` passes.
+  - I re-ran real mutants of the new asserts: three hold-queue breaks (no advance, extra take, swap advances), a 110 ms dt cap, and ghost drawn while over. Each is caught.
+- **Open design question for the user:** rotation only shifts sideways, so a piece resting flat on the floor or a flat stack cannot rotate, which makes the 500 ms lock delay rarely useful. An upward kick would fix it, but the spec's Never list excludes extended kick tables. The README says so; the decision is yours.
 - **Residual risks:**
   - Not played in a real browser.
-  - An upright I flush against either wall cannot rotate from one vertical position.
-  - The lock timer runs only while the piece rests, so ledge shuffling can delay a lock for a long time (bounded by 500 ms of resting time).
+  - An upright I flush against either wall cannot rotate from one of its two vertical positions.
+  - The lock timer runs only while the piece rests, so ledge shuffling can delay a lock; each rest counts toward 500 ms.
   - Move and soft-drop speed depends on OS key repeat.
+  - The new L blue is close to S's steel blue in hue; it differs mainly in brightness and saturation.
   - No pause; keyboard only.
   - The README Play link stays dead until merge and GitHub Pages rebuild.
 
