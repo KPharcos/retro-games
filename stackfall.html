@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stackfall</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #14121c;
+            font-family: Arial, sans-serif;
+            user-select: none;
+        }
+        canvas {
+            border: 2px solid #333;
+            background-color: #1f1c2b;
+            max-width: 100%;
+            max-height: 80vh;
+        }
+        #game-container {
+            text-align: center;
+        }
+        #status {
+            color: white;
+            font-size: 16px;
+            min-height: 20px;
+            margin-top: 8px;
+        }
+        #hint {
+            color: #aaa;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="450" height="600" role="img" aria-label="Stackfall game: steer falling shapes into place and fill rows to clear them"></canvas>
+        <div id="status" aria-live="polite"></div>
+        <div id="hint">← →: move · ↑: rotate · ↓: soft drop · Space: hard drop · C / Shift: hold · R: restart after game over</div>
+    </div>
+
+<script>
+const COLS = 10, ROWS = 20, CELL = 30, BW = COLS * CELL, H = ROWS * CELL, W = 450, LOCK_MS = 500;
+const SHAPES = {
+  I: [[0, 0, 0, 0], [1, 1, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0]],
+  O: [[1, 1], [1, 1]],
+  T: [[0, 1, 0], [1, 1, 1], [0, 0, 0]],
+  S: [[0, 1, 1], [1, 1, 0], [0, 0, 0]],
+  Z: [[1, 1, 0], [0, 1, 1], [0, 0, 0]],
+  J: [[1, 0, 0], [1, 1, 1], [0, 0, 0]],
+  L: [[0, 0, 1], [1, 1, 1], [0, 0, 0]],
+};
+const KEYS = Object.keys(SHAPES);
+const COLORS = { I: '#e07a5f', O: '#81b29a', T: '#f2cc8f', S: '#6d9dc5', Z: '#b388eb', J: '#ef6f9f', L: '#9ccf5a' };
+const POINTS = [0, 100, 300, 500, 800];
+
+let board, piece, bag, nextK, holdK, canHold, score, lines, dropAcc, lockTimer, over;
+
+function reset() {
+  board = Array.from({ length: ROWS }, () => Array(COLS).fill(''));
+  bag = [];
+  holdK = null; canHold = true;
+  score = lines = 0;
+  over = false;
+  nextK = take();
+  spawnNext();
+}
+
+const level = () => 1 + Math.floor(lines / 10);
+const interval = () => Math.max(50, Math.round(1000 * 0.8 ** (level() - 1)));
+
+function take() {
+  if (!bag.length) {
+    bag = [...KEYS];
+    for (let i = bag.length - 1; i > 0; i--) { // Fisher-Yates
+      const j = Math.floor(Math.random() * (i + 1));
+      [bag[i], bag[j]] = [bag[j], bag[i]];
+    }
+  }
+  return bag.pop();
+}
+
+function spawn(k) {
+  const m = SHAPES[k];
+  piece = { k, m, x: Math.floor((COLS - m.length) / 2), y: 0 };
+  dropAcc = lockTimer = 0;
+  if (!fits(m, piece.x, piece.y)) over = true;
+}
+
+function spawnNext() { spawn(nextK); nextK = take(); }
+
+function fits(m, x, y) {
+  return m.every((row, r) => row.every((v, c) =>
+    !v || (x + c >= 0 && x + c < COLS && y + r >= 0 && y + r < ROWS && !board[y + r][x + c])));
+}
+
+function tryMove(dx, dy) {
+  if (!fits(piece.m, piece.x + dx, piece.y + dy)) return false;
+  piece.x += dx; piece.y += dy;
+  if (dy) lockTimer = 0; // only a fall resets the lock delay, so floor sliding can't stall forever
+  return true;
+}
+
+function rotate() {
+  const n = piece.m.length;
+  const m = piece.m.map((row, r) => row.map((_, c) => piece.m[n - 1 - c][r])); // clockwise
+  for (const dx of [0, -1, 1])
+    if (fits(m, piece.x + dx, piece.y)) { piece.m = m; piece.x += dx; return; }
+}
+
+function ghostY() {
+  let y = piece.y;
+  while (fits(piece.m, piece.x, y + 1)) y++;
+  return y;
+}
+
+function lock() {
+  const lvl = level();
+  piece.m.forEach((row, r) => row.forEach((v, c) => { if (v) board[piece.y + r][piece.x + c] = piece.k; }));
+  board = board.filter(row => row.some(c => !c));
+  const n = ROWS - board.length;
+  while (board.length < ROWS) board.unshift(Array(COLS).fill(''));
+  lines += n;
+  score += POINTS[n] * lvl;
+  canHold = true;
+  spawnNext();
+}
+
+function hold() {
+  if (!canHold) return;
+  canHold = false;
+  const k = piece.k;
+  if (holdK) spawn(holdK); else spawnNext();
+  holdK = k;
+}
+
+function step(dt) {
+  if (over) return;
+  if (fits(piece.m, piece.x, piece.y + 1)) {
+    dropAcc += dt;
+    while (dropAcc >= interval() && tryMove(0, 1)) dropAcc -= interval();
+    if (!fits(piece.m, piece.x, piece.y + 1)) dropAcc = 0; // landed: sliding off a ledge later waits a full interval
+  } else {
+    dropAcc = 0;
+    if ((lockTimer += dt) >= LOCK_MS) lock();
+  }
+}
+
+function onKey(e) {
+  const code = String(e.code); // String(): synthetic events may lack code
+  if (code === 'Space' || code.startsWith('Arrow')) e.preventDefault();
+  if (over) { if (code === 'KeyR') reset(); return; }
+  if (code === 'ArrowLeft') tryMove(-1, 0);
+  else if (code === 'ArrowRight') tryMove(1, 0);
+  else if (code === 'ArrowDown') { if (tryMove(0, 1)) dropAcc = 0; }
+  else if (e.repeat) return;
+  else if (code === 'ArrowUp') rotate();
+  else if (code === 'Space') { piece.y = ghostY(); lock(); }
+  else if (code === 'KeyC' || code === 'ShiftLeft' || code === 'ShiftRight') hold();
+}
+
+// ---- rendering (reads state only) ----
+const ctx = document.getElementById('gameCanvas').getContext('2d');
+
+function setText(id, v) { const el = document.getElementById(id); if (el.textContent !== v) el.textContent = v; }
+
+function drawShape(m, px, py, size, color, outline) {
+  m.forEach((row, r) => row.forEach((v, c) => {
+    if (!v) return;
+    if (outline) { ctx.strokeStyle = color; ctx.strokeRect(px + c * size + 1.5, py + r * size + 1.5, size - 3, size - 3); }
+    else { ctx.fillStyle = color; ctx.fillRect(px + c * size + 1, py + r * size + 1, size - 2, size - 2); }
+  }));
+}
+
+function render() {
+  ctx.fillStyle = '#1f1c2b';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#18161f'; // board well
+  ctx.fillRect(0, 0, BW, H);
+  ctx.strokeStyle = '#26232f';
+  ctx.lineWidth = 1;
+  for (let x = 1; x < COLS; x++) { ctx.beginPath(); ctx.moveTo(x * CELL + 0.5, 0); ctx.lineTo(x * CELL + 0.5, H); ctx.stroke(); }
+  for (let y = 1; y < ROWS; y++) { ctx.beginPath(); ctx.moveTo(0, y * CELL + 0.5); ctx.lineTo(BW, y * CELL + 0.5); ctx.stroke(); }
+
+  board.forEach((row, y) => row.forEach((k, x) => {
+    if (k) { ctx.fillStyle = COLORS[k]; ctx.fillRect(x * CELL + 1, y * CELL + 1, CELL - 2, CELL - 2); }
+  }));
+  if (!over) { // the blocked spawn piece would hide the stack that topped out
+    drawShape(piece.m, piece.x * CELL, ghostY() * CELL, CELL, COLORS[piece.k], true);
+    drawShape(piece.m, piece.x * CELL, piece.y * CELL, CELL, COLORS[piece.k]);
+  }
+
+  // side panel: next, hold, stats
+  const PX = BW + 20, MINI = 24;
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.font = 'bold 16px Arial';
+  ctx.textAlign = 'left';
+  ctx.fillText('Next', PX, 30);
+  drawShape(SHAPES[nextK], PX, 44, MINI, COLORS[nextK]);
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.fillText('Hold', PX, 170);
+  if (holdK) drawShape(SHAPES[holdK], PX, 184, MINI, canHold ? COLORS[holdK] : '#555');
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.font = '16px Arial';
+  ctx.fillText('Score: ' + score, PX, 330);
+  ctx.fillText('Lines: ' + lines, PX, 360);
+  ctx.fillText('Level: ' + level(), PX, 390);
+
+  if (over) {
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(0, 0, BW, H);
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 34px Arial';
+    ctx.fillText('Game over', BW / 2, 260);
+    ctx.font = '20px Arial';
+    ctx.fillText('Score: ' + score, BW / 2, 300);
+    ctx.fillText('Press R to restart', BW / 2, 335);
+  }
+
+  setText('status', over ? 'Game over. Score: ' + score + '. Press R to restart.' : 'Level ' + level() + '.');
+}
+
+let last = null;
+function frame(t) {
+  if (last !== null) step(Math.min(t - last, 100)); // cap: a resumed tab catches up at most 100 ms, not the whole gap
+  last = t;
+  render();
+  requestAnimationFrame(frame);
+}
+
+document.addEventListener('keydown', onKey);
+reset();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
