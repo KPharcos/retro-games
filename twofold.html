@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twofold</title>
+    <style>
+        :root { --gap: 10px; }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #1d1b2e;
+            color: #ece9ff;
+            font-family: Arial, sans-serif;
+            user-select: none;
+        }
+        #game-container { width: min(400px, 92vw); }
+        header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+        h1 { margin: 0 auto 0 0; font-size: 32px; letter-spacing: 2px; color: #f2a541; }
+        .box { background: #2c2945; border-radius: 6px; padding: 4px 10px; text-align: center; min-width: 54px; }
+        .box small { display: block; font-size: 11px; color: #a9a3d6; text-transform: uppercase; }
+        .box span { font-size: 18px; font-weight: bold; }
+        .buttons { display: flex; gap: 8px; margin-bottom: 10px; }
+        button {
+            font: inherit; font-size: 14px; color: #1d1b2e; background: #a8dccf;
+            border: 0; border-radius: 6px; padding: 6px 14px; cursor: pointer;
+        }
+        button:disabled { opacity: 0.4; cursor: default; }
+        .wrap { position: relative; touch-action: none; }
+        #board {
+            position: relative;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--gap);
+            padding: var(--gap);
+            aspect-ratio: 1;
+            box-sizing: border-box;
+            background: #2c2945;
+            border-radius: 10px;
+        }
+        .cell { background: #3a3658; border-radius: 6px; }
+        .tile {
+            position: absolute;
+            top: var(--gap);
+            left: var(--gap);
+            width: calc((100% - 5 * var(--gap)) / 4);
+            height: calc((100% - 5 * var(--gap)) / 4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            font-weight: bold;
+            z-index: 1;
+            transition: transform 100ms ease-in-out;
+            animation: appear 150ms 90ms backwards;
+        }
+        .tile.gone { z-index: 0; } /* a tile merged away: slides under its partner, removed on the next move */
+        @keyframes appear { from { opacity: 0; scale: 0.4; } }
+        @media (prefers-reduced-motion: reduce) { .tile { transition: none; animation: none; } }
+        .d1, .d2 { font-size: min(36px, 8vw); }
+        .d3 { font-size: min(30px, 7vw); }
+        .d4 { font-size: min(24px, 5.5vw); }
+        .d5 { font-size: min(18px, 4.5vw); }
+        .v2 { background: #cfe8e0; color: #1d1b2e; }
+        .v4 { background: #a8dccf; color: #1d1b2e; }
+        .v8 { background: #6cc5b0; color: #1d1b2e; }
+        .v16 { background: #3fa7a0; color: #fff; }
+        .v32 { background: #2f8a9e; color: #fff; }
+        .v64 { background: #3a6fa8; color: #fff; }
+        .v128 { background: #5b5bb5; color: #fff; }
+        .v256 { background: #8150b8; color: #fff; }
+        .v512 { background: #a845a6; color: #fff; }
+        .v1024 { background: #d0457f; color: #fff; }
+        .v2048 { background: #f2a541; color: #1d1b2e; }
+        .vbig { background: #ffd166; color: #1d1b2e; }
+        #message {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            background: rgba(29, 27, 46, 0.8);
+            border-radius: 10px;
+            padding: 0 16px;
+            text-align: center;
+            font-size: 22px;
+            font-weight: bold;
+        }
+        #message[hidden] { display: none; }
+        #status { min-height: 20px; margin-top: 8px; font-size: 16px; }
+        #hint { margin-top: 8px; font-size: 14px; color: #a9a3d6; }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <header>
+            <h1>Twofold</h1>
+            <div class="box"><small>Score</small><span id="score">0</span></div>
+            <div class="box"><small>Best</small><span id="best">0</span></div>
+        </header>
+        <div class="buttons">
+            <button id="new">New game</button>
+            <button id="undo" disabled>Undo</button>
+        </div>
+        <div class="wrap">
+            <div id="board" role="grid" aria-label="Twofold board, 4 by 4 tiles">
+                <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+                <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+                <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+                <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+            </div>
+            <div id="message" hidden>
+                <div id="message-text"></div>
+                <button id="continue">Continue</button>
+            </div>
+        </div>
+        <div id="status" aria-live="polite"></div>
+        <div id="hint">Arrows / swipe: slide · Enter / C: continue at 2048 · U: undo · N: new game</div>
+    </div>
+
+<script>
+const SIZE = 4, GOAL = 2048, SWIPE = 30, BEST_KEY = 'twofoldBest';
+const DIRS = ['left', 'right', 'up', 'down'];
+const KEYS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
+
+// ---- pure rules: boards in, new boards out ----
+const emptyBoard = () => Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
+
+// [row, col] cells of each line, ordered from the edge the tiles slide toward
+function lines(dir) {
+  const idx = [...Array(SIZE).keys()];
+  const order = dir === 'left' || dir === 'up' ? idx : [...idx].reverse();
+  return idx.map(i => order.map(j => (dir === 'left' || dir === 'right' ? [i, j] : [j, i])));
+}
+
+// slide plus where each tile went, so the shell can keep tile ids (and DOM elements) across a move
+function track(board, dir) {
+  const next = emptyBoard(), moves = [];
+  let gained = 0;
+  for (const line of lines(dir)) {
+    let free = 0, open = -1; // free: next empty slot; open: slot whose tile can still take a merge
+    for (const [r, c] of line) {
+      const v = board[r][c];
+      if (!v) continue;
+      if (open >= 0 && next[line[open][0]][line[open][1]] === v) {
+        const [tr, tc] = line[open];
+        next[tr][tc] = v * 2;
+        gained += v * 2;
+        moves.push({ from: [r, c], to: [tr, tc], merge: true });
+        open = -1; // merged tiles don't merge again this move
+      } else {
+        const [tr, tc] = line[free];
+        next[tr][tc] = v;
+        moves.push({ from: [r, c], to: [tr, tc], merge: false });
+        open = free++;
+      }
+    }
+  }
+  const moved = moves.some(m => m.from[0] !== m.to[0] || m.from[1] !== m.to[1]);
+  return { board: next, gained, moved, moves };
+}
+
+function slide(board, dir) {
+  const { board: next, gained, moved } = track(board, dir);
+  return { board: next, gained, moved };
+}
+
+function addTile(board, rand) {
+  const next = board.map(row => row.slice());
+  const empty = [];
+  next.forEach((row, r) => row.forEach((v, c) => { if (!v) empty.push([r, c]); }));
+  if (!empty.length) return next;
+  const [r, c] = empty[Math.floor(rand() * empty.length)]; // first draw: the cell, second: the value
+  next[r][c] = rand() < 0.9 ? 2 : 4;
+  return next;
+}
+
+const canMove = (board) => DIRS.some(d => slide(board, d).moved);
+const hasTile = (board, value) => board.some(row => row.includes(value));
+
+// ---- game shell ----
+let board, score, won, keepPlaying, over, prev, undone;
+let ids, ghosts; // tile id per cell, and tiles merged away last move (still sliding into their partner)
+let nextId = 0;  // never reset, so a new game never reuses an old tile's element
+let best = 0;
+try { best = Number(localStorage.getItem(BEST_KEY)) || 0; } catch {} // blocked or missing storage: best stays 0
+
+function reset() {
+  board = addTile(addTile(emptyBoard(), Math.random), Math.random);
+  ids = board.map(row => row.map(v => (v ? ++nextId : 0)));
+  ghosts = [];
+  score = 0;
+  won = keepPlaying = over = undone = false;
+  prev = null;
+}
+
+function move(dir) {
+  if (over || (won && !keepPlaying)) return;
+  const t = track(board, dir);
+  if (!t.moved) return;
+  prev = { board, score, ids, won };
+  const nextIds = emptyBoard();
+  ghosts = [];
+  for (const { from: [r, c], to: [tr, tc], merge } of t.moves) {
+    if (merge) ghosts.push({ id: ids[r][c], r: tr, c: tc, v: board[r][c] });
+    else nextIds[tr][tc] = ids[r][c];
+  }
+  board = addTile(t.board, Math.random);
+  board.forEach((row, r) => row.forEach((v, c) => { if (v && !t.board[r][c]) nextIds[r][c] = ++nextId; }));
+  ids = nextIds;
+  score += t.gained;
+  if (score > best) {
+    best = score;
+    try { localStorage.setItem(BEST_KEY, String(best)); } catch {}
+  }
+  const reached = !won && hasTile(board, GOAL);
+  if (reached) won = true;
+  over = !canMove(board);
+  undone = false;
+  render();
+  if (reached) $('continue').focus();
+}
+
+function keepGoing() { keepPlaying = true; render(); }
+
+function undo() {
+  if (!prev) return;
+  ({ board, score, ids, won } = prev);
+  prev = null;
+  ghosts = [];
+  over = false; // the restored board allowed the move just undone
+  undone = true;
+  render();
+}
+
+function onKey(e) {
+  if (Object.hasOwn(KEYS, e.code)) { e.preventDefault(); move(KEYS[e.code]); } // not inherited names like constructor
+  else if (e.code === 'KeyN') { reset(); render(); }
+  else if (e.code === 'KeyU') undo();
+  else if ((e.code === 'Enter' || e.code === 'KeyC') && won && !keepPlaying) keepGoing();
+}
+
+// ---- rendering (reads game state; writes only the DOM) ----
+const $ = (id) => document.getElementById(id);
+const boardEl = $('board');
+const els = new Map(); // tile id -> element
+
+function setText(id, v) { const el = $(id); if (el.textContent !== v) el.textContent = v; }
+
+function render() {
+  const live = new Set();
+  const place = (id, r, c, v, extra) => {
+    let el = els.get(id);
+    if (!el) { el = document.createElement('div'); boardEl.appendChild(el); els.set(id, el); }
+    live.add(id);
+    el.className = `tile v${v > GOAL ? 'big' : v} d${Math.min(String(v).length, 5)}${extra}`;
+    el.textContent = String(v);
+    el.style.transform = `translate(calc(${c} * (100% + var(--gap))), calc(${r} * (100% + var(--gap))))`;
+  };
+  ghosts.forEach(g => place(g.id, g.r, g.c, g.v, ' gone'));
+  board.forEach((row, r) => row.forEach((v, c) => { if (v) place(ids[r][c], r, c, v, ''); }));
+  for (const [id, el] of els) if (!live.has(id)) { el.remove(); els.delete(id); }
+
+  setText('score', String(score));
+  setText('best', String(best));
+  const winMsg = won && !keepPlaying;
+  $('message').hidden = !(winMsg || over);
+  const overText = 'Game over. Score: ' + score + '. Use Undo or New game';
+  setText('message-text', winMsg ? 'You reached 2048!' : over ? overText + '.' : '');
+  $('continue').hidden = !winMsg;
+  $('undo').disabled = !prev;
+  setText('status', winMsg ? 'You reached 2048! Continue or start a new game.'
+    : over ? overText + ' (U or N).'
+    : undone ? 'Move undone.' : '');
+}
+
+let swipeFrom = null;
+document.addEventListener('keydown', onKey);
+document.addEventListener('pointerdown', (e) => {
+  const t = e.target;
+  // primary pointer only, starting on the board area but not on a button (its click would act too)
+  if (e.isPrimary && e.button === 0 && t?.closest?.('.wrap') && !t.closest('button')) swipeFrom = { id: e.pointerId, x: e.clientX, y: e.clientY };
+});
+document.addEventListener('pointercancel', (e) => { if (swipeFrom && e.pointerId === swipeFrom.id) swipeFrom = null; });
+document.addEventListener('pointerup', (e) => {
+  if (!swipeFrom || e.pointerId !== swipeFrom.id) return;
+  const dx = e.clientX - swipeFrom.x, dy = e.clientY - swipeFrom.y;
+  swipeFrom = null;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE) return;
+  move(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+});
+document.addEventListener('click', (e) => {
+  const id = e.target && e.target.id;
+  if (id === 'new') { reset(); render(); }
+  else if (id === 'undo') undo();
+  else if (id === 'continue') keepGoing();
+});
+reset();
+render();
+</script>
+</body>
+</html>

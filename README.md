@@ -7,12 +7,13 @@ Small retro browser games. Each game is one self-contained HTML file with no bui
 | Gapwing | `gapwing.html` | An original one-button flyer: flap a bird through gaps between scrolling pillars |
 | Snake | `snake.html` | Classic grid snake on a 20x20 board, with a saved high score, optional wrap-around walls (T) and pause (keyboard only) |
 | Stackfall | `stackfall.html` | An original falling-blocks puzzle on a 10x20 board, with a 7-bag, next preview, hold and ghost (keyboard only) |
+| Twofold | `twofold.html` | An original sliding-merge number puzzle on a 4x4 board, with one-step undo and a saved best score (keyboard or swipe) |
 
 ## Play
 
-Play online: [Gapwing](https://kpharcos.github.io/retro-games/gapwing.html) · [Snake](https://kpharcos.github.io/retro-games/snake.html) · [Stackfall](https://kpharcos.github.io/retro-games/stackfall.html)
+Play online: [Gapwing](https://kpharcos.github.io/retro-games/gapwing.html) · [Snake](https://kpharcos.github.io/retro-games/snake.html) · [Stackfall](https://kpharcos.github.io/retro-games/stackfall.html) · [Twofold](https://kpharcos.github.io/retro-games/twofold.html)
 
-You can also clone the repo and open `gapwing.html`, `snake.html` or `stackfall.html` in a browser.
+You can also clone the repo and open `gapwing.html`, `snake.html`, `stackfall.html` or `twofold.html` in a browser.
 
 ### Gapwing controls
 
@@ -50,12 +51,25 @@ Pieces come from a 7-bag: each bag holds all seven shapes once, in random order,
 
 Rotation only tries one column of shift sideways and never shifts up, so a piece resting flat on the floor or on a flat stack cannot rotate, and an upright I flush against either wall cannot rotate from one of its two vertical positions; move it one column away from the wall first.
 
+### Twofold controls
+
+| Input | Action |
+|---|---|
+| Arrow keys / swipe (drag 30 px or more, starting on the board) | Slide all tiles; holding a key repeats |
+| Enter / C / Continue button | Keep playing after the 2048 message |
+| U / Undo button | Undo the last move (one step) |
+| N / New game button | Start a new game at any time |
+
+Every tile slides as far as it can. Two equal tiles that meet merge into their sum, which is added to the score; a tile merges at most once per move, and with three equal in a row the pair nearest the wall merges. After a move that changed the board, a new tile appears on a random empty cell: a 2 (90%) or a 4 (10%). The first 2048 tile shows a message with Continue; after that it doesn't show again. The game is over when no slide can change the board. Undo also works from the game-over and 2048 screens. The best score is kept in `localStorage`.
+
+Twofold is DOM-based: tiles are positioned `<div>`s that slide with a CSS transition, so there is no canvas and no animation loop.
+
 ## Tests
 
 The tests need Node 18+ and nothing else:
 
 ```sh
-node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs
+node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs
 ```
 
 `harness.mjs` loads a game's inline `<script>` into `node:vm` with a stub DOM, so the tests can drive game state and key presses directly.
@@ -69,6 +83,8 @@ Copy the shape of `gapwing.html`:
 - `reset()`, `step(dt)` and a read-only `render()`
 - an `onKey(e)` handler that reads `e.code`
 - a `requestAnimationFrame` loop
+
+A turn-based DOM game like `twofold.html` may skip `step(dt)` and the loop: its moves update state and call `render()` directly, and CSS does the animation.
 
 Then add a `test-<name>.mjs` that calls `load('./<name>.html')` from `harness.mjs`. See [docs/CODEBASE_MAP.md](docs/CODEBASE_MAP.md) for the full layout.
 
