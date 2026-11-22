@@ -6,11 +6,12 @@ status: 'done'
 baseline_revision: 'e52916eaf218b6e5194342eeea11bfe090a907df'
 review_loop_iteration: 0
 followup_review_recommended: false
+followup_pass: true
 context: ['{project-root}/CLAUDE.md']
 warnings: ['oversized']
 deferred:
   - summary: >-
-      docs/CODEBASE_MAP.md drift after Stackfall: the spec tree line says in-progress, total_tokens and last_mapped are stale, and Stackfall's layout row does not say keyboard only.
+      docs/CODEBASE_MAP.md drift after Stackfall: the spec tree line says in-progress, total_tokens and last_mapped are stale, Stackfall's layout row does not say keyboard only, and Gotchas has no Stackfall entries (the missing floor kick, the I-piece wall limit, the real RNG in some tests).
     evidence: |-
       Review pass 1 (blind-hunter). The map is cartographer output linked from CLAUDE.md, so the fix edits an agent-context doc; a cartographer re-map refreshes it.
     location: >-
@@ -126,27 +127,62 @@ deferred:
   - `[medium]` `[patch]` Soft drop leaves dropAcc unchanged, so gravity can add a second row right after it (edge) — grouped with the blind-hunter dropAcc row; patched there.
   - `[low]` `[reject]` Ctrl/Meta/Alt chords trigger game keys (edge) — same call as Gapwing and Snake.
 
+### 2026-11-22 — Review pass (follow-up)
+- verdicts: 28 findings — high 0, medium 0, low 23, false 5, maybe-false 0
+- findings:
+  - `[low]` `[patch]` Pieces resting flat on the floor or a flat stack cannot rotate, since kicks only go sideways (blind-hunter) — grouped with the edge row. The behaviour fix (an upward kick) is rejected: the spec's Never list excludes extended kick tables and the intent names x-1, x+1 only. Patched: README states the limit.
+  - `[low]` `[patch]` README says an I against the right wall can rotate, which is wrong (blind-hunter) — verified by probe: left wall fails at x=-2 and right wall at x=8, one vertical position each. Grouped with the edge row. Patched: README corrected.
+  - `[low]` `[reject]` carried — Ctrl/Meta/Alt chords trigger game keys (blind-hunter). Same as the pass-1 row.
+  - `[low]` `[defer]` carried — map spec tree line says in-progress, frontmatter totals stale (blind-hunter). Already in `deferred`.
+  - `[low]` `[patch]` README scoring and input rules are incomplete (blind-hunter) — patched: level before the clear, drops score nothing, which keys repeat.
+  - `[low]` `[reject]` carried — no pause and no pause on blur (blind-hunter). Same as the pass-1 row; the README now says there is no pause.
+  - `[low]` `[reject]` Tests depend on unpinned Math.random (blind-hunter) — 150 of 150 runs pass; the random-dependent asserts stay inside one bag, where consecutive shapes differ.
+  - `[low]` `[reject]` Accessibility is thin: the status carries only level and game over (blind-hunter) — the spec's A11y clause defines the status text; touch input is not required.
+  - `[low]` `[defer]` Map Gotchas has no Stackfall entries (blind-hunter) — the fix edits CODEBASE_MAP; folded into the map drift item in `deferred`.
+  - `[low]` `[patch]` A flat resting piece cannot rotate (edge) — grouped with the blind-hunter row. Upward kick rejected as spec-excluded; README note patched.
+  - `[low]` `[reject]` Lock timer pauses while the piece hovers after sliding off a ledge, and dropAcc resets on each resting frame; a probe stalled the lock about 30.8 s (edge) — the spec defines the timer as running only while the piece cannot fall; the stall is bounded by 500 ms of total resting time and needs deliberate ledge shuffling.
+  - `[low]` `[patch]` README right-wall claim is wrong (edge) — grouped with the blind-hunter row; patched there.
+  - `[low]` `[patch]` "Each run of 7 spawns contains every shape once" overstates: windows across two bags and held pieces can repeat a shape (edge) — patched: README bag sentence reworded.
+  - `[low]` `[patch]` spawn() clearing dropAcc and lockTimer is unpinned; deleting the line passes (verification) — patched: tests for hard drop and hold with stale timers.
+  - `[low]` `[patch]` The dropAcc reset on the resting branch of step() is unpinned (verification) — patched: sideways slide onto a ledge, then off, needs a full interval.
+  - `[low]` `[patch]` Refilled rows after a multi-row clear could share one array and no test would notice (verification) — patched: a T locked into the refilled rows fills only its own cells.
+  - `[low]` `[patch]` The live piece's drawn position is not asserted (verification) — patched: fillRect origins match the piece's own cells, not the ghost row.
+  - `[low]` `[patch]` The first-frame guard in frame() is untested (verification) — patched: a first frame at t=1000 does not step. The reviewer suggested defer, but the guard is new code in this change.
+  - `[false]` `[reject]` Spec log claim "removing every reset fails the suite" is false (verification) — refutation: removing all the resets does fail the suite (checked); each single reset was unpinned, which the two rows above fix.
+  - `[low]` `[reject]` carried — tests drive internals through a stub; no real browser, pixels or screen reader (intent). Same as the pass-1 rows.
+  - `[false]` `[reject]` carried — docs edited beyond the named files; spec not in the diff (intent). Same as the pass-1 rows.
+  - `[low]` `[reject]` Lock timer pauses while airborne; a probe locked 900 ms after first rest (intent) — same as the edge row; spec-defined and bounded.
+  - `[false]` `[reject]` Tests pin behaviours the intent does not state: dropAcc resets, ghost hidden while over, panel Score/Lines/Level, `Level N.` status (intent) — documented spec choices; no defect.
+  - `[low]` `[patch]` carried — the I-piece wall kick limit (intent). Same as the pass-1 row; the README note it produced was wrong for the right wall and is corrected under the blind-hunter and edge rows.
+  - `[false]` `[reject]` preventDefault is applied to arrows and Space even while over (intent) — matches the spec and is pinned by a test.
+  - `[false]` `[reject]` The status reads `Level N.` from the first render (intent) — satisfies "changes only when its text changes".
+  - `[low]` `[patch]` Bag counting versus hold respawns is ambiguous (intent) — grouped with the edge bag row; patched there.
+  - `[low]` `[reject]` carried — modifier combinations and real key events are not exercised (intent). Same as the Ctrl/Meta/Alt row.
+
 ## Auto Run Result
 
-- **Summary:** Built Stackfall as `stackfall.html` in the shared shape, with `test-stackfall.mjs`. It covers the full intent and both stretch goals: hold (C/Shift, once per piece) and ghost.
-- **Files changed:**
+- **Summary:** Built Stackfall as `stackfall.html` in the shared shape, with `test-stackfall.mjs`. It covers the full intent and both stretch goals (hold and ghost). A follow-up review pass changed only README text and tests; the game did not change.
+- **Files changed (whole change):**
   - `stackfall.html` -- the game.
-  - `test-stackfall.mjs` -- every I/O matrix row plus the review gaps.
-  - `README.md` -- games table, controls, rules (including the I-piece wall note), test command.
+  - `test-stackfall.mjs` -- every I/O matrix row plus the review gaps (spawn timers, resting-branch gravity reset, refilled rows, live piece position, first-frame guard).
+  - `README.md` -- games table, controls, rules (scoring level, drops, key repeat, no pause, bag wording, rotation limits), test command.
   - `CLAUDE.md`, `docs/CODEBASE_MAP.md` -- games list, test command, Stackfall section.
-- **Review findings:** 29 findings: 0 high, 3 medium, 24 low, 2 false.
-  - Patched: 12 rows in 8 fixes. One medium entry: `dropAcc` not cleared after a soft drop or a landing.
-  - Deferred: 3 low rows (map drift) as one `deferred` item.
-  - Rejected: 12 low and the 2 false. Reasons are in the triage log.
-- **Follow-up review recommended:** false. No high was patched and only one medium entry.
+- **Review findings, pass 1:** 29 findings: 0 high, 3 medium, 24 low, 2 false. 12 rows patched in 8 fixes (one medium: gravity time not cleared after a soft drop or landing), 3 deferred, 14 rejected.
+- **Review findings, follow-up:** 28 findings: 0 high, 0 medium, 23 low, 5 false.
+  - Patched: 13 rows in 8 fixes (README corrections and five test additions).
+  - Deferred: 2 rows (map drift); the Gotchas gap was added to the existing `deferred` item.
+  - Rejected: 8 low and 5 false. Reasons are in the triage log.
+- **Follow-up review recommended:** false. No high was patched, so the work has converged.
 - **Verification:**
-  - `node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs` passes.
-  - The implementer broke the game on purpose for every new assert (18 checks in all); each failed the suite. I re-checked the `dropAcc` fix: removing every reset fails the suite.
+  - `node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs` passes, and the Stackfall suite passed 150 of 150 repeat runs.
+  - The implementer broke the game on purpose for each new assert; each failed the suite. I re-ran three (no first-frame guard, live piece drawn at the ghost row, shared refill rows): all caught.
+- **Open design question for the user:** rotation only shifts sideways, as the intent says, so a piece resting flat on the floor or on a flat stack cannot rotate, which makes the 500 ms lock delay much less useful. An upward kick would fix it but is excluded by the spec's Never list. The README now says so.
 - **Residual risks:**
   - Not played in a real browser.
-  - An upright I flush against the left wall can't rotate (literal kick rule).
-  - Moves and soft drop use OS key repeat, so their speed varies by machine.
-  - No pause.
+  - An upright I flush against either wall cannot rotate from one vertical position.
+  - The lock timer runs only while the piece rests, so ledge shuffling can delay a lock for a long time (bounded by 500 ms of resting time).
+  - Move and soft-drop speed depends on OS key repeat.
+  - No pause; keyboard only.
   - The README Play link stays dead until merge and GitHub Pages rebuild.
 
 ## Design Notes

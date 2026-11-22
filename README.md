@@ -44,9 +44,11 @@ The snake starts at length 3 and 8 moves per second. Each food adds 1 length and
 | C / Shift | Hold (once per piece) |
 | R | Restart after game over |
 
-Every run of 7 pieces contains each of the seven shapes once. The level is 1 + lines / 10 (rounded down), and pieces fall one row every max(50, 1000 · 0.8^(level-1)) ms. A resting piece locks 500 ms after it lands; only falling a row restarts that timer. Clearing 1 / 2 / 3 / 4 rows scores 100 / 300 / 500 / 800 × level. The game ends when a new piece has no room to spawn.
+Pieces come from a 7-bag: each bag holds all seven shapes once, in random order, and a held piece can reappear sooner. The level is 1 + lines / 10 (rounded down), and pieces fall one row every max(50, 1000 · 0.8^(level-1)) ms. A resting piece locks 500 ms after it lands; only falling a row restarts that timer. Clearing 1 / 2 / 3 / 4 rows scores 100 / 300 / 500 / 800 × level, using the level before the clear; soft and hard drops score nothing. The game ends when a new piece has no room to spawn.
 
-Rotation only tries one column of shift, so an upright I piece standing flush against the left wall cannot rotate; move it one column right first. Against the right wall it can.
+←, → and ↓ repeat while held; ↑, Space and hold act once per press. There is no pause.
+
+Rotation only tries one column of shift sideways and never shifts up, so a piece resting flat on the floor or on a flat stack cannot rotate, and an upright I flush against either wall cannot rotate from one of its two vertical positions; move it one column away from the wall first.
 
 ## Tests
 

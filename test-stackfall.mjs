@@ -179,6 +179,29 @@ run('step(49)');
 assert.deepEqual(pos(), [1, 8], 'fell before a full interval');
 run('step(1)');
 assert.deepEqual(pos(), [1, 9]);
+// sliding onto a ledge with time banked: one resting step clears it, so sliding off waits a full interval
+run('reset(); board[10][0] = "Z"'); put('O', 1, 8);
+run('step(400)'); key('ArrowLeft'); run('step(10)');
+assert.deepEqual([...pos(), run('dropAcc')], [0, 8, 0]);
+key('ArrowRight'); run('step(600)');
+assert.deepEqual(pos(), [1, 8], 'banked gravity survived resting');
+run('step(400)');
+assert.deepEqual(pos(), [1, 9]);
+
+// Spawn starts fresh timers: banked gravity and lock time don't carry to the next piece
+run('reset()'); put('T', 3, 0); run('dropAcc = 900'); key('Space'); run('step(100)');
+assert.equal(run('piece.y'), 0, 'gravity carried over a hard drop');
+run('reset(); holdK = "O"'); put('T', 3, 5); run('dropAcc = 900'); key('KeyC'); run('step(100)');
+assert.deepEqual([run('piece.k'), run('piece.y')], ['O', 0], 'gravity carried over a hold');
+// new O rests on board[2][4] right at spawn
+run('reset(); nextK = "O"; board[2][4] = "Z"'); put('T', 0, 18); run('lockTimer = 400'); key('Space');
+assert.deepEqual([run('piece.k'), run('lockTimer')], ['O', 0]);
+run('step(100)');
+assert.deepEqual([run('piece.k'), run('board[0][4]')], ['O', ''], 'lock time carried over a hard drop');
+run('reset(); holdK = "O"; board[2][4] = "Z"'); put('T', 0, 18); run('lockTimer = 400'); key('KeyC');
+assert.deepEqual([run('piece.k'), run('lockTimer')], ['O', 0]);
+run('step(100)');
+assert.deepEqual([run('piece.k'), run('board[0][4]')], ['O', ''], 'lock time carried over a hold');
 
 // Line clear: 1-4 rows, rows above drop, 100/300/500/800 x level (level before the clear)
 for (const [n, pts] of [[1, 100], [2, 300], [3, 500], [4, 800]]) {
@@ -186,6 +209,10 @@ for (const [n, pts] of [[1, 100], [2, 300], [3, 500], [4, 800]]) {
   put('I', 7, 0, I_VERT); key('Space');
   assert.deepEqual([run('lines'), run('score'), run(`board[${15 + n}][0]`), run('board[15][0]')], [n, pts, 'S', ''], `${n} rows`);
   assert.equal(run(`board.filter(r => r[9] === 'I').length`), 4 - n, `${n} rows: I cells above the clear`);
+  if (n < 2) continue;
+  // refilled rows are separate arrays: a T locked into rows 0-1 (over a near-full row 2) fills only its own cells
+  run(`for (let x = 0; x < 9; x++) board[2][x] = 'Z'`); put('T', 3, 0); key('Space');
+  assert.deepEqual(json('[board[0], board[1]]'), [['', '', '', '', 'T', '', '', '', '', ''], ['', '', '', 'T', 'T', 'T', '', '', '', '']], `${n} rows: refilled rows share an array`);
 }
 run(`reset(); lines = 9; for (let y = 16; y < 20; y++) for (let x = 0; x < 9; x++) board[y][x] = 'Z'`);
 put('I', 7, 0, I_VERT); key('Space');
@@ -258,6 +285,9 @@ assert.deepEqual(inBox(drawn('holdK = null; render()'), 184), [], 'empty hold dr
 
 // Game over: the blocked spawn piece is not drawn over the stack (on the board, only Z cells)
 const onBoard = (rows) => rows.filter(d => d[0] === 'fillRect' && d[2] < 300 && d[4] === 28);
+// live piece drawn at its own x,y, not at the ghost row (10)
+const livePiece = onBoard(drawn(`reset(); board[12][4] = 'Z'; piece = { k: 'T', m: SHAPES.T, x: 3, y: 2 }; render()`)).filter(d => d[1] === colorOf('T'));
+assert.deepEqual(livePiece.map(d => [d[2], d[3]]).sort(), [[121, 61], [91, 91], [121, 91], [151, 91]].sort(), 'live piece position');
 assert.ok(onBoard(drawn(`reset(); spawn('T'); render()`)).some(d => d[1] === colorOf('T')), 'live piece not drawn');
 const overDraws = drawn(`reset(); board[1][4] = 'Z'; spawn('T'); render()`);
 assert.equal(gh.run('over'), true);
@@ -309,8 +339,9 @@ assert.deepEqual(pos(), [3, 2]);
 const calls = [];
 const r = load('./stackfall.html', { requestAnimationFrame: (cb) => calls.push(cb) });
 assert.equal(calls.length, 1);
-r.run('frame(0)');
+r.run('frame(1000)'); // very first frame only renders: no dt from load time
 assert.equal(calls.length, 2);
+assert.deepEqual([r.run('dropAcc'), r.run('piece.y')], [0, 0], 'first frame stepped');
 
 // render() leaves state alone (playing and over)
 run('reset(); holdK = "J"; canHold = false');
