@@ -4,39 +4,14 @@ Small retro browser games. Each game is one self-contained HTML file with no bui
 
 | Game | File | What it is |
 |---|---|---|
-| Snake | `snake.html` | Classic grid snake with a high score, pause and wrap-around mode |
-| Stackfall | `stackfall.html` | An original falling-block puzzle with a 7-bag randomizer, hold, ghost piece and lock delay |
 | Gapwing | `gapwing.html` | An original one-button flyer: flap a bird through gaps between scrolling pillars |
+| Snake | `snake.html` | Classic grid snake on a 20x20 board, with a saved high score, optional wrap-around walls (T) and pause (keyboard only) |
 
 ## Play
 
-Play online: [Snake](https://kpharcos.github.io/retro-games/snake.html) · [Stackfall](https://kpharcos.github.io/retro-games/stackfall.html) · [Gapwing](https://kpharcos.github.io/retro-games/gapwing.html)
+Play online: [Gapwing](https://kpharcos.github.io/retro-games/gapwing.html) · [Snake](https://kpharcos.github.io/retro-games/snake.html)
 
-You can also clone the repo and open any of the HTML files in a browser.
-
-### Snake controls
-
-| Key | Action |
-|---|---|
-| Arrows / WASD | Steer |
-| P | Pause |
-| T | Toggle wrap-around |
-| Space | Restart after game over |
-
-Each food is worth 10 points, and the snake speeds up every 50 points. Your high score is saved in the browser.
-
-### Stackfall controls
-
-| Key | Action |
-|---|---|
-| ← → | Move |
-| ↑ | Rotate |
-| ↓ | Soft drop |
-| Space | Hard drop |
-| C / Shift | Hold |
-| R | Restart after game over |
-
-Line clears score 100 / 300 / 500 / 800 × level. The level goes up every 10 lines.
+You can also clone the repo and open `gapwing.html` or `snake.html` in a browser.
 
 ### Gapwing controls
 
@@ -46,19 +21,30 @@ Line clears score 100 / 300 / 500 / 800 × level. The level goes up every 10 lin
 
 Each pillar scores 1 point when its right edge passes the bird's centre. The gap starts at 150 px and shrinks by 5 px every 5 points, down to 100 px. There is no ceiling: the bird can fly above the top of the screen, but a pillar still ends the run if the bird is over it.
 
+### Snake controls
+
+| Input | Action |
+|---|---|
+| Arrow keys / WASD | Steer (180° turns are ignored) |
+| P | Pause / resume |
+| T | Toggle wrap-around walls (kept across restarts) |
+| Space | Restart after the run ends |
+
+The snake starts at length 3 and 8 moves per second. Each food adds 1 length and 10 points, and every 50 points the snake speeds up by 0.5 moves per second. Hitting a wall (with wrap off) or the body ends the run, but moving into the cell the tail is leaving is allowed; filling the whole board wins it. The high score is kept in `localStorage`.
+
 ## Tests
 
 The tests need Node 18+ and nothing else:
 
 ```sh
-node test.mjs && node test-snake.mjs && node test-gapwing.mjs
+node test-gapwing.mjs && node test-snake.mjs
 ```
 
 `harness.mjs` loads a game's inline `<script>` into `node:vm` with a stub DOM, so the tests can drive game state and key presses directly.
 
 ## Adding a game
 
-Copy the shape of `snake.html`:
+Copy the shape of `gapwing.html`:
 
 - exactly one bare `<script>`
 - state in top-level `let`s
