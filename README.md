@@ -6,12 +6,13 @@ Small retro browser games. Each game is one self-contained HTML file with no bui
 |---|---|---|
 | Gapwing | `gapwing.html` | An original one-button flyer: flap a bird through gaps between scrolling pillars |
 | Snake | `snake.html` | Classic grid snake on a 20x20 board, with a saved high score, optional wrap-around walls (T) and pause (keyboard only) |
+| Stackfall | `stackfall.html` | An original falling-blocks puzzle on a 10x20 board, with a 7-bag, next preview, hold and ghost (keyboard only) |
 
 ## Play
 
-Play online: [Gapwing](https://kpharcos.github.io/retro-games/gapwing.html) · [Snake](https://kpharcos.github.io/retro-games/snake.html)
+Play online: [Gapwing](https://kpharcos.github.io/retro-games/gapwing.html) · [Snake](https://kpharcos.github.io/retro-games/snake.html) · [Stackfall](https://kpharcos.github.io/retro-games/stackfall.html)
 
-You can also clone the repo and open `gapwing.html` or `snake.html` in a browser.
+You can also clone the repo and open `gapwing.html`, `snake.html` or `stackfall.html` in a browser.
 
 ### Gapwing controls
 
@@ -32,12 +33,29 @@ Each pillar scores 1 point when its right edge passes the bird's centre. The gap
 
 The snake starts at length 3 and 8 moves per second. Each food adds 1 length and 10 points, and every 50 points the snake speeds up by 0.5 moves per second. Hitting a wall (with wrap off) or the body ends the run, but moving into the cell the tail is leaving is allowed; filling the whole board wins it. The high score is kept in `localStorage`.
 
+### Stackfall controls
+
+| Input | Action |
+|---|---|
+| ← / → | Move one column |
+| ↑ | Rotate clockwise (tries one column left, then right, if blocked) |
+| ↓ | Soft drop one row |
+| Space | Hard drop and lock |
+| C / Shift | Hold (once per piece) |
+| R | Restart after game over |
+
+Pieces come from a 7-bag: each bag holds all seven shapes once, in random order, and a held piece can reappear sooner. The level is 1 + lines / 10 (rounded down), and pieces fall one row every max(50, round(1000 · 0.8^(level-1))) ms. A piece locks after 500 ms of total resting time since it last fell a row; time in the air does not count, and sliding on a rest spot does not restart the timer. Clearing 1 / 2 / 3 / 4 rows scores 100 / 300 / 500 / 800 × level, using the level before the clear; soft and hard drops score nothing. The game ends when a new piece has no room to spawn. The ghost is an outline of where the piece would land.
+
+←, → and ↓ repeat while held; ↑, Space and hold act once per press. There is no pause. There is no high score; nothing is saved between runs.
+
+Rotation only tries one column of shift sideways and never shifts up, so a piece resting flat on the floor or on a flat stack cannot rotate, and an upright I flush against either wall cannot rotate from one of its two vertical positions; move it one column away from the wall first.
+
 ## Tests
 
 The tests need Node 18+ and nothing else:
 
 ```sh
-node test-gapwing.mjs && node test-snake.mjs
+node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs
 ```
 
 `harness.mjs` loads a game's inline `<script>` into `node:vm` with a stub DOM, so the tests can drive game state and key presses directly.
