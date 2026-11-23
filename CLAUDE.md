@@ -2,11 +2,11 @@
 
 ## Codebase Overview
 
-Standalone retro browser games, one self-contained HTML file each. Currently four: `gapwing.html` (an original one-button flyer), `snake.html` (classic grid snake), `stackfall.html` (an original falling-blocks puzzle) and `twofold.html` (an original sliding-merge number puzzle, DOM-based). `harness.mjs` runs a game's inline script in `node:vm` with a stub DOM, and `test-gapwing.mjs` / `test-snake.mjs` / `test-stackfall.mjs` / `test-twofold.mjs` assert the rules. Specs from BMAD workflows live in `_bmad-output/implementation-artifacts/`.
+Standalone retro browser games, one self-contained HTML file each. Currently five: `gapwing.html` (an original one-button flyer), `snake.html` (classic grid snake), `stackfall.html` (an original falling-blocks puzzle), `twofold.html` (an original sliding-merge number puzzle, DOM-based) and `minefield.html` (a mine-sweeping puzzle, DOM-based with a rAF timer). `harness.mjs` runs a game's inline script in `node:vm` with a stub DOM, and `test-gapwing.mjs` / `test-snake.mjs` / `test-stackfall.mjs` / `test-twofold.mjs` / `test-minefield.mjs` assert the rules. Specs from BMAD workflows live in `_bmad-output/implementation-artifacts/`.
 
 **Stack**:
-- Game code: vanilla JS, Canvas 2D (Twofold: DOM + CSS transitions), inline CSS.
-- No build and no dependencies. Node is used only for tests: `node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs`.
+- Game code: vanilla JS, Canvas 2D (Twofold: DOM + CSS transitions; Minefield: DOM grid of buttons), inline CSS.
+- No build and no dependencies. Node is used only for tests: `node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs && node test-minefield.mjs`.
 - Agent tooling: BMAD v6.12.4 with the core, bmm, gds, cis, tea, bmb and bmad-loop modules.
 
 **Structure**:

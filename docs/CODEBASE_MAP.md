@@ -12,7 +12,7 @@ The totals count the 18 tracked project files. The vendored BMAD install (`_bmad
 
 ## System Overview
 
-The project holds four standalone browser games, each a single HTML file built on the same testable pattern (three canvas games with a rAF loop, and Twofold, a turn-based DOM game). A shared Node harness drives it in `node:vm`, and a BMAD agent-framework install produced the specs. There is no build step and no package.json.
+The project holds five standalone browser games, each a single HTML file built on the same testable pattern (three canvas games with a rAF loop; Twofold, a turn-based DOM game; and Minefield, a DOM game whose rAF loop only drives its timer and long press). A shared Node harness drives it in `node:vm`, and a BMAD agent-framework install produced the specs. There is no build step and no package.json.
 
 ```mermaid
 graph TB
@@ -21,6 +21,7 @@ graph TB
         Snk[snake.html]
         Stk[stackfall.html]
         Two[twofold.html]
+        Mine[minefield.html]
     end
     subgraph Tests
         H[harness.mjs<br/>load: vm + stub DOM]
@@ -28,6 +29,7 @@ graph TB
         TS[test-snake.mjs]
         TF[test-stackfall.mjs]
         TT[test-twofold.mjs]
+        TM[test-minefield.mjs]
     end
     subgraph BMAD["BMAD tooling (core, bmm, gds, cis, tea, bmb, bmad-loop)"]
         Cfg[_bmad/config.toml + custom/]
@@ -43,10 +45,12 @@ graph TB
     TS --> H
     TF --> H
     TT --> H
+    TM --> H
     H -->|regex-extracts script| Gap
     H -->|regex-extracts script| Snk
     H -->|regex-extracts script| Stk
     H -->|regex-extracts script| Two
+    H -->|regex-extracts script| Mine
     Skills --> Scripts
     Scripts --> Cfg
     Scripts --> Render
@@ -56,6 +60,7 @@ graph TB
     Specs -.documents.-> Snk
     Specs -.documents.-> Stk
     Specs -.documents.-> Two
+    Specs -.documents.-> Mine
 ```
 
 ## Directory Structure
@@ -66,18 +71,21 @@ retro-games/
 ├── snake.html          # Snake: 20x20 grid, tick accumulator at `speed` ticks/s, step(dt)
 ├── stackfall.html      # Stackfall: 10x20 falling blocks, gravity + 500 ms lock delay in step(dt)
 ├── twofold.html        # Twofold: 4x4 sliding-merge puzzle, DOM tiles + CSS transitions, no step/rAF
+├── minefield.html      # Minefield: mine-sweeping puzzle, DOM button grid, board model + shell, rAF timer
 ├── harness.mjs         # load(file, globals): runs a game's <script> in node:vm with stub DOM
 ├── test-gapwing.mjs    # Gapwing self-check (`node test-gapwing.mjs`)
 ├── test-snake.mjs      # Snake self-check (`node test-snake.mjs`)
 ├── test-stackfall.mjs  # Stackfall self-check (`node test-stackfall.mjs`)
 ├── test-twofold.mjs    # Twofold self-check (`node test-twofold.mjs`)
+├── test-minefield.mjs  # Minefield self-check (`node test-minefield.mjs`)
 ├── docs/               # Project knowledge (BMAD project_knowledge path). This map.
 ├── _bmad-output/
 │   └── implementation-artifacts/
 │       ├── spec-gapwing-flappy-game.md # status: done, three review passes logged
 │       ├── spec-snake-game.md          # status: done, three review passes logged
 │       ├── spec-stackfall-puzzle.md    # status: done, three review passes logged
-│       └── spec-twofold-merge-puzzle.md # status: done, three review passes logged
+│       ├── spec-twofold-merge-puzzle.md # status: done, three review passes logged
+│       └── spec-minefield-mine-puzzle.md # Minefield spec
 ├── _bmad/              # BMAD v6.12.4 install: core, bmm, gds 0.7.2, cis 0.3.2, tea 1.27.2, bmb 2.2.2, bmad-loop 0.13.2
 │   ├── config.toml, config.user.toml   # installer-managed. Do not edit.
 │   ├── custom/                         # SAFE to edit: team/personal overrides
@@ -163,7 +171,25 @@ retro-games/
 | A11y | `#board` `role="grid"` with `aria-label`; `#status` `aria-live="polite"` written only on change: win, game over, `Move undone.`, else empty. `prefers-reduced-motion` drops the transitions. |
 | Layout | `#game-container` `min(400px, 92vw)`; board `aspect-ratio: 1`; the 16 tile uses dark text for contrast; needs a browser from about 2022 (`scale` in keyframes, `aspect-ratio`, `Object.hasOwn`); `.wrap` `touch-action: none` so swipes on the board don't scroll; `body` `min-height:100vh`. |
 
-### harness.mjs, test-gapwing.mjs, test-snake.mjs, test-stackfall.mjs, test-twofold.mjs
+### minefield.html
+
+**Purpose**: Mine-sweeping puzzle in three sizes. DOM-based: the board is a CSS grid of `<button class="cell">`s, one per cell index, with its column count set by the board's difficulty class (`--cols`). Own name, no face on the reset button, sea-green/sand/amber palette.
+**Entry point**: open the file in a browser. The script ends with `reset(); render(); requestAnimationFrame(frame);`.
+
+| Item | Detail |
+|---|---|
+| Constants | `LEVELS` (`easy` [9,9,10], `medium` [16,16,40], `hard` [30,16,99] as width, height, mines), `LONG_PRESS=450` ms, `SLOP=10` px |
+| Board model | Plain functions over a plain object, no DOM. `newBoard(w,h,mines)` → `{w,h,mines,placed,boom,left,cells}`; `cells` is flat (`y*w+x`) of `{mine,count,open,mark}` with `mark` `''`/`'flag'`/`'question'`; `boom` is the index of the mine that went off (-1 if none); `left` counts hidden safe cells. `neighbours(b,i)`, `status(b)` (`ready` until placed, `lost` if `boom >= 0`, `won` when `left` is 0, else `playing`), `placeMines(b,safe,rand)` (partial Fisher–Yates over cells outside the safe cell's 3x3, then counts), `openCell(b,i)` (internal: opens a mine → `boom`, else a breadth-first queue with an index pointer; only flags stop it, question marks are cleared; flags every mine on the win), `reveal(b,i)` (refuses marked cells), `cycleMark(b,i)`, `chord(b,i)` (opens every unflagged neighbour of a revealed number whose adjacent flags equal it). Model functions mutate the board. |
+| State | Top-level `let`s: `level`, `board`, `elapsed` (ms counted while playing, capped at 999000), `press` (`{id,x,y,i,held}` of a touch that may become a long press), `suppress` (swallow the click after a long press), `cellEls` (button per cell index) |
+| Shell | `reset()` (new board at `level`, timer 0, drops `press`; doesn't render), `open(i)` (ignored after an end; chord on a revealed cell, else places mines on the first reveal and calls `reveal`), `mark(i)`, `step(dt)` (counts `elapsed` while playing, ages `press` and cycles its mark at 450 ms), `onKey(e)` (N new game, F marks the focused cell; repeats and Ctrl/Meta/Alt ignored; no `preventDefault`) |
+| Render | `render()` reads state and writes only the DOM: rebuilds `cellEls` only when the cell count changes (so New game reuses the buttons), sets the board's class and `aria-label`, then per cell writes `className`, text and `aria-label` only when they change. `look()` picks open number/empty, lost-state mine/`boom`/`wrong`, flag, question or hidden. `setText()` for `#mines`, `#time`, `#status`; `aria-pressed` on the difficulty buttons. |
+| Loop | `frame(t)`: `step(min(dt,100))` then `render()` |
+| Input | `click` on `document`: a long press's `suppress` swallows one click; a cell (found by `cellEls.indexOf(target)`) → `open`; `#new` → reset; `#easy`/`#medium`/`#hard` (`Object.hasOwn(LEVELS, id)`) → switch level and reset. `pointerdown`: clears `suppress` (a long press whose click never came can't eat the next one), button 2 on a cell → `mark`, a primary touch on a cell starts `press`. `pointermove` > 10 px, `pointerup` and `pointercancel` with the same id drop `press`. `contextmenu` inside `#board` is prevented. |
+| Persistence | None |
+| A11y | `#board` `role="grid"` with an `aria-label` naming the size and mine count; each cell button has `aria-label` `Row r, column c, <state>`; `#status` `aria-live="polite"` written only on change (win with seconds, loss). |
+| Layout | `#board` `width: max-content` inside `.wrap` with `overflow-x: auto`, so Hard scrolls sideways on phones; cell size `clamp(24px, …, 34px)`; `touch-action: manipulation` and `-webkit-touch-callout: none` on the board. |
+
+### harness.mjs, test-gapwing.mjs, test-snake.mjs, test-stackfall.mjs, test-twofold.mjs, test-minefield.mjs
 
 **harness.mjs** exports `load(file, globals = {})`. It:
 - regex-extracts the single bare `<script>`;
@@ -201,6 +227,8 @@ Run it with `node test-gapwing.mjs`. It uses only Node built-ins plus `node:asse
 **test-stackfall.mjs** covers each row of the Stackfall spec's I/O matrix: page markup, start state and HUD, spawn columns per shape, the 7-bag (two groups, and order driven by a pinned `Math.random`), move/wall/stack blocking, clockwise rotation and the kick order (x, x-1, x+1, all blocked), soft and hard drop with repeat rules, gravity and the level/interval table, lock delay (including a mid-step landing and the floor-stall rule), 1–4 row clears with the pre-clear level, next preview, hold and swap, rotation limits (flat piece on the floor, upright I flush at either wall), air time not counted by the lock timer, `dropAcc` resets after soft drops, landings and resting steps, fresh timers on spawn, refilled rows as separate arrays, panel HUD text after clears and level-ups, hold queue accounting, drawing checks through a `document` whose context records `fillRect` and `strokeRect` (ghost row, live piece, Next and Hold boxes, `#555` grey hold, nothing but the stack while over), game over, R-only restart, `preventDefault` scope, the dt cap (exactly 100 ms), the first-frame guard, rAF wiring, read-only `render()`, `#status` writes, and every `getElementById` id existing in the markup. `put(k, x, y, m)` places a piece by hand and zeroes both timers. Run it with `node test-stackfall.mjs`.
 
 **test-twofold.mjs** covers each row of the Twofold spec's I/O matrix: page markup (one script, no canvas/rAF/setInterval, grid role, aria-live), the pure functions called directly through `run()` (slide cases in all four directions, no double merge, three and four equal, `moved` false, result keys, purity, `addTile` value and cell draws and full board, `canMove`, `hasTile`), start state, spawn only on change, tile element identity and ghosts across a move, read-only `render()`, arrow keys with repeat and `preventDefault` scope, `canMove` per direction, a seeded 400-board property loop (tile sum kept, `moved` exact, `canMove` exact), tile transforms off the diagonal, ghost text, swipe length threshold and axis, swipe edge cases (button and outside starts, second finger, `pointercancel` per id, other-id `pointerup`, stray `pointerup`, keys clearing a pending drag), win + Continue by click, Enter, numpad Enter or C (message not shown again, except after undoing past it), focus moves (`#continue` on win, `#new` when a focused control hides or disables), win and game over in one move, lose with moves ignored, N and the New game button, one-step undo (also out of game over and the win message), New game clearing every flag and using fresh tile elements, `#status` writes, and best score with `memStorage`, junk, throwing and missing storage. `makeDoc()` builds a `document` with persistent per-id elements (asserting each id exists in the markup), `createElement`, `appendChild`/`remove`, a `focus()` that rejects hidden elements and a `hidden` setter that drops focus like Chrome; `setBoard(b)` places a board with fresh tile ids. Run it with `node test-twofold.mjs`.
+
+**test-minefield.mjs** covers each row of the Minefield spec's I/O matrix: page markup (one script, no canvas/setInterval/sound/assets/face, grid role, aria-live), the opening Easy board, the model through `run()` (`newBoard`, `neighbours` at edges, seeded `placeMines` over all three sizes and several safe cells with counts recomputed, flood with its border, a flag and a question mark in the way, number, blocked reveal, mine, win, mark cycle, chord match/mismatch/loss, a 300x300 flood that would overflow a recursive fill), the shell (first click at four `Math.random` values, cell classes and labels, right-click marks and a negative counter, blocked clicks, the timer before/while playing and its 999 cap, rAF re-queue and the 100 ms dt cap, loss and win screens with input ignored and the timer stopped, chord by click, `#status` writes, difficulty switches including Hard 30x16, New game and N, F and modifier keys, long press timing/slop/cancel/pointer type and click suppression, context menu scope, read-only `render()`). Its `makeDoc()` adds `setAttribute`/`getAttribute` and `createElement(tag)`; `setBoard(w,h,mines)` puts a hand-placed board in play. Run it with `node test-minefield.mjs`.
 
 ### _bmad-output/implementation-artifacts
 
@@ -270,7 +298,7 @@ sequenceDiagram
   - `onKey(e)` uses `e.code`, is registered with `document.addEventListener('keydown')`, and calls `preventDefault` only for game keys.
   - Pointer input, if any, also goes on `document` (the harness's stub elements have no `addEventListener`).
   - A `frame(t)` rAF loop caps dt at 100ms. The script ends with `reset(); requestAnimationFrame(frame);`.
-- **DOM games** (Twofold) are turn-based: no canvas, `step(dt)` or rAF loop; actions mutate state and call `render()`, which reuses one element per tile so CSS transitions animate it.
+- **DOM games** (Twofold) are turn-based: no canvas, `step(dt)` or rAF loop; actions mutate state and call `render()`, which reuses one element per tile so CSS transitions animate it. Minefield is DOM-based too but keeps `step(dt)` and the rAF loop for its timer and long press.
 - Canvas 2D draws the board in the canvas games. DOM HUD text goes through `setText()`, which skips unchanged values so `aria-live` doesn't re-announce them. The three canvas games draw their score on the canvas and use `setText()` only for `#status`; Twofold writes `#score`, `#best`, `#message-text` and `#status` through `setText()`.
 - Each game gets a test file `test-<name>.mjs` that uses `load()` from `harness.mjs`.
 - Specs go to `_bmad-output/implementation-artifacts/spec-<name>.md`. Record changes in a Spec Change Log rather than rewriting history.
@@ -279,6 +307,7 @@ sequenceDiagram
 
 - **The script regex needs a bare `<script>`.** Adding attributes (`type="module"`, `defer`) breaks `harness.mjs`.
 - **Top-level `let` is not on the vm global.** Use `run('expr')`. Arrays cross the vm realm boundary badly, so return `JSON.stringify(...)` and parse it.
+- **Minefield needs the same kind of `document` stub**, plus `setAttribute`/`getAttribute` (cell and board `aria-label`, `aria-pressed`). Its tests read `board`, `elapsed`, `press`, `suppress`, `cellEls` and `level` by name.
 - **Twofold needs a `document` stub with `createElement`.** It renders at load, so the default harness document throws; `test-twofold.mjs` passes `makeDoc()`, which supplies `createElement`, `appendChild`, `remove`, `style`, `hidden`, `disabled`, `focus` and `activeElement`, and pointer targets with `closest()`. The tests also read internals by name (`board`, `ids`, `ghosts`, `prev`, `nextId`, `swipeFrom`, `els`, …) and match markup attribute order, so renames break them.
 - **Only the stubbed DOM surface works at load time:** `getElementById().getContext()`, `.textContent`, `addEventListener` and `requestAnimationFrame`. Anything else, such as `.style`, `window` or `setInterval`, needs a stub passed via `load(file, globals)`.
 - **`listeners[type]` keeps only the last listener per event type**, and the default `getElementById` returns a fresh element on every call, so `setText` writes can't be observed without a custom `document` in `globals`. `globals` are spread after the defaults, so they replace `Math`, `document` or `requestAnimationFrame` wholesale.
@@ -301,8 +330,9 @@ sequenceDiagram
 - **Change Gapwing physics, spawn or ramp:** the constants are at the top of `gapwing.html`; `tick()` runs one frame, `gapFor()` sets the ramp, `hits()` the hitbox. Then update `test-gapwing.mjs`.
 - **Change Stackfall shapes, speed, scoring or lock delay:** the constants and `level()`/`interval()` are at the top of `stackfall.html`; `step()` owns gravity and the lock timer, `lock()` clears rows and scores. Then update `test-stackfall.mjs`.
 - **Change Snake speed, scoring or rules:** the constants are at the top of `snake.html`; `tick()` does one move (collision, growth, speed-up), `end()` saves the high score. Then update `test-snake.mjs`.
+- **Change Minefield rules:** the board model (`newBoard`, `placeMines`, `openCell`, `reveal`, `cycleMark`, `chord`, `status`) is at the top of `minefield.html`; `open()`, `mark()` and `step()` wire it to the page. Then update `test-minefield.mjs`.
 - **Change Twofold rules:** the pure functions (`track`, `slide`, `addTile`, `canMove`) are at the top of `twofold.html`; `move()` wires them to state. Then update `test-twofold.mjs`.
-- **Run the tests:** `node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs`. Nothing in the repo drives the games in a real browser.
+- **Run the tests:** `node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs && node test-minefield.mjs`. Nothing in the repo drives the games in a real browser.
 - **Customize a BMAD agent or workflow:** use `_bmad/custom/<skill>.toml` (team) or `.user.toml` (personal). The `bmad-customize` skill helps with this.
 - **Change BMAD output paths:** set `[core].output_folder` and `[modules.<mod>].*_artifacts` in `_bmad/custom/config.toml`.
 - **Add or remove BMAD modules:** `npx bmad-method@6.12.4 install --directory . --modules bmm,gds,cis,tea,bmb,bmad-loop --tools claude-code,opencode,qwen --set gds.primary_platform=other --action update --yes`. Leaving a module out of `--modules` does not delete its skill directories; remove those by hand.

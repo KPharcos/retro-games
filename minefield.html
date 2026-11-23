@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minefield</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #14232b;
+            color: #e6efe9;
+            font-family: Arial, sans-serif;
+            user-select: none;
+        }
+        #game-container { max-width: 96vw; padding: 12px 0; }
+        header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+        h1 { margin: 0 auto 0 0; font-size: 30px; letter-spacing: 2px; color: #ffb347; }
+        .box { background: #1f3540; border-radius: 6px; padding: 4px 10px; text-align: center; min-width: 54px; }
+        .box small { display: block; font-size: 11px; color: #9dbcb8; text-transform: uppercase; }
+        .box span { font-size: 18px; font-weight: bold; font-family: 'Courier New', monospace; }
+        .buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+        .buttons button {
+            font: inherit; font-size: 14px; color: #14232b; background: #9dd9c5;
+            border: 0; border-radius: 6px; padding: 6px 14px; cursor: pointer;
+        }
+        .buttons button[aria-pressed="true"] { background: #ffb347; }
+        #new { margin-left: auto; }
+        .wrap { overflow-x: auto; }
+        #board {
+            --size: clamp(24px, calc((96vw - 16px) / var(--cols) - 2px), 34px);
+            display: grid;
+            grid-template-columns: repeat(var(--cols), var(--size));
+            gap: 2px;
+            padding: 8px;
+            width: max-content;
+            margin: 0 auto;
+            background: #1f3540;
+            border-radius: 10px;
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
+        }
+        #board.easy { --cols: 9; }
+        #board.medium { --cols: 16; }
+        #board.hard { --cols: 30; }
+        .cell {
+            width: var(--size); height: var(--size); padding: 0;
+            border: 0; border-radius: 4px;
+            background: #3f6e7a; color: #ffb347;
+            font: bold calc(var(--size) * 0.55) Arial, sans-serif;
+            cursor: pointer;
+        }
+        .cell:hover { background: #335d68; } /* darker, so the amber flag keeps 3:1 */
+        .cell.open { background: #e9e2cf; cursor: default; }
+        .cell.question { color: #e6efe9; }
+        .cell.mine { background: #2a3a40; color: #e6efe9; }
+        .cell.boom { background: #e4572e; color: #14232b; }
+        .cell.wrong { background: #2a3a40; color: #ff7a5c; }
+        .n1 { color: #18684f; } .n2 { color: #4146b0; } .n3 { color: #a8301f; } .n4 { color: #7b2d8b; }
+        .n5 { color: #9a4a12; } .n6 { color: #006878; } .n7 { color: #222; } .n8 { color: #585858; }
+        #status { min-height: 20px; margin-top: 8px; font-size: 16px; }
+        #hint { margin-top: 8px; font-size: 14px; color: #9dbcb8; }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <header>
+            <h1>Minefield</h1>
+            <div class="box"><small>Mines</small><span id="mines">10</span></div>
+            <div class="box"><small>Time</small><span id="time">0</span></div>
+        </header>
+        <div class="buttons">
+            <button id="easy" aria-pressed="true">Easy</button>
+            <button id="medium" aria-pressed="false">Medium</button>
+            <button id="hard" aria-pressed="false">Hard</button>
+            <button id="new">New game</button>
+        </div>
+        <div class="wrap">
+            <div id="board" class="easy" role="grid" aria-label="Minefield board, 9 by 9, 10 mines"></div>
+        </div>
+        <div id="status" aria-live="polite"></div>
+        <div id="hint">Click: reveal · Right click / long press / F: flag, then ? · Click a number: open around it · N: new game</div>
+    </div>
+
+<script>
+const LEVELS = { easy: [9, 9, 10], medium: [16, 16, 40], hard: [30, 16, 99] }; // width, height, mines
+const LONG_PRESS = 450, SLOP = 10; // ms held, px moved
+
+// ---- board model: plain functions over a plain object, no DOM ----
+const newBoard = (w, h, mines) => ({
+  w, h, mines, placed: false, boom: -1, left: w * h - mines, // boom: index of the mine that went off; left: safe cells still hidden
+  cells: Array.from({ length: w * h }, () => ({ mine: false, count: 0, open: false, mark: '' })), // mark: '' | 'flag' | 'question'
+});
+
+function neighbours(b, i) {
+  const x = i % b.w, y = (i - x) / b.w, out = [];
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    const nx = x + dx, ny = y + dy;
+    if ((dx || dy) && nx >= 0 && nx < b.w && ny >= 0 && ny < b.h) out.push(ny * b.w + nx);
+  }
+  return out;
+}
+
+const status = (b) => (b.boom >= 0 ? 'lost' : !b.placed ? 'ready' : b.left ? 'playing' : 'won');
+
+function placeMines(b, safe, rand) {
+  const near = new Set([safe, ...neighbours(b, safe)]);
+  const spots = b.cells.map((_, i) => i).filter(i => !near.has(i));
+  for (let k = 0; k < b.mines; k++) { // partial Fisher-Yates: the first `mines` spots get the mines
+    const j = k + Math.floor(rand() * (spots.length - k));
+    [spots[k], spots[j]] = [spots[j], spots[k]];
+    b.cells[spots[k]].mine = true;
+  }
+  b.cells.forEach((c, i) => { c.count = neighbours(b, i).filter(n => b.cells[n].mine).length; });
+  b.placed = true;
+}
+
+// opens i (and floods from a 0) whatever its question mark; only flags hold, as in a flood or chord
+function openCell(b, i) {
+  if (status(b) !== 'playing' || b.cells[i].open) return;
+  if (b.cells[i].mine) { b.boom = i; return; }
+  const queue = [i];
+  b.cells[i].open = true; b.cells[i].mark = ''; b.left--;
+  for (let k = 0; k < queue.length; k++) { // breadth-first with an index pointer: no recursion, no shift()
+    if (b.cells[queue[k]].count) continue;
+    for (const n of neighbours(b, queue[k])) {
+      const c = b.cells[n];
+      if (c.open || c.mark === 'flag') continue; // a 0's neighbours are never mines
+      c.open = true; c.mark = ''; b.left--;
+      queue.push(n);
+    }
+  }
+  if (!b.left) b.cells.forEach(c => { if (c.mine) c.mark = 'flag'; });
+}
+
+const reveal = (b, i) => { if (!b.cells[i].mark) openCell(b, i); };
+
+function cycleMark(b, i) {
+  const c = b.cells[i], st = status(b);
+  if (c.open || st === 'won' || st === 'lost') return;
+  c.mark = c.mark === '' ? 'flag' : c.mark === 'flag' ? 'question' : '';
+}
+
+function chord(b, i) {
+  const c = b.cells[i], near = neighbours(b, i);
+  if (!c.open || !c.count || near.filter(n => b.cells[n].mark === 'flag').length !== c.count) return;
+  for (const n of near) if (b.cells[n].mark !== 'flag') openCell(b, n);
+}
+
+// ---- game shell ----
+let level = 'easy', board, elapsed; // elapsed: ms counted while playing
+let press = null;     // touch that may become a long press: {id, x, y, i, held}
+let suppress = false; // a long press fired: swallow the click that follows
+
+function reset() {
+  board = newBoard(...LEVELS[level]);
+  elapsed = 0;
+  press = null;
+}
+
+function open(i) {
+  const st = status(board);
+  if (st === 'won' || st === 'lost') return;
+  if (board.cells[i].open) chord(board, i);
+  else if (!board.cells[i].mark) {
+    if (st === 'ready') placeMines(board, i, Math.random);
+    reveal(board, i);
+  }
+  render();
+}
+
+function mark(i) { cycleMark(board, i); render(); }
+
+function step(dt) {
+  if (status(board) === 'playing') elapsed = Math.min(elapsed + dt, 999000);
+  if (press && (press.held += dt) >= LONG_PRESS) {
+    const i = press.i;
+    suppress = true;
+    press = null;
+    mark(i);
+  }
+}
+
+function onKey(e) {
+  suppress = false; // a long press whose click never came must not eat a keyboard click or ContextMenu key
+  if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return; // leave Ctrl+F, Ctrl+N to the browser
+  if (e.code === 'KeyN') { reset(); render(); }
+  else if (e.code === 'KeyF') { const i = cellEls.indexOf(document.activeElement); if (i >= 0) mark(i); }
+}
+
+// ---- rendering (reads game state; writes only the DOM) ----
+const $ = (id) => document.getElementById(id);
+const boardEl = $('board');
+let cellEls = []; // one button per cell index, rebuilt only when the board size changes
+
+function setText(id, v) { const el = $(id); if (el.textContent !== v) el.textContent = v; }
+
+function look(c, i, st) {
+  if (c.open) return c.count ? ['open n' + c.count, String(c.count), c.count + (c.count > 1 ? ' mines' : ' mine') + ' nearby'] : ['open', '', 'empty'];
+  if (st === 'lost' && c.mine && c.mark !== 'flag') return i === board.boom ? ['mine boom', '●', 'exploded mine'] : ['mine', '●', 'mine'];
+  if (st === 'lost' && c.mark === 'flag' && !c.mine) return ['wrong', '✕', 'wrong flag'];
+  if (c.mark === 'flag') return ['flag', '⚑', 'flagged'];
+  if (c.mark === 'question') return ['question', '?', 'question mark'];
+  return ['', '', 'hidden'];
+}
+
+function render() {
+  const { w, h, mines, cells } = board, st = status(board);
+  if (cellEls.length !== cells.length || boardEl.className !== level) {
+    cellEls.forEach(el => el.remove());
+    cellEls = cells.map(() => boardEl.appendChild(document.createElement('button')));
+    boardEl.className = level;
+    boardEl.setAttribute('aria-label', `Minefield board, ${w} by ${h}, ${mines} mines`);
+  }
+  cells.forEach((c, i) => {
+    const [cls, text, label] = look(c, i, st), el = cellEls[i];
+    const name = cls ? 'cell ' + cls : 'cell', aria = `Row ${Math.floor(i / w) + 1}, column ${i % w + 1}, ${label}`;
+    if (el.className !== name) el.className = name;
+    if (el.textContent !== text) el.textContent = text;
+    if (el.getAttribute('aria-label') !== aria) el.setAttribute('aria-label', aria);
+  });
+  for (const id of Object.keys(LEVELS)) {
+    const el = $(id), v = String(id === level);
+    if (el.getAttribute('aria-pressed') !== v) el.setAttribute('aria-pressed', v);
+  }
+  setText('mines', String(mines - cells.filter(c => c.mark === 'flag').length));
+  const secs = Math.floor(elapsed / 1000);
+  setText('time', String(secs));
+  setText('status', st === 'won' ? `You cleared the field in ${secs} second${secs === 1 ? '' : 's'}.`
+    : st === 'lost' ? 'A mine went off. Press New game to try again.' : '');
+}
+
+let last = null;
+function frame(t) {
+  const shown = Math.floor(elapsed / 1000);
+  if (last !== null) step(Math.min(t - last, 100)); // cap: a resumed tab catches up at most 100 ms
+  last = t;
+  if (Math.floor(elapsed / 1000) !== shown) render(); // input handlers and a long press render themselves
+  requestAnimationFrame(frame);
+}
+
+document.addEventListener('keydown', onKey);
+document.addEventListener('pointerdown', (e) => {
+  suppress = false; // a long press whose click never came must not eat this one
+  const i = cellEls.indexOf(e.target);
+  press = i >= 0 && e.button === 0 && e.isPrimary && e.pointerType === 'touch' ? { id: e.pointerId, x: e.clientX, y: e.clientY, i, held: 0 } : null;
+});
+document.addEventListener('pointermove', (e) => {
+  if (press && e.pointerId === press.id && Math.hypot(e.clientX - press.x, e.clientY - press.y) > SLOP) press = null;
+});
+const endPress = (e) => { if (press && e.pointerId === press.id) press = null; };
+document.addEventListener('pointerup', endPress);
+document.addEventListener('pointercancel', endPress);
+// right click, Mac Ctrl+click, the ContextMenu key and Shift+F10 all arrive here; a touch long press too, which step() owns
+document.addEventListener('contextmenu', (e) => {
+  if (!e.target?.closest?.('#board')) return;
+  e.preventDefault();
+  const i = cellEls.indexOf(e.target);
+  if (i >= 0 && !press && !suppress) mark(i);
+});
+document.addEventListener('click', (e) => {
+  if (e.ctrlKey) return; // Mac Ctrl+click is a right click, marked by contextmenu
+  if (suppress) { suppress = false; if (e.detail !== 0) return; } // detail 0: a keyboard click, never the tail of a long press
+  const t = e.target, i = cellEls.indexOf(t);
+  if (i >= 0) open(i);
+  else if (t?.id === 'new') { reset(); render(); }
+  else if (t && Object.hasOwn(LEVELS, t.id)) { level = t.id; reset(); render(); }
+});
+reset();
+render();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
