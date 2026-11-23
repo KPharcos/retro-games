@@ -215,6 +215,12 @@ for (const r of [0, 0.5, 0.999]) {
   mineSets.add(run('JSON.stringify(board.cells.flatMap((c, i) => c.mine ? [i] : []))'));
 }
 assert.ok(mineSets.size >= 2, 'mine placement ignores Math.random');
+// a first click whose eight neighbours are flagged opens only itself: flags hold the flood
+g.button('new');
+for (const n of [30, 31, 32, 39, 41, 48, 49, 50]) g.right(n);
+rnd = 0.5;
+g.tap(40);
+assert.deepEqual([run('board.placed'), run('board.cells[40].count'), g.opened()], [true, 0, [40]]);
 // a flagged first click places nothing
 g.button('new');
 g.right(0);
@@ -353,7 +359,10 @@ assert.ok([2, 7, 12].every(i => g.cell(i).className === 'cell flag'));
 assert.deepEqual([g.els.mines.textContent, g.els.time.textContent, g.els.status.textContent], ['0', '4', 'You cleared the field in 4 seconds.']);
 snap = run('JSON.stringify(board)');
 run('step(3000)');
-g.right(2); g.tap(2); g.key('KeyF');
+g.right(2); g.tap(2);
+g.cell(2).focus(); // hidden: a mine, flagged by the win
+g.key('KeyF');
+assert.equal(run('board.cells[2].mark'), 'flag', 'F acted after the win');
 assert.equal(run('JSON.stringify(board)'), snap, 'board input after win');
 assert.equal(run('elapsed'), 4200, 'timer ran after win');
 // one second: singular
@@ -376,7 +385,7 @@ for (const [id, w, h, n] of [['medium', 16, 16, 40], ['hard', 30, 16, 99], ['eas
   assert.equal(g.cells().length, w * h);
   assert.deepEqual([g.els.board.className, g.els.mines.textContent, g.els.time.textContent], [id, String(n), '0']);
   assert.equal(g.els.board.getAttribute('aria-label'), `Minefield board, ${w} by ${h}, ${n} mines`);
-  assert.equal(g.els[id].getAttribute('aria-pressed'), 'true');
+  assert.deepEqual(['easy', 'medium', 'hard'].map(k => g.els[k].getAttribute('aria-pressed')), ['easy', 'medium', 'hard'].map(k => String(k === id)));
 }
 // Hard is 30 wide, 16 tall: the last cell of the first row is column 30, the last cell row 16
 g.button('hard');
@@ -440,6 +449,8 @@ assert.equal(run('board.cells[10].mark'), 'flag');
 g.listeners.pointerup({ pointerId: 5 });
 g.tap(10);
 assert.deepEqual([run('board.placed'), run('board.cells[10].mark'), run('suppress')], [false, 'flag', false]);
+g.right(10); // the same touch's contextmenu, arriving after its click
+assert.equal(run('board.cells[10].mark'), 'flag', 'late contextmenu marked the cell a second time');
 run('render()');
 assert.equal(g.cell(10).className, 'cell flag');
 // released early: normal click
@@ -461,6 +472,11 @@ g.touch(32);
 g.listeners.pointermove({ pointerId: 5, clientX: 70, clientY: 50 }); // 20 px, then held still
 g.right(32); // the browser's own long-press contextmenu
 assert.equal(run('board.cells[32].mark'), '', 'a slipped touch was marked by its contextmenu');
+g.listeners.pointercancel({ pointerId: 5 }); // the browser took the drag for a scroll
+g.cell(32).focus();
+g.key('ContextMenu'); // a key ends the slip: its contextmenu marks the focused cell
+g.right(32);
+assert.equal(run('board.cells[32].mark'), 'flag', 'ContextMenu key after a touch drag did nothing');
 g.touch(30);
 g.listeners.pointermove({ pointerId: 5, clientX: 56, clientY: 58 }); // 10 px
 g.listeners.pointermove({ pointerId: 9, clientX: 500, clientY: 500 }); // another pointer
@@ -484,7 +500,7 @@ for (const target of [g.els.new, g.els.board]) {
   run('step(500)');
   assert.equal(run('press'), null);
 }
-assert.deepEqual(json('board.cells.flatMap((c, i) => c.mark ? [i] : [])'), [30], 'stray mark from a non-primary or off-cell touch');
+assert.deepEqual(json('board.cells.flatMap((c, i) => c.mark ? [i] : [])'), [30, 32], 'stray mark from a non-primary or off-cell touch');
 // a long press whose click never arrived doesn't eat the next tap
 g.touch(40);
 run('step(450)');
@@ -493,6 +509,26 @@ g.touch(0, 6);
 g.listeners.pointerup({ pointerId: 6 });
 g.tap(0);
 assert.equal(run('board.placed'), true);
+// a key while the finger is still down doesn't end the long press: its release click is still swallowed
+// (from a question mark, which the long press clears, so a click that got through would reveal)
+g.button('new');
+g.right(12); g.right(12);
+g.touch(12);
+run('step(450)');
+assert.equal(run('board.cells[12].mark'), '');
+g.key('ShiftLeft');
+g.listeners.pointerup({ pointerId: 5 });
+g.tap(12);
+assert.deepEqual([run('board.cells[12].open'), run('board.placed')], [false, false], 'release click got through after a key');
+// a pointerup from another pointer doesn't cancel the press
+g.listeners.pointerdown({ target: g.cell(9), button: 0, isPrimary: true, pointerType: 'mouse', pointerId: 1, clientX: 0, clientY: 0 });
+g.touch(10);
+g.listeners.pointerup({ pointerId: 1 });
+run('step(450)');
+assert.equal(run('board.cells[10].mark'), 'flag', 'another pointer\'s pointerup cancelled the press');
+g.listeners.pointerup({ pointerId: 5 });
+g.tap(10); // its click, swallowed
+assert.deepEqual([run('board.cells[10].mark'), run('suppress')], ['flag', false]);
 // a long press marks exactly once: a contextmenu before 450 ms fires it then (and pointercancel after doesn't undo it),
 // one after step() fired it is skipped, and the click after either is swallowed
 g.button('new');
@@ -541,6 +577,11 @@ assert.equal(run('board.cells[40].open'), true, 'Ctrl+click did not reveal');
 g.listeners.pointerdown({ target: g.els.new, button: 0, ctrlKey: true, isPrimary: true, pointerType: 'mouse', pointerId: 1, clientX: 0, clientY: 0 });
 g.listeners.click({ target: g.els.new, ctrlKey: true, detail: 1 });
 assert.equal(run('board.placed'), false, 'Ctrl+click on New game ignored');
+// Ctrl+Enter on a focused cell after a contextmenu: a keyboard click (detail 0), so it reveals
+g.right(50);
+rnd = 0.5;
+g.listeners.click({ target: g.cell(60), ctrlKey: true, detail: 0 });
+assert.deepEqual([run('board.cells[50].mark'), run('board.cells[60].open')], ['flag', true], 'Ctrl+Enter after a contextmenu dropped');
 // a pending long press is dropped by New game and by a difficulty switch
 for (const id of ['new', 'medium']) {
   g.touch(10);

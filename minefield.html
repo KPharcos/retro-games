@@ -82,7 +82,7 @@
             <div id="board" class="easy" role="grid" aria-label="Minefield board, 9 by 9, 10 mines"></div>
         </div>
         <div id="status" aria-live="polite"></div>
-        <div id="hint">Click / Enter / Space: reveal · Right click / long press / F: flag, then ? · Click a number: open around it · N: new game</div>
+        <div id="hint">Click / Enter / Space: reveal · Right click / long press / F: flag, then ? · Click a number when the flags around it match it: open the rest · N: new game</div>
     </div>
 
 <script>
@@ -156,6 +156,8 @@ let press = null;     // touch that may become a long press: {id, x, y, i, held}
 let suppress = false; // a long press fired: swallow the click that follows
 let slipped = false;  // the touch moved past SLOP: its late contextmenu must not mark
 let ctxSeen = false;  // a contextmenu came since the last pointerdown: a Ctrl+click is then a Mac right click
+let fired = false;    // this touch's long press already marked: its late contextmenu must not mark again
+let pointerDown = false; // a key while a finger is still down doesn't end that finger's long press
 
 function reset() {
   board = newBoard(...LEVELS[level]);
@@ -176,7 +178,7 @@ function open(i) {
 
 function mark(i) { cycleMark(board, i); render(); }
 
-function firePress() { const i = press.i; press = null; suppress = true; mark(i); }
+function firePress() { const i = press.i; press = null; suppress = fired = true; mark(i); }
 
 function step(dt) {
   if (status(board) === 'playing') elapsed = Math.min(elapsed + dt, 999000);
@@ -184,7 +186,8 @@ function step(dt) {
 }
 
 function onKey(e) {
-  suppress = false; // a long press whose click never came must not eat a keyboard click or ContextMenu key
+  slipped = false; // a key is a new action: after a touch drag, ContextMenu / Shift+F10 still mark
+  if (!pointerDown) suppress = fired = false; // a long press whose click never came must not eat a keyboard click or ContextMenu key
   if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return; // leave Ctrl+F, Ctrl+N to the browser
   if (e.code === 'KeyN') { reset(); render(); }
   else if (e.code === 'KeyF') { const i = cellEls.indexOf(document.activeElement); if (i >= 0) mark(i); }
@@ -243,7 +246,8 @@ function frame(t) {
 
 document.addEventListener('keydown', onKey);
 document.addEventListener('pointerdown', (e) => {
-  suppress = slipped = ctxSeen = false; // a long press whose click never came must not eat this one
+  pointerDown = true;
+  suppress = slipped = ctxSeen = fired = false; // a new gesture: nothing from the last one carries over
   const i = cellEls.indexOf(e.target), st = status(board);
   // only a hidden cell in a live game can be marked; anywhere else a press would just swallow a chord's click
   const markable = i >= 0 && !board.cells[i].open && (st === 'ready' || st === 'playing');
@@ -252,21 +256,22 @@ document.addEventListener('pointerdown', (e) => {
 document.addEventListener('pointermove', (e) => {
   if (press && e.pointerId === press.id && Math.hypot(e.clientX - press.x, e.clientY - press.y) > SLOP) { press = null; slipped = true; }
 });
-const endPress = (e) => { if (press && e.pointerId === press.id) press = null; };
+const endPress = (e) => { pointerDown = false; if (press && e.pointerId === press.id) press = null; };
 document.addEventListener('pointerup', endPress);
 document.addEventListener('pointercancel', endPress);
 // right click, Mac Ctrl+click, the ContextMenu key and Shift+F10 all arrive here; so does a touch long press,
-// which may come before 450 ms (then it fires the press now) or after step() fired it (then suppress skips it)
+// which may come before 450 ms (then it fires the press now) or after step() fired it (then `fired` skips it)
 document.addEventListener('contextmenu', (e) => {
   ctxSeen = true;
   if (!e.target?.closest?.('#board')) return;
   e.preventDefault();
+  if (fired || slipped) return; // suppress implies fired, so this covers it too
   if (press) return firePress();
   const i = cellEls.indexOf(e.target);
-  if (i >= 0 && !suppress && !slipped) mark(i);
+  if (i >= 0) mark(i);
 });
 document.addEventListener('click', (e) => {
-  if (e.ctrlKey && ctxSeen) return; // Mac Ctrl+click: a right click, already marked by contextmenu
+  if (e.ctrlKey && ctxSeen && e.detail !== 0) return; // Mac Ctrl+click: a right click, already marked; Ctrl+Enter (detail 0) still clicks
   if (suppress) { suppress = false; if (e.detail !== 0) return; } // detail 0: a keyboard click, never the tail of a long press
   const t = e.target, i = cellEls.indexOf(t);
   if (i >= 0) open(i);

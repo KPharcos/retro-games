@@ -72,8 +72,8 @@ Twofold needs a browser from about 2022 or later (it uses CSS `scale` in keyfram
 | Input | Action |
 |---|---|
 | Click / tap a hidden cell, or Enter / Space on the focused cell | Reveal it |
-| Right click / Ctrl+click (Mac) / Menu key or Shift+F10 / long press (touch, 450 ms) / F on the focused cell | Cycle the mark: flag, question mark, none |
-| Click a revealed number (or Enter / Space on it) | Chord: if its adjacent flags equal the number, reveal every other adjacent cell |
+| Right click / Ctrl+click (Mac) / Menu key or Shift+F10 / long press (touch, about 450 ms) / F on the focused cell | Cycle the mark: flag, question mark, none |
+| Click a revealed number (or Enter / Space on it) | Chord: if its adjacent flags equal the number, reveal every adjacent cell that is not flagged |
 | Easy / Medium / Hard buttons | Start a new game at 9x9 with 10 mines, 16x16 with 40, or 30x16 with 99 |
 | N / New game button | Start a new game at the current difficulty |
 

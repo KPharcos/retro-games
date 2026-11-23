@@ -17,6 +17,13 @@ deferred:
     location: >-
       docs/CODEBASE_MAP.md, CLAUDE.md, README.md
     severity: low
+  - summary: >-
+      CLAUDE.md shared-shape paragraph covers only turn-based DOM games that skip step(dt) and rAF; Minefield is a DOM game that keeps its rAF timer, so the next DOM game has no rule for that shape.
+    evidence: |-
+      Follow-up 2 review pass (blind-hunter). CLAUDE.md is an agent-context file, so the fix is deferred.
+    location: >-
+      CLAUDE.md
+    severity: low
 ---
 
 <intent-contract>
@@ -176,25 +183,78 @@ deferred:
   - `[low]` `[patch]` Three cell aria-label branches are unasserted (verification) — patched: 1 mine nearby, question mark, unexploded mine after a loss.
   - `[low]` `[defer]` Map metadata and prose drift (verification, other findings) — deferred with the map items above.
 
+### 2026-11-23 — Review pass (follow-up 2)
+- verdicts: 49 findings — high 0, medium 0, low 47, false 2, maybe-false 0
+- findings:
+  - `[low]` `[reject]` carried — name Minefield, not Minesweeper (intent). Same as the pass-1 name row: the repo rule against recreating a product's name or look.
+  - `[low]` `[reject]` carried — right click cycles three states and long press cycles the mark (intent). Spec choice; same as the pass-1 rows.
+  - `[low]` `[patch]` The first-click flag-ring exception has no test (intent) — patched: flags on all eight neighbours, then the first click opens only that cell.
+  - `[low]` `[reject]` carried — a flood or chord opens question-marked cells (intent). The README states it; same as the pass-2 row.
+  - `[low]` `[reject]` carried — timer and long press run on capped step time, and pause in a hidden tab (intent). The spec mandates the 100 ms cap.
+  - `[low]` `[reject]` carried — model separation is not asserted (intent). Same as the pass-1 row; the model is DOM-free and tested directly.
+  - `[low]` `[reject]` carried — keyboard F/N and the Mac path are hand-sequenced; no real browser (intent). Residual risk; same as the pass-1 rows.
+  - `[false]` `[reject]` carried — the spec is not in the reviewed diff (intent). Excluded by design; committed at finalize.
+  - `[low]` `[reject]` carried — role="grid" over bare buttons with no arrow keys (intent). The spec requires role="grid".
+  - `[low]` `[defer]` carried — the map says the tests cover the spec's I/O matrix, which the spec copy in this diff can't confirm (intent). Map fix; deferred.
+  - `[low]` `[defer]` carried — CLAUDE.md's shared-shape paragraph does not cover a DOM game that keeps its rAF timer (blind-hunter). New deferred item: agent-context file.
+  - `[low]` `[patch]` README: "reveal every other adjacent cell" reads as alternating cells (blind-hunter) — patched: "every adjacent cell that is not flagged".
+  - `[low]` `[patch]` README: "450 ms" ignores that the browser's contextmenu can fire first (blind-hunter) — patched: "about 450 ms".
+  - `[low]` `[reject]` carried — README says nothing is saved and there is no best time (blind-hunter). Same as the pass-1 row: a best time was not asked for.
+  - `[low]` `[defer]` carried — map total_files should be 21, not 18 (blind-hunter). Map fix; deferred.
+  - `[low]` `[defer]` carried — the map's spec entry has no status note (blind-hunter). Map fix; deferred.
+  - `[low]` `[defer]` carried — the map Input row describes button 2 marking on pointerdown (blind-hunter). Map fix; deferred.
+  - `[low]` `[defer]` carried — the map Loop row says render runs every frame (blind-hunter). Map fix; deferred.
+  - `[low]` `[defer]` carried — the map State row omits the slipped and ctxSeen lets (blind-hunter). Map fix; deferred.
+  - `[low]` `[defer]` carried — the map Render row's cell-rebuild clause (blind-hunter). Map fix; deferred.
+  - `[low]` `[defer]` carried — the map's setText convention omits Minefield (blind-hunter). Map fix; deferred.
+  - `[false]` `[reject]` carried — the spec file is uncommitted and not in the diff (blind-hunter). Same as the pass-1 row.
+  - `[low]` `[reject]` carried — role="grid" with bare buttons (blind-hunter). Same as the intent row above.
+  - `[low]` `[reject]` The live status only announces a win or loss, so reveals and flags are not announced (blind-hunter) — the spec limits the aria-live line to won and lost.
+  - `[low]` `[reject]` carried — a frame gap over 100 ms slows the clock on a slow device (blind-hunter). Same as the capped-clock row; the spec mandates it.
+  - `[low]` `[reject]` carried — New game, N and difficulty reset at once, with no confirm (blind-hunter). Same as the Snake and Twofold calls.
+  - `[low]` `[patch]` ctxSeen is set by any contextmenu, so a Ctrl+Enter after a menu key is dropped (blind-hunter) — patched: the Ctrl guard no longer drops keyboard clicks (detail 0). Same fix as the edge row.
+  - `[low]` `[reject]` `const status` and `function open` shadow window properties (blind-hunter). They work today; the names are local to the script.
+  - `[low]` `[patch]` The hint's "Click a number: open around it" omits that the flags must match (blind-hunter) — patched: the hint says the flags must match.
+  - `[low]` `[reject]` A counter assertion reads prevented() relative to a seeded value (blind-hunter). It passes and is clear enough.
+  - `[low]` `[reject]` carried — the flood check is a source regex (blind-hunter). Kept on purpose; the intent requires a non-recursive flood and the 300x300 run backs it.
+  - `[low]` `[reject]` Test sections share one game and depend on order (blind-hunter). Test structure only; no defect.
+  - `[low]` `[patch]` After a touch slip, the keyboard ContextMenu key marks nothing (edge) — patched: a key ends a slipped touch.
+  - `[low]` `[patch]` Ctrl+Enter or Ctrl+Space keyboard clicks are dropped after any contextmenu (edge) — patched: the Ctrl guard skips keyboard clicks.
+  - `[low]` `[reject]` carried — a long press on a stalled device releases as a tap (edge). Same as the capped-clock row.
+  - `[low]` `[reject]` A second finger while a press is pending: the first finger's release click reveals its cell (edge). A second finger is a multi-touch gesture, and the release is a normal tap; the same call as the swipe second-finger rows.
+  - `[low]` `[patch]` A keydown or another pointer during a fired long press clears suppress, so the release click reveals a cell the long press cleared (edge) — patched: a key clears suppress only when no pointer is down.
+  - `[low]` `[patch]` A contextmenu after the release click has consumed suppress marks a cell twice (edge) — patched: a long press that has fired blocks the following contextmenu until the next pointerdown.
+  - `[low]` `[reject]` carried — the spec says the DOM layer is turn-based like twofold, but the timer uses rAF (edge). Same as the pass-1 row.
+  - `[low]` `[defer]` carried — map total_files should be 21 (edge). Map fix; deferred.
+  - `[low]` `[defer]` carried — the map says pointerdown handles button 2 (edge). Map fix; deferred.
+  - `[low]` `[defer]` carried — the map's top-level lets omit slipped and ctxSeen (edge). Map fix; deferred.
+  - `[low]` `[defer]` carried — the map's frame and render row is out of date (edge). Map fix; deferred.
+  - `[low]` `[patch]` The difficulty buttons' aria-pressed is not checked after a switch (verification) — patched: all three values are checked after each switch.
+  - `[low]` `[patch]` A pointerup from another pointer can cancel a pending long press (verification) — patched: the test releases a second pointer's id and expects the press to fire.
+  - `[low]` `[patch]` The keyboard ContextMenu after a touch slip is untested (verification) — patched: the slip-then-key test; same fix as the edge row.
+  - `[low]` `[reject]` role="grid" row and gridcell elements (verification) — same as the intent row above.
+  - `[low]` `[patch]` The F-key assertion runs before any cell is focused, so it proves nothing (verification) — patched: focus a cell first, then assert it is flagged.
+  - `[low]` `[defer]` carried — the map says pointerdown marks on button 2 (verification). Map fix; deferred.
+
 ## Auto Run Result
 
-- **Summary:** Built Minefield as `minefield.html`: a DOM-free board model (`newBoard`, `placeMines`, `reveal` with an iterative BFS flood, `cycleMark`, `chord`, `status`) under a DOM grid of cell buttons, with three difficulties, a safe first click, flag and question marks, chording, a mine counter, a rAF-driven timer, a plain New game button, and long press to mark on touch. Two review passes fixed marking (contextmenu, Ctrl+click on every platform, early and slipped long presses), a swallowed chord click, the win message, contrast, per-frame rendering and many test gaps.
+- **Summary:** Built Minefield as `minefield.html`: a DOM-free board model (`newBoard`, `placeMines`, `reveal` with an iterative BFS flood, `cycleMark`, `chord`, `status`) under a DOM grid of cell buttons, with three difficulties, a safe first click that opens an area, flag and question marks, chording, a mine counter, a rAF-driven timer, a plain New game button, and long press to mark on touch. Three review passes fixed marking (contextmenu, Ctrl+click on every platform, early, slipped and double-fired long presses, and keyboard menu keys after a touch), a swallowed chord click, keyboard clicks dropped after a menu event, the win message, contrast, per-frame rendering, difficulty button state and many test gaps.
 - **Files changed (whole change):**
   - `minefield.html` -- the game.
-  - `test-minefield.mjs` -- the model directly through `run()`, every I/O matrix row, input paths (contextmenu, Ctrl+click, long press, keyboard), rendering and labels, the N key, chord with open neighbours.
-  - `README.md` -- games table, controls (incl. Enter and Space), rules, phone and browser notes, test command.
+  - `test-minefield.mjs` -- the model directly through `run()`, every I/O matrix row, input paths (contextmenu, Ctrl+click, long press, keyboard, a second pointer), rendering and labels, the N and F keys, chord with open neighbours, the first-click flag ring.
+  - `README.md` -- games table, controls (Enter, Space, F, N), rules, phone and browser notes, test command.
   - `CLAUDE.md`, `docs/CODEBASE_MAP.md` -- game list, test command, Minefield section.
-- **Review findings, follow-up:** 45 findings: 0 high, 0 medium, 39 low, 6 false.
-  - Patched: 17 rows in 7 fixes, plus README corrections.
-  - Deferred: 9 rows (docs drift) in the one existing `deferred` item.
-  - Rejected: 13 low and 6 false. Reasons are in the triage log.
+- **Review findings, follow-up 2:** 49 findings: 0 high, 0 medium, 47 low, 2 false.
+  - Patched: 13 rows in 8 fixes. Fixes: a key ends a slipped touch; a key during a long press keeps the release click swallowed; keyboard clicks are never dropped by the Ctrl guard; a fired long press blocks a late menu event; hint and README wording; six tests. One fix went past the request: a key clears the long-press flag when no pointer is down, so the keyboard menu key still marks after a long press.
+  - Deferred: 14 rows (map drift, plus one CLAUDE.md note) in the deferred list.
+  - Rejected: 20 low. The 2 false are the spec copy not being in the diff, and the same item uncommitted.
 - **Follow-up review recommended:** false. No high or medium was patched.
-- **Verification:** all five suites pass. The implementer checked each new guard against a deliberate bug; I re-ran two (Ctrl guard, slipped flag) and both are caught.
+- **Verification:** all five suites pass. I broke each new guard on purpose (Ctrl detail check, the fired check, the pointerDown check, the slip clear) and each break fails the suite.
 - **Residual risks:**
   - Not played on a real phone or Mac; touch event order is simulated.
   - `role="grid"` has no rows or gridcells, and there are no arrow keys, so Hard means tabbing through 480 buttons.
   - Medium and Hard scroll sideways on a portrait phone.
-  - The timer pauses in a hidden tab and loses time on frames over 100 ms.
+  - The timer caps frames at 100 ms, so it runs slow on a stalled device; this follows the spec.
   - `docs/CODEBASE_MAP.md` still describes the old button-2 right-click path (deferred).
   - The README Play link stays dead until merge and GitHub Pages rebuild.
 
