@@ -6,11 +6,12 @@ status: 'done'
 baseline_revision: '56667effcfb9bb728787b5d1e83998cace8c1a47'
 review_loop_iteration: 0
 followup_review_recommended: false
+followup_pass: true
 context: ['{project-root}/CLAUDE.md']
 warnings: ['oversized']
 deferred:
   - summary: >-
-      Docs drift after Minefield: docs/CODEBASE_MAP.md frontmatter (total_files, total_tokens, last_mapped) and the 18-files line are stale, the spec tree line has no status, the Minefield section still describes marking via pointerdown button 2 (now contextmenu), the setText convention line omits Minefield, and CLAUDE.md and the README "add a game" text don't describe the DOM-plus-rAF-timer shape Minefield uses.
+      Docs drift after Minefield: docs/CODEBASE_MAP.md frontmatter (total_files, total_tokens, last_mapped) and the 18-files line are stale, the spec tree line has no status, the Minefield section still describes marking via pointerdown button 2 (now contextmenu), the setText convention line omits Minefield, and CLAUDE.md and the README "add a game" text don't describe the DOM-plus-rAF-timer shape Minefield uses. The map's Loop row (render each frame), the cellEls rebuild note (count only) and total_files (should be 21) are also out of date.
     evidence: |-
       Review pass 1 (blind-hunter, verification-gap). CODEBASE_MAP and CLAUDE.md are agent-context docs, so the fix is deferred; a cartographer re-map refreshes them.
     location: >-
@@ -126,25 +127,75 @@ deferred:
   - `[low]` `[patch]` Tests miss the 1-second message and a pending long press dropped by reset (blind-hunter) — patched: both added.
   - `[low]` `[reject]` The source check for a non-recursive flood is brittle (blind-hunter) — kept on purpose: the intent requires "iterative BFS, not recursion", and the check pins it alongside the 300x300 run.
 
+### 2026-11-23 — Review pass (follow-up)
+- verdicts: 45 findings — high 0, medium 0, low 39, false 6, maybe-false 0
+- findings:
+  - `[low]` `[reject]` First-click placement is done by the shell, so reveal on a fresh board does nothing (intent) — spec choice: the shell calls placeMines, then reveal.
+  - `[low]` `[reject]` After placeMines and before any reveal, status reads playing, not ready (intent) — the spec is silent; unobservable in play because the shell reveals at once.
+  - `[low]` `[reject]` Question marks do not stop a flood (intent) — the spec says flagged cells are never opened by a flood; the README states it.
+  - `[false]` `[reject]` Win mutates the model while loss is derived at render (intent) — no defect; both are covered by tests.
+  - `[false]` `[reject]` Right click is handled only through contextmenu (intent) — that covers right click, Ctrl+click, the menu key and Shift+F10; no defect.
+  - `[low]` `[reject]` Long press and timer run on accumulated, capped step time (intent) — the spec requires step(dt) with a 100 ms cap.
+  - `[false]` `[reject]` Timer unit and win predicate (intent) — milliseconds shown as whole seconds and a counter-based win; no defect.
+  - `[low]` `[reject]` Chord opens question-marked neighbours (intent) — the spec says every adjacent hidden, unflagged cell; the README now says so.
+  - `[false]` `[reject]` Extras: F, N, Ctrl+click, aria-pressed, hint line (intent) — allowed by the spec; no defect.
+  - `[low]` `[reject]` Model tests build boards by writing internal fields (intent) — test structure; the public sequence is also exercised through the shell.
+  - `[false]` `[reject]` Loss details (all mines, clicked mine, wrong flags) exist as DOM classes from look() (intent) — the spec describes them as display; no defect.
+  - `[low]` `[reject]` Touch event order and frame pacing are only simulated (intent) — the repo has no browser harness; residual risk.
+  - `[low]` `[reject]` role="grid" has no rows or gridcells (intent) — the spec requires role="grid"; residual risk.
+  - `[low]` `[defer]` The map says pointerdown button 2 marks and that cells rebuild only on count (intent) — map fix; in the deferred docs item.
+  - `[false]` `[reject]` The spec is not in the reviewed diff (intent) — excluded by design; committed at finalize.
+  - `[low]` `[reject]` The timer and long press run on a capped clock, so a very slow device loses time (blind-hunter) — the spec mandates step(dt) with a 100 ms cap; the fix would edit this build's spec.
+  - `[low]` `[patch]` README says only Hard scrolls sideways, but Medium needs about 448 px (blind-hunter) — patched: README says Medium and Hard.
+  - `[low]` `[defer]` The map Input row describes button 2 marking (blind-hunter) — map fix; deferred.
+  - `[low]` `[defer]` The map Loop row says render runs every frame (blind-hunter) — map fix; deferred.
+  - `[low]` `[defer]` Map metadata (total_files, total_tokens, last_mapped) is stale (blind-hunter) — deferred.
+  - `[low]` `[patch]` The hint and README omit Enter and Space, and focus is not described (blind-hunter) — patched: hint and README name Enter, Space, F and N; no CSS removes focus outlines, so none was added. Arrow-key navigation is rejected as beyond the intent; the grid role is required by the spec.
+  - `[low]` `[patch]` A chord opens question-marked cells while the README says question marks block a click (blind-hunter) — patched: README states that a flood or chord opens them and only flags protect.
+  - `[low]` `[patch]` Ctrl+click does nothing on Windows and Linux (blind-hunter) — patched: a ctxSeen flag; Ctrl+click is skipped only when a contextmenu followed it.
+  - `[low]` `[reject]` New game has no confirm or undo, and N sits next to F (blind-hunter) — the spec asks for a New game button only; N is an extra and games are short; same call as Twofold.
+  - `[low]` `[patch]` README has no browser-support note (blind-hunter) — patched: baseline line added.
+  - `[low]` `[reject]` Tests are tied to source formatting: recursion check, CSS regex, banned strings (blind-hunter) — kept on purpose; the intent requires a non-recursive flood and the 300x300 run backs the check.
+  - `[low]` `[reject]` Real-browser behaviour, sticky hover on touch and a best-time record are unchecked or absent (blind-hunter) — residual risk; a best time was not asked for.
+  - `[low]` `[patch]` Ctrl+click is dead on non-Mac platforms (edge) — grouped with the blind-hunter row; patched there.
+  - `[low]` `[patch]` A touch that slips past 10 px and keeps holding is still marked by the late contextmenu (edge) — patched: a slipped flag blocks it.
+  - `[low]` `[patch]` A contextmenu before 450 ms followed by pointercancel leaves no mark (edge) — patched: an early contextmenu fires the pending press at once.
+  - `[low]` `[patch]` A touch held on a revealed number, or after the game ends, swallows the next click (edge) — patched: a press starts only on a hidden cell in a live game.
+  - `[low]` `[reject]` The frame cap makes the timer slower than real time on slow devices (edge) — same as the capped-clock row above.
+  - `[low]` `[patch]` README says the first click always opens an area, but flags around it hold the flood (edge) — patched: README caveat added.
+  - `[low]` `[defer]` Map total_files says 18 (edge) — map fix; deferred.
+  - `[low]` `[defer]` Map Input row says button 2 marks (edge) — map fix; deferred.
+  - `[low]` `[defer]` Map Loop row says render runs each frame (edge) — map fix; deferred.
+  - `[low]` `[defer]` Map says cells rebuild only when the count changes (edge) — map fix; deferred.
+  - `[low]` `[patch]` The N key has no test that can fail (verification) — patched: N from a marked, lost game resets the board, timer, status and cells.
+  - `[low]` `[patch]` A chord next to already-open cells could leave left wrong, and no test sees it (verification) — patched: the 5x3 chord case and an already-open reveal.
+  - `[low]` `[patch]` A long touch on a non-cell element could throw inside step() (verification) — patched: a touch on New game or the board leaves press null after step.
+  - `[low]` `[patch]` First-click mine placement is not tied to Math.random (verification) — patched: different rnd values give different mine sets.
+  - `[low]` `[patch]` A second finger can start a long press and nothing tests it (verification) — patched with a test; the reviewer suggested defer, but the guard is new code in this change.
+  - `[low]` `[patch]` The Alt modifier on F and N is untested (verification) — patched.
+  - `[low]` `[patch]` Three cell aria-label branches are unasserted (verification) — patched: 1 mine nearby, question mark, unexploded mine after a loss.
+  - `[low]` `[defer]` Map metadata and prose drift (verification, other findings) — deferred with the map items above.
+
 ## Auto Run Result
 
-- **Summary:** Built Minefield as `minefield.html`. A DOM-free board model (`newBoard`, `placeMines`, `reveal` with an iterative BFS flood, `cycleMark`, `chord`, `status`) sits under a DOM grid of cell buttons. It has three difficulties, a safe first click that opens an area, flag and question marks, chording, a mine counter, a rAF-driven timer, a "New game" text button, and long press to mark on touch.
-- **Files changed:**
+- **Summary:** Built Minefield as `minefield.html`: a DOM-free board model (`newBoard`, `placeMines`, `reveal` with an iterative BFS flood, `cycleMark`, `chord`, `status`) under a DOM grid of cell buttons, with three difficulties, a safe first click, flag and question marks, chording, a mine counter, a rAF-driven timer, a plain New game button, and long press to mark on touch. Two review passes fixed marking (contextmenu, Ctrl+click on every platform, early and slipped long presses), a swallowed chord click, the win message, contrast, per-frame rendering and many test gaps.
+- **Files changed (whole change):**
   - `minefield.html` -- the game.
-  - `test-minefield.mjs` -- the model directly through `run()` (seeded mine placement, a 300x300 flood), every I/O matrix row, input paths (contextmenu, Ctrl+click, long press, keyboard), rendering and contrast-bearing classes.
-  - `README.md` -- games table, controls, test command.
+  - `test-minefield.mjs` -- the model directly through `run()`, every I/O matrix row, input paths (contextmenu, Ctrl+click, long press, keyboard), rendering and labels, the N key, chord with open neighbours.
+  - `README.md` -- games table, controls (incl. Enter and Space), rules, phone and browser notes, test command.
   - `CLAUDE.md`, `docs/CODEBASE_MAP.md` -- game list, test command, Minefield section.
-- **Review findings:** 28 findings: 0 high, 3 medium, 20 low, 5 false.
-  - Patched: 12 rows in 7 fixes. The medium entry is marking: moved to `contextmenu` so Mac Ctrl+click and the keyboard menu keys work and a long press marks once.
-  - Deferred: 3 rows (docs drift) as one `deferred` item.
-  - Rejected: 8 low and 5 false. Reasons are in the triage log.
-- **Follow-up review recommended:** false. No high was patched and only one medium entry.
-- **Verification:** all five suites pass. The implementer checked each new test against a deliberate bug; I re-ran one (the Ctrl-key guard) and it is caught.
+- **Review findings, follow-up:** 45 findings: 0 high, 0 medium, 39 low, 6 false.
+  - Patched: 17 rows in 7 fixes, plus README corrections.
+  - Deferred: 9 rows (docs drift) in the one existing `deferred` item.
+  - Rejected: 13 low and 6 false. Reasons are in the triage log.
+- **Follow-up review recommended:** false. No high or medium was patched.
+- **Verification:** all five suites pass. The implementer checked each new guard against a deliberate bug; I re-ran two (Ctrl guard, slipped flag) and both are caught.
 - **Residual risks:**
-  - Not played on a real phone or Mac browser; long press and Ctrl+click event order are from platform behaviour, tested with stubs.
-  - `role="grid"` has no rows or gridcells, and there is no arrow-key navigation, so keyboard play on Hard means tabbing through 480 buttons.
-  - Hard (30 wide) scrolls sideways on a phone.
-  - The timer pauses while the tab is hidden.
+  - Not played on a real phone or Mac; touch event order is simulated.
+  - `role="grid"` has no rows or gridcells, and there are no arrow keys, so Hard means tabbing through 480 buttons.
+  - Medium and Hard scroll sideways on a portrait phone.
+  - The timer pauses in a hidden tab and loses time on frames over 100 ms.
+  - `docs/CODEBASE_MAP.md` still describes the old button-2 right-click path (deferred).
   - The README Play link stays dead until merge and GitHub Pages rebuild.
 
 ## Design Notes

@@ -71,15 +71,17 @@ Twofold needs a browser from about 2022 or later (it uses CSS `scale` in keyfram
 
 | Input | Action |
 |---|---|
-| Click / tap a hidden cell | Reveal it |
+| Click / tap a hidden cell, or Enter / Space on the focused cell | Reveal it |
 | Right click / Ctrl+click (Mac) / Menu key or Shift+F10 / long press (touch, 450 ms) / F on the focused cell | Cycle the mark: flag, question mark, none |
-| Click a revealed number | Chord: if its adjacent flags equal the number, reveal every other adjacent cell |
+| Click a revealed number (or Enter / Space on it) | Chord: if its adjacent flags equal the number, reveal every other adjacent cell |
 | Easy / Medium / Hard buttons | Start a new game at 9x9 with 10 mines, 16x16 with 40, or 30x16 with 99 |
 | N / New game button | Start a new game at the current difficulty |
 
-Mines are placed on the first reveal, never on the clicked cell or its eight neighbours, so the first click always opens an area. Revealing a 0 opens its connected zeros and their numbered border; flags stop that flood, question marks don't. Flags and question marks both block a direct click. The mine counter is mines minus flags and can go negative. The timer starts on the first reveal, counts whole seconds up to 999 and stops on a win or a loss; it pauses while the tab is hidden. You win when every safe cell is revealed; the remaining mines then show as flags. Revealing a mine shows every mine, marks the one that went off and crosses out wrong flags. After a win or a loss the board ignores input until a new game. Nothing is saved.
+Mines are placed on the first reveal, never on the clicked cell or its eight neighbours, so the first click always opens an area, unless you flagged cells around it first, since flags hold a flood. Revealing a 0 opens its connected zeros and their numbered border. A flood or a chord also opens question-marked cells; only flags protect a cell. Flags and question marks both block a direct click. The mine counter is mines minus flags and can go negative. The timer starts on the first reveal, counts whole seconds up to 999 and stops on a win or a loss; it pauses while the tab is hidden. You win when every safe cell is revealed; the remaining mines then show as flags. Revealing a mine shows every mine, marks the one that went off and crosses out wrong flags. After a win or a loss the board ignores input until a new game. Nothing is saved.
 
-Minefield is DOM-based: each cell is a `<button>` in a CSS grid. The Hard board is wider than a phone screen and scrolls sideways.
+Minefield is DOM-based: each cell is a `<button>` in a CSS grid. The Medium and Hard boards are wider than a portrait phone screen and scroll sideways. Tab moves focus between cells; each cell has a label for screen readers.
+
+Minefield needs a browser from about 2022 or later (it uses `Object.hasOwn`, `?.` and `clamp()`).
 
 ## Tests
 
