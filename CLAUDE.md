@@ -23,6 +23,6 @@ New games follow the shared shape:
 - a rAF `frame` loop;
 - a `test-<name>.mjs` that uses `load()` from `harness.mjs`.
 
-A turn-based DOM game (like `twofold.html`) may skip the canvas, `step(dt)` and the rAF loop: its actions update state and call `render()` directly, and CSS animates. `render()` must reuse one element per tile id across moves, or tiles jump instead of sliding. Its tests pass a `document` stub with `createElement`/`appendChild` through `load()`'s `globals`.
+A turn-based DOM game (like `twofold.html`) may skip the canvas, `step(dt)` and the rAF loop: its actions update state and call `render()` directly, and CSS animates. `render()` must reuse one element per tile id across moves, or tiles jump instead of sliding. Its tests pass a `document` stub with `createElement`/`appendChild` through `load()`'s `globals`. A DOM game that needs a clock (like `minefield.html`) keeps `step(dt)` and the rAF loop for it, and renders from the loop only when what it shows changes.
 
 For detailed architecture, see [docs/CODEBASE_MAP.md](docs/CODEBASE_MAP.md).
