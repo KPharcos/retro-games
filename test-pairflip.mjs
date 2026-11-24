@@ -16,25 +16,31 @@ assert.match(html, /<button id="again">Play again<\/button>/);
 assert.match(html, /\.card\.up \{ transform: perspective\(500px\) rotateY\(180deg\)/);
 assert.match(html, /backface-visibility: hidden/);
 assert.match(html, /content: attr\(data-face\)/);
+assert.match(html, /@media \(hover: hover\) \{ \.card:not\(\.up\):hover::before \{[^}]*\} \}/); // touch keeps :hover after a tap
 assert.match(html, /@media \(prefers-reduced-motion: reduce\) \{ \.card \{ transition: none; \} \}/);
 assert.match(html, /requestAnimationFrame\(frame\)/);
 
 // DOM stub: one persistent element per id (every id must exist in the markup), created elements tracked as children
 function makeDoc() {
-  const els = {}, listeners = {}, focused = { el: null }, touches = { n: 0 }; // n: attribute reads/writes and text writes
+  // n: attribute reads plus every write; sets: writes only (text, attributes, className, hidden, inert); writes: text writes per id
+  const els = {}, listeners = {}, focused = { el: null }, touches = { n: 0, sets: 0 }, writes = {};
   const node = (id, tag) => {
-    const attrs = {};
+    const attrs = {}, props = { className: '', hidden: undefined, inert: undefined };
     let text = '';
-    return {
-      id, tag, className: '', hidden: undefined, inert: undefined, children: [], parent: null,
+    if (id) writes[id] = 0;
+    const set = () => { touches.n++; touches.sets++; };
+    const el = {
+      id, tag, children: [], parent: null,
       get textContent() { return text; },
-      set textContent(v) { text = String(v); touches.n++; },
-      setAttribute(k, v) { attrs[k] = String(v); touches.n++; },
+      set textContent(v) { text = String(v); set(); if (id) writes[id]++; },
+      setAttribute(k, v) { attrs[k] = String(v); set(); },
       getAttribute(k) { touches.n++; return attrs[k] ?? null; },
       focus() { focused.el = this; },
       appendChild(c) { this.children.push(c); c.parent = this; return c; },
       remove() { this.parent.children.splice(this.parent.children.indexOf(this), 1); this.parent = null; },
     };
+    for (const k of Object.keys(props)) Object.defineProperty(el, k, { get: () => props[k], set: (v) => { props[k] = v; set(); } });
+    return el;
   };
   const document = {
     getElementById: (id) => {
@@ -42,9 +48,10 @@ function makeDoc() {
       return (els[id] ??= node(id));
     },
     createElement: (tag) => node(undefined, tag),
+    get activeElement() { return focused.el; },
     addEventListener: (type, fn) => { listeners[type] = fn; },
   };
-  return { document, els, listeners, focused, touches };
+  return { document, els, listeners, focused, touches, writes };
 }
 
 let rand = () => 0; // rand 0: Fisher-Yates rotates left by one, so card i pairs with card i + n/2
@@ -58,7 +65,8 @@ function game() {
   const click = (target) => d.listeners.click({ target });
   const tap = (i) => click(cards()[i]);
   const button = (id) => { assert.ok(html.includes(`<button id="${id}"`), id); click(d.document.getElementById(id)); };
-  const key = (code, o = {}) => d.listeners.keydown({ code, repeat: false, ...o });
+  let prevented = 0;
+  const key = (code, o = {}) => d.listeners.keydown({ code, repeat: false, preventDefault: () => prevented++, ...o });
   let t = 0;
   const tick = (ms) => { // one rAF frame ms after the last; each frame must queue the next
     const n = rafs.length;
@@ -68,7 +76,7 @@ function game() {
   tick(0); // first frame: sets the clock, no step
   const ups = () => cards().flatMap((c, i) => (c.className.includes('up') ? [i] : []));
   const shown = () => [d.els.moves.textContent, d.els.time.textContent];
-  return { ...g, ...d, rafs, json, cards, click, tap, button, key, tick, ups, shown };
+  return { ...g, ...d, prevented: () => prevented, rafs, json, cards, click, tap, button, key, tick, ups, shown };
 }
 
 // ---- Fisher-Yates ----
@@ -107,7 +115,7 @@ assert.equal(g.els.board.className, 'normal');
 assert.equal(g.els.board.getAttribute('aria-label'), 'Cards, 4 by 4');
 assert.deepEqual(['normal', 'hard'].map(id => g.els[id].getAttribute('aria-pressed')), ['true', 'false']);
 assert.equal(g.cards()[5].getAttribute('aria-label'), 'Row 2, column 2, face down');
-assert.equal(g.cards()[0].getAttribute('data-face'), 'B');
+assert.ok(g.cards().every(c => c.getAttribute('data-face') === null), 'no letter on a never-flipped card');
 const els0 = [...g.cards()];
 
 // Timer stays at 0 before the first flip; quiet frames don't render
@@ -121,6 +129,11 @@ g.tap(0);
 assert.deepEqual(g.ups(), [0]);
 assert.equal(g.cards()[0].getAttribute('aria-label'), 'Row 1, column 1, B');
 assert.equal(g.els.status.textContent, 'B');
+assert.equal(g.cards()[0].getAttribute('data-face'), 'B');
+assert.ok(g.cards().slice(1).every(c => c.getAttribute('data-face') === null));
+const s0 = g.touches.sets;
+g.run('render(); render()');
+assert.equal(g.touches.sets, s0, 'a render with nothing changed writes nothing');
 t0 = g.touches.n;
 g.tick(100); // timer runs but still shows 0:00: no render
 assert.equal(g.touches.n, t0, 'frame rendered with no change in shown time');
@@ -149,8 +162,11 @@ assert.deepEqual([g.ups(), g.json('open'), g.run('hold')], [[], [], 0]);
 assert.equal(g.cards()[1].getAttribute('aria-label'), 'Row 1, column 2, face down');
 assert.equal(g.run('elapsed'), 900);
 assert.deepEqual(g.shown(), ['1', '0:00']);
+const w0 = { ...g.writes };
 g.tick(100); // timer keeps running while nothing is open
 assert.deepEqual(g.shown(), ['1', '0:01']);
+assert.equal(g.writes.time, w0.time + 1);
+assert.equal(g.writes.status, w0.status, 'aria-live status not rewritten each second');
 
 // dt is capped at 100 ms per frame
 g.tick(5000);
@@ -190,10 +206,22 @@ g.run('cards[0].up = false'); // even a face-down card ignores clicks once won
 g.tap(0);
 assert.deepEqual([g.run('cards[0].up'), g.run('moves')], [false, 9]);
 
+// Repeat Space / Enter / NumpadEnter are swallowed: a held Enter must not dismiss the panel it just focused
+for (const code of ['Space', 'Enter', 'NumpadEnter']) {
+  const p = g.prevented();
+  g.key(code, { repeat: true });
+  assert.equal(g.prevented(), p + 1, code);
+}
+const p0 = g.prevented();
+g.key('Enter');
+assert.equal(g.prevented(), p0, 'a fresh Enter still clicks');
+assert.equal(g.els.win.hidden, false);
+
 // Play again starts a new game: reshuffled, board live again, first card focused
 rand = () => 0.999;
 g.button('again');
 assert.equal(g.json('cards.map(c => c.face).join("")'), 'ABCDEFGHABCDEFGH', 'Play again reshuffles');
+assert.equal(g.cards()[0].getAttribute('data-face'), 'B', 'a card turning back keeps its old letter');
 rand = () => 0;
 assert.equal(g.els.win.hidden, true);
 assert.equal(g.els.board.inert, false);
@@ -204,14 +232,14 @@ assert.ok(g.cards().every((c, i) => c === els0[i]), 'same count: buttons reused'
 // ---- Restart during a hold: fresh deck, all down, moves 0, timer 0 and stopped ----
 g.tap(0); g.tap(1); g.tick(100);
 assert.ok(g.run('hold') > 0 && g.run('elapsed') > 0);
-rand = () => 0.999; // a different deck shows a new shuffle ran
-g.button('restart');
+g.focused.el = g.cards()[5];
+g.button('restart'); // rand 0 now: a different deck shows a new shuffle ran
+assert.equal(g.focused.el, g.cards()[5], 'Restart leaves focus alone');
 assert.deepEqual([g.ups(), g.shown(), g.run('hold'), g.json('open')], [[], ['0', '0:00'], 0, []]);
-assert.equal(g.json('cards.map(c => c.face).join("")'), 'ABCDEFGHABCDEFGH');
-assert.equal(g.cards()[0].getAttribute('data-face'), 'A');
+assert.equal(g.json('cards.map(c => c.face).join("")'), 'BCDEFGHABCDEFGHA');
+assert.deepEqual([0, 1].map(i => g.cards()[i].getAttribute('data-face')), ['A', 'B'], 'cards turning back keep their old letters');
 g.tick(100); g.tick(100);
 assert.equal(g.run('elapsed'), 0, 'timer stopped after restart');
-rand = () => 0;
 
 // ---- Key R: restart; repeat or modified ignored ----
 g.tap(0);
@@ -237,6 +265,9 @@ assert.equal(g.json('cards.map(c => c.face).join("")'), 'BCDEFGHIJKLMNOPQRABCDEF
 assert.equal(g.cards()[7].getAttribute('aria-label'), 'Row 2, column 2, face down');
 for (let i = 0; i < 18; i++) { g.tap(i); g.tap(i + 18); }
 assert.equal(g.els.result.textContent, 'You found all 18 pairs in 18 moves and 0:00.');
+assert.equal(g.focused.el, g.els.again);
+g.key('KeyR'); // R from Play again: the panel hides, so focus goes to the first card
+assert.equal(g.focused.el, g.cards()[0], 'R on Play again focuses the first card');
 // Play again, Restart and R stay in Hard
 const hardEls = [...g.cards()];
 for (const act of [() => g.button('again'), () => g.button('restart'), () => g.key('KeyR')]) {

@@ -112,7 +112,7 @@ The deck is shuffled with Fisher-Yates at the start of every game. A move is one
 
 Pairflip is DOM-based: each card is a `<button>` that turns over with a CSS 3D transition (off when the system asks for reduced motion); a rAF loop runs only the clock and the flip-back. Each card has a label for screen readers.
 
-Pairflip needs a browser from about 2021 or later (it uses `?.`, `min()` and `inset`).
+Pairflip needs a browser from about 2021 or later (it uses `?.`, `min()` and `inset`). It also uses `inert` (about 2023) to lock the board under the win panel; an older browser without `inert` still plays the same, Tab just also walks the covered cards.
 
 ## Tests
 
