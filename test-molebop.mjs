@@ -138,6 +138,13 @@ calls = 0;
 g.run('step(1)');
 assert.equal(calls, 3);
 assert.equal(g.json('holes').filter(Boolean).length, 1);
+// the next gap carries the overshoot: a pop 6 ms late is followed 794 (or 444) ms after it, not a full gap
+g = game();
+g.click(g.els.start);
+g.run('popIn = 10; step(16)');
+assert.equal(g.run('popIn'), 794);
+g.run('timeLeft = 9000; popIn = 10; step(16)');
+assert.equal(g.run('popIn'), 444);
 // whole round in 50 ms steps: record when each pop happens
 g = game();
 g.click(g.els.start);
@@ -303,7 +310,7 @@ assert.equal(g.text('time'), '29');
 // ---- Keys: Digit1-9 in reading order, Numpad1-9 in pad layout (Numpad7 top-left); modified and repeated keys ignored ----
 g = game();
 g.click(g.els.start);
-for (const [code, i] of [['Digit1', 0], ['Digit3', 2], ['Digit9', 8], ['Numpad7', 0], ['Numpad9', 2], ['Numpad5', 4], ['Numpad1', 6], ['Numpad3', 8]]) {
+for (const [code, i] of [['Digit1', 0], ['Digit3', 2], ['Digit9', 8], ['Numpad7', 0], ['Numpad8', 1], ['Numpad9', 2], ['Numpad4', 3], ['Numpad5', 4], ['Numpad6', 5], ['Numpad1', 6], ['Numpad2', 7], ['Numpad3', 8]]) {
   g.run('holes = Array(9).fill(null); score = 0');
   g.put(i, 'mole');
   g.key(code);

@@ -93,11 +93,11 @@ Minefield needs a browser from about 2022 or later (it uses `Object.hasOwn`, `?.
 | 1-9 | Whack a hole in reading order (1 is top-left, 9 bottom-right) |
 | Numpad 1-9 | Whack a hole as laid out on the pad (7 is top-left, 3 bottom-right) |
 
-A round lasts 30 seconds. The first mole pops up 0.5 s after Start, then a new one every 800 ms, or every 450 ms once 10 seconds or less are left, into a random empty hole; several can be up at once, and a pop is skipped when all nine holes are up. Each stays up for 700-1200 ms. A mole scores 1, a golden mole (★, 10% of pops) scores 5, and a bomb (✸, 10%) ends the round at the current score. Whacking an empty hole costs 1 point, never going below 0. Holes ignore input outside a round. The best score is kept in `localStorage`; nothing else is saved. There is no pause.
+A round lasts 30 seconds. The first mole pops up 0.5 s after Start, then a new one 800 ms after each pop, or 450 ms after a pop made with 10 seconds or less left, into a random empty hole; several can be up at once, and a pop is skipped when all nine holes are up. Each stays up for 700-1200 ms. A mole scores 1, a golden mole (★, 10% of pops) scores 5, and a bomb (✸, 10%) ends the round at the current score. Whacking an empty hole costs 1 point, never going below 0. Holes ignore input outside a round. The best score is kept in `localStorage`; nothing else is saved. There is no pause button, but the round waits while the tab is hidden.
 
 Molebop is DOM-based: each hole is a `<button>` and the moles slide with a CSS transition; a rAF loop runs only the clock. Each hole has a label for screen readers.
 
-Molebop needs a browser from about 2022 or later (it uses `inert`, `aspect-ratio`, `inset`, `min()` / `clamp()`, `?.` and `catch {}` without a binding).
+Molebop needs a browser from about 2023 or later (it uses `inert`, `aspect-ratio`, `inset`, `min()` / `clamp()`, `?.` and `catch {}` without a binding). An older browser without `inert` still plays the same; Tab just also walks the empty holes between rounds.
 
 ## Tests
 

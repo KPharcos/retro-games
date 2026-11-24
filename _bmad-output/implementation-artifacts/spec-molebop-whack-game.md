@@ -6,6 +6,7 @@ status: 'done'
 baseline_revision: 'aa17088d9fbcf0b181a4a3efb44711527dfd43eb'
 review_loop_iteration: 0
 followup_review_recommended: false
+followup_pass: true
 context: ['{project-root}/CLAUDE.md']
 warnings: ['oversized']
 deferred:
@@ -101,6 +102,41 @@ deferred:
   - `[maybe-false]` `[reject]` Scores on press, not on click (intent-alignment) — deliberate for a reflex game; a click still lands as one whack. Would only be low.
   - `[maybe-false]` `[reject]` Tests run on a stub DOM, not a real browser (intent-alignment) — partly settled: headless Chrome screenshots of the ready panel and a mid-round field (mole, ★ golden, ✸ bomb) render as intended; real taps and reload persistence not exercised. Would be low.
 
+### 2026-11-24 — Review pass (follow-up)
+- verdicts: 31 findings — high 0, medium 0, low 20, false 7, maybe-false 4
+- findings:
+  - `[low]` `[reject]` Visible mole time vs state time: a press while a mole slides down scores −1 (intent-alignment) — carried: same row as pass 1; a 120 ms window, no feedback state wanted.
+  - `[low]` `[reject]` 10 s boundary: the gap is picked at the previous pop, and the test mirrors the formula (intent-alignment) — carried: same row as pass 1; a shift of at most 350 ms nobody feels.
+  - `[false]` `[reject]` Taps rely on `.mole { pointer-events: none }`; tests pass the hole as target (intent-alignment) — carried: same row as pass 1; the CSS line is there.
+  - `[false]` `[reject]` `inert` is asserted only as a stub boolean (intent-alignment) — what `inert` does is a platform guarantee; the code sets it and the test asserts it in all three phases.
+  - `[false]` `[reject]` Overlay visibility depends on `#panel[hidden] { display: none }` beating `display: flex` (intent-alignment) — the rule is in molebop.html, and the pass-1 headless-Chrome screenshots show the panel hidden mid-round.
+  - `[maybe-false]` `[reject]` Real `localStorage` and reload persistence are simulated with a plain-object store (intent-alignment) — settled only by a real browser reload; the standard API is used in try/catch like Twofold; would only be low.
+  - `[low]` `[patch]` Hidden tab stalls rAF, so the round freezes though the docs say no pause (intent-alignment) — patched: README says there is no pause button but the round waits while the tab is hidden. Same root cause as the blind-hunter background-tab row.
+  - `[maybe-false]` `[reject]` Scores on press, not click (intent-alignment) — carried: same row as pass 1; deliberate for a reflex game; would only be low.
+  - `[false]` `[reject]` Digit/Numpad keys, README, CLAUDE.md and spec go beyond the intent's literal text (intent-alignment) — the contract's Tasks list the keys and the docs; none conflicts with the intent.
+  - `[low]` `[defer]` docs/CODEBASE_MAP.md stale (intent-alignment) — carried: already in `deferred`.
+  - `[maybe-false]` `[reject]` Player-surface evidence is only prose about headless screenshots (intent-alignment) — a browser tap run would settle it; the screenshots were taken and read; would only be low.
+  - `[maybe-false]` `[reject]` Several moles up at once vs one at a time (intent-alignment) — carried: same row as pass 1; "spawn rate" implies a spawn clock apart from mole lifetime.
+  - `[low]` `[patch]` Numpad2/4/6/8 have no assertion: swapping their table entries stays green (verification-gap) — patched: the key loop now presses all nine numpad keys; swapped entries now fail.
+  - `[low]` `[patch]` Pop timer carry-over `popIn += …` is not pinned (verification-gap) — patched: test of `popIn = 10; step(16)` → 794 and the fast-phase 444; mutating `+=` to `=` now fails. The reviewer proposed defer; the fix is one test, so it was patched.
+  - `[low]` `[defer]` CODEBASE_MAP.md lacks Molebop (verification-gap) — carried: already in `deferred`.
+  - `[low]` `[reject]` No lockout after the round ends: Start or Space/Enter restarts at once, so a mashing player can skip the end screen (edge-case) — unlikely in everyday use: Start covers about 2% of the field and only whacks on holes or keys 1-9 are mashed; the contract says Start begins a round from `over` with no delay; a lockout adds state and a rule the contract does not have. A design option for the user.
+  - `[low]` `[reject]` Round end drops focus to body, because the field becomes inert (edge-case) — one Tab reaches Start, Space/Enter restarts from anywhere, and `#status` announces the result; the fix adds a phase-change branch.
+  - `[low]` `[patch]` Modified Enter/Space on a focused hole still whacks through the click listener (edge-case) — carried: same claim as the pass-1 "modified/repeat keys ignored" row; the repeat part was patched then; a Ctrl+Enter whack is harmless.
+  - `[low]` `[reject]` AC "time left ≤ 10 s → pops every 450 ms" vs the gap chosen at the previous pop (edge-case) — carried: same row as pass 1.
+  - `[low]` `[patch]` README says "about 2022", but `inert` reached Firefox only in 112 (blind-hunter) — patched: README says "about 2023 or later" and that an older browser only also tabs through the empty holes.
+  - `[low]` `[defer]` CODEBASE_MAP.md contradicts CLAUDE.md's "six games" (blind-hunter) — carried: already in `deferred`.
+  - `[false]` `[reject]` Time-up render path untested, and dropping `phase` from `shown()` would hide the end panel (blind-hunter) — `end()` sets `timeLeft` to 0 and clears holes, so `Math.ceil(timeLeft / 1000)` always changes on the ending frame and `frame` renders; the verification-gap layer mutated this and found no gap.
+  - `[low]` `[reject]` No input lockout after round end (blind-hunter) — same root cause as the edge-case lockout row; same refusal.
+  - `[low]` `[patch]` Hidden tab acts as a free pause (blind-hunter) — patched: same README fix as the intent-alignment row.
+  - `[low]` `[reject]` Screen-reader users get no play-time announcements; Score/Time are not live regions (blind-hunter) — the contract asks only for per-hole labels and an `aria-live` round-end status; live updates for every pop would be noise.
+  - `[low]` `[reject]` Focus is not moved to Start when the end panel appears (blind-hunter) — same root cause and refusal as the edge-case focus row.
+  - `[low]` `[reject]` `#message` and `#status` both show the end text (blind-hunter) — harmless duplicate; `#status` must hold real text for `aria-live`, and hiding it adds a CSS rule.
+  - `[false]` `[reject]` `pointer-events: none` on `.mole` is not pinned (blind-hunter) — carried: same row as pass 1.
+  - `[false]` `[reject]` Spec status in-review vs `Status: done`, and the patches were never re-reviewed (blind-hunter) — this pass is that re-review; the status is set at Finalize; the fix would edit this build's spec.
+  - `[low]` `[patch]` README states "every 450 ms once 10 seconds or less are left", but the gap is chosen at the previous pop (blind-hunter) — patched: README now says "800 ms after each pop, or 450 ms after a pop made with 10 seconds or less left"; code unchanged.
+  - `[low]` `[reject]` Rules legend vanishes during play; the end button still says Start (blind-hunter) — polish the contract does not ask for; the ready panel states the rules and the contract names a Start button.
+
 ## Verification
 
 **Commands:**
@@ -130,3 +166,17 @@ Status: done
 **Verification:** `node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs && node test-minefield.mjs && node test-molebop.mjs` -- all pass. Headless Chrome screenshots: ready panel with Start, and a mid-round field showing a mole, a ★ golden mole and a ✸ bomb, render as intended.
 
 **Residual risks:** Real taps, the slide animation and reload persistence were not exercised in a browser. docs/CODEBASE_MAP.md does not cover Molebop yet (deferred).
+
+### Follow-up pass (2026-11-24)
+
+Status: done
+
+**Summary:** A second review pass over the whole branch diff since the baseline found no high or medium problems. 6 rows were patched in 5 small fixes (a seventh patch row is carried from pass 1, so not applied again): the Molebop README text (browser line "about 2023", pause wording, pop schedule) and two tests (all nine numpad keys; the pop-timer overshoot). `molebop.html` was not changed.
+
+**Review findings:** 31 total. Patched 6 rows (all low) plus 1 carried patch row. Deferred 3 rows (all CODEBASE_MAP, already in `deferred`). Rejected 21: carried pass-1 rejects (slide-down −1, 10 s boundary, pointer-events, press vs click, several moles, the modified-key claim, the AC wording); no restart lockout and no focus move after the round (unlikely, adds state, and the contract says Start works at once from the end screen); no live regions during play; the duplicate end text; the legend and button wording; stored-best and stub-DOM caveats; spec status (resolved at Finalize).
+
+**Follow-up review recommendation:** false — this pass patched no high and no medium.
+
+**Verification:** all six test suites pass. The new popIn test fails against a build with `popIn += …` changed to `popIn = …`; the new numpad assertions fail with swapped table entries.
+
+**Residual risks:** Real browser taps, the slide animation and `localStorage` reload persistence are still unchecked. A round-end lockout is a design choice left to the user. docs/CODEBASE_MAP.md still lacks Molebop.
