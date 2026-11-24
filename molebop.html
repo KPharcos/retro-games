@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Molebop</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #1d2b1a;
+            color: #eef3e2;
+            font-family: Arial, sans-serif;
+            user-select: none;
+        }
+        #game-container { width: min(420px, 94vw); padding: 12px 0; }
+        header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+        h1 { margin: 0 auto 0 0; font-size: 30px; letter-spacing: 2px; color: #ffcf4a; }
+        .box { background: #2f4429; border-radius: 6px; padding: 4px 10px; text-align: center; min-width: 54px; }
+        .box small { display: block; font-size: 11px; color: #b5c9a3; text-transform: uppercase; }
+        .box span { font-size: 18px; font-weight: bold; font-family: 'Courier New', monospace; }
+        #stage { position: relative; }
+        #field {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            padding: 14px;
+            background: #4f8a3c;
+            border-radius: 12px;
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
+        }
+        .hole {
+            position: relative;
+            aspect-ratio: 1;
+            padding: 0;
+            border: 0;
+            border-radius: 50% 50% 46% 46%;
+            background: radial-gradient(ellipse at 50% 70%, #1a0f08 55%, #5a3a22 57%);
+            overflow: hidden;
+            cursor: pointer;
+        }
+        .hole:focus-visible { outline: 3px solid #ffcf4a; outline-offset: 2px; }
+        .mole {
+            position: absolute; left: 18%; right: 18%; bottom: 0; height: 72%;
+            border-radius: 50% 50% 12% 12%;
+            background: #8b5a3c;
+            color: #1a0f08;
+            font: bold clamp(22px, 9vw, 40px) Arial, sans-serif;
+            display: flex; align-items: center; justify-content: center;
+            transform: translateY(105%);
+            transition: transform 0.12s ease-out;
+            pointer-events: none; /* taps land on the hole button */
+        }
+        .up .mole { transform: translateY(0); }
+        .mole.golden { background: #ffcf4a; }
+        .mole.bomb { background: #2a2a2e; color: #ff6b4a; }
+        #panel {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+            padding: 20px; text-align: center;
+            background: rgba(20, 30, 18, 0.86);
+            border-radius: 12px;
+        }
+        #panel[hidden] { display: none; }
+        #message { font-size: 18px; line-height: 1.4; }
+        #start {
+            font: inherit; font-size: 18px; font-weight: bold; color: #1d2b1a; background: #ffcf4a;
+            border: 0; border-radius: 8px; padding: 10px 28px; cursor: pointer;
+        }
+        #status { min-height: 20px; margin-top: 8px; font-size: 16px; }
+        #hint { margin-top: 8px; font-size: 14px; color: #b5c9a3; }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <header>
+            <h1>Molebop</h1>
+            <div class="box"><small>Score</small><span id="score">0</span></div>
+            <div class="box"><small>Time</small><span id="time">30</span></div>
+            <div class="box"><small>Best</small><span id="best">0</span></div>
+        </header>
+        <div id="stage">
+            <div id="field" role="group" aria-label="Field, 3 by 3 holes"></div>
+            <div id="panel">
+                <div id="message"></div>
+                <button id="start">Start</button>
+            </div>
+        </div>
+        <div id="status" aria-live="polite"></div>
+        <div id="hint">Click / tap a mole · Keys 1–9 or the numpad: whack a hole · Space / Enter: start</div>
+    </div>
+
+<script>
+const ROUND = 30000, FIRST_POP = 500, POP_EVERY = 800, POP_FAST = 450, FAST_AT = 10000; // ms
+const BEST_KEY = 'molebop-best';
+const NAMES = { mole: 'mole', golden: 'golden mole', bomb: 'bomb' };
+const GLYPH = { mole: '', golden: '★', bomb: '✸' };
+
+let phase, reason, score, timeLeft, popIn, holes; // holes[i]: null or {kind, up: ms left above ground}
+let best = 0;
+try { best = Number(localStorage.getItem(BEST_KEY)) || 0; } catch {} // blocked or missing storage: best stays 0
+
+function reset() {
+  phase = 'ready';
+  reason = '';
+  score = 0;
+  timeLeft = ROUND;
+  popIn = FIRST_POP;
+  holes = Array(9).fill(null);
+}
+
+function start() { reset(); phase = 'playing'; render(); }
+
+function end(why) {
+  phase = 'over';
+  reason = why;
+  holes.fill(null);
+  if (score > best) {
+    best = score;
+    try { localStorage.setItem(BEST_KEY, String(best)); } catch {}
+  }
+}
+
+function pop() {
+  const empty = holes.flatMap((h, i) => (h ? [] : [i]));
+  if (!empty.length) return;
+  const i = empty[Math.floor(Math.random() * empty.length)], r = Math.random();
+  holes[i] = { kind: r < 0.1 ? 'golden' : r < 0.2 ? 'bomb' : 'mole', up: 700 + Math.random() * 500 };
+}
+
+function step(dt) {
+  if (phase !== 'playing') return;
+  timeLeft = Math.max(0, timeLeft - dt);
+  if (!timeLeft) return end('time');
+  holes.forEach((h, i) => { if (h && (h.up -= dt) <= 0) holes[i] = null; });
+  if ((popIn -= dt) <= 0) {
+    pop();
+    popIn += timeLeft <= FAST_AT ? POP_FAST : POP_EVERY;
+  }
+}
+
+function whack(i) {
+  if (phase !== 'playing') return;
+  const h = holes[i];
+  if (!h) score = Math.max(0, score - 1);
+  else {
+    holes[i] = null;
+    if (h.kind === 'bomb') end('bomb');
+    else score += h.kind === 'golden' ? 5 : 1;
+  }
+  render();
+}
+
+// Numpad7 is the top-left hole, as the keys sit on the pad
+const NUMPAD = [6, 7, 8, 3, 4, 5, 0, 1, 2];
+
+function onKey(e) {
+  const startKey = e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter';
+  if (e.repeat && startKey) e.preventDefault(); // a held key must not fire a focused button's click again and again
+  if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+  if (startKey && phase !== 'playing') {
+    e.preventDefault(); // no scroll, and no second start from a focused button's click
+    start();
+    return;
+  }
+  const d = /^(Digit|Numpad)([1-9])$/.exec(e.code);
+  if (d) whack(d[1] === 'Digit' ? d[2] - 1 : NUMPAD[d[2] - 1]);
+}
+
+// ---- rendering (reads game state; writes only the DOM) ----
+const $ = (id) => document.getElementById(id);
+const fieldEl = $('field'), panelEl = $('panel');
+const holeEls = [], moleEls = [];
+for (let i = 0; i < 9; i++) {
+  const b = fieldEl.appendChild(document.createElement('button'));
+  b.className = 'hole';
+  moleEls.push(b.appendChild(document.createElement('span')));
+  moleEls[i].className = 'mole';
+  holeEls.push(b);
+}
+
+function setText(id, v) { const el = $(id); if (el.textContent !== v) el.textContent = v; }
+
+function endText() {
+  const head = reason === 'bomb' ? 'Boom! A bomb ended the round.' : "Time's up!";
+  return `${head} You scored ${score}. Best: ${best}.`;
+}
+
+function render() {
+  setText('score', String(score));
+  setText('time', String(Math.ceil(timeLeft / 1000)));
+  setText('best', String(best));
+  holes.forEach((h, i) => {
+    const el = holeEls[i], m = moleEls[i], cls = h ? 'hole up' : 'hole', label = `Hole ${i + 1}, ${h ? NAMES[h.kind] : 'empty'}`;
+    if (el.className !== cls) el.className = cls;
+    if (el.getAttribute('aria-label') !== label) el.setAttribute('aria-label', label);
+    if (!h) return; // a mole going down keeps its look while it slides away
+    if (m.className !== 'mole ' + h.kind) m.className = 'mole ' + h.kind;
+    if (m.textContent !== GLYPH[h.kind]) m.textContent = GLYPH[h.kind];
+  });
+  const hide = phase === 'playing';
+  if (panelEl.hidden !== hide) panelEl.hidden = hide;
+  if (fieldEl.inert !== !hide) fieldEl.inert = !hide; // dead holes out of the Tab order and the accessibility tree
+  setText('message', phase === 'over' ? endText() : 'Whack the moles for 30 seconds. ★ golden mole: +5 · ✸ bomb: ends the round · empty hole: −1');
+  setText('status', phase === 'over' ? endText() : '');
+}
+
+// what the page shows that step() can change; score changes only on input, which renders itself
+const shown = () => phase + Math.ceil(timeLeft / 1000) + holes.map(h => (h ? h.kind : '-')).join();
+
+let last = null;
+function frame(t) {
+  const before = shown();
+  if (last !== null) step(Math.min(t - last, 100)); // cap: a resumed tab catches up at most 100 ms
+  last = t;
+  if (shown() !== before) render();
+  requestAnimationFrame(frame);
+}
+
+document.addEventListener('keydown', onKey);
+document.addEventListener('pointerdown', (e) => {
+  const i = holeEls.indexOf(e.target);
+  if (i >= 0 && e.button === 0) whack(i); // on press, not release: it's a reflex game
+});
+document.addEventListener('click', (e) => {
+  const t = e.target, i = holeEls.indexOf(t);
+  if (t?.id === 'start' && phase !== 'playing') start();
+  else if (i >= 0 && e.detail === 0) whack(i); // keyboard click (Enter / Space on a focused hole); pointer clicks whacked on pointerdown
+});
+reset();
+render();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

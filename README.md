@@ -9,12 +9,13 @@ Small retro browser games. Each game is one self-contained HTML file with no bui
 | Stackfall | `stackfall.html` | An original falling-blocks puzzle on a 10x20 board, with a 7-bag, next preview, hold and ghost (keyboard only) |
 | Twofold | `twofold.html` | An original sliding-merge number puzzle on a 4x4 board, with one-step undo and a saved best score (keyboard or swipe) |
 | Minefield | `minefield.html` | A mine-sweeping puzzle in three sizes, with a safe first click, flags and question marks, chording and a timer (mouse, touch or keyboard) |
+| Molebop | `molebop.html` | An original 30-second whack-the-mole game on a 3x3 field, with golden moles, bombs and a saved best score (mouse, touch or keyboard) |
 
 ## Play
 
-Play online: [Gapwing](https://kpharcos.github.io/retro-games/gapwing.html) · [Snake](https://kpharcos.github.io/retro-games/snake.html) · [Stackfall](https://kpharcos.github.io/retro-games/stackfall.html) · [Twofold](https://kpharcos.github.io/retro-games/twofold.html) · [Minefield](https://kpharcos.github.io/retro-games/minefield.html)
+Play online: [Gapwing](https://kpharcos.github.io/retro-games/gapwing.html) · [Snake](https://kpharcos.github.io/retro-games/snake.html) · [Stackfall](https://kpharcos.github.io/retro-games/stackfall.html) · [Twofold](https://kpharcos.github.io/retro-games/twofold.html) · [Minefield](https://kpharcos.github.io/retro-games/minefield.html) · [Molebop](https://kpharcos.github.io/retro-games/molebop.html)
 
-You can also clone the repo and open `gapwing.html`, `snake.html`, `stackfall.html`, `twofold.html` or `minefield.html` in a browser.
+You can also clone the repo and open `gapwing.html`, `snake.html`, `stackfall.html`, `twofold.html`, `minefield.html` or `molebop.html` in a browser.
 
 ### Gapwing controls
 
@@ -83,12 +84,27 @@ Minefield is DOM-based: each cell is a `<button>` in a CSS grid. The Medium and 
 
 Minefield needs a browser from about 2022 or later (it uses `Object.hasOwn`, `?.` and `clamp()`).
 
+### Molebop controls
+
+| Input | Action |
+|---|---|
+| Start button / Space / Enter | Start a round (from the start or end screen) |
+| Click / tap a hole, or Enter / Space on the focused hole | Whack it |
+| 1-9 | Whack a hole in reading order (1 is top-left, 9 bottom-right) |
+| Numpad 1-9 | Whack a hole as laid out on the pad (7 is top-left, 3 bottom-right) |
+
+A round lasts 30 seconds. The first mole pops up 0.5 s after Start, then a new one every 800 ms, or every 450 ms once 10 seconds or less are left, into a random empty hole; several can be up at once, and a pop is skipped when all nine holes are up. Each stays up for 700-1200 ms. A mole scores 1, a golden mole (★, 10% of pops) scores 5, and a bomb (✸, 10%) ends the round at the current score. Whacking an empty hole costs 1 point, never going below 0. Holes ignore input outside a round. The best score is kept in `localStorage`; nothing else is saved. There is no pause.
+
+Molebop is DOM-based: each hole is a `<button>` and the moles slide with a CSS transition; a rAF loop runs only the clock. Each hole has a label for screen readers.
+
+Molebop needs a browser from about 2022 or later (it uses `inert`, `aspect-ratio`, `inset`, `min()` / `clamp()`, `?.` and `catch {}` without a binding).
+
 ## Tests
 
 The tests need Node 18+ and nothing else:
 
 ```sh
-node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs && node test-minefield.mjs
+node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs && node test-minefield.mjs && node test-molebop.mjs
 ```
 
 `harness.mjs` loads a game's inline `<script>` into `node:vm` with a stub DOM, so the tests can drive game state and key presses directly.
