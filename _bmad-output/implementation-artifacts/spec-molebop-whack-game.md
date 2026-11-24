@@ -137,6 +137,54 @@ deferred:
   - `[low]` `[patch]` README states "every 450 ms once 10 seconds or less are left", but the gap is chosen at the previous pop (blind-hunter) — patched: README now says "800 ms after each pop, or 450 ms after a pop made with 10 seconds or less left"; code unchanged.
   - `[low]` `[reject]` Rules legend vanishes during play; the end button still says Start (blind-hunter) — polish the contract does not ask for; the ready panel states the rules and the contract names a Start button.
 
+### 2026-11-24 — Review pass (follow-up 3)
+- verdicts: 44 findings — high 0, medium 3, low 30, false 9, maybe-false 2
+- findings:
+  - `[low]` `[defer]` carried: CODEBASE_MAP.md still says five games and has no Molebop rows (blind-hunter) — same row as passes 1–2; already in `deferred`, no new item.
+  - `[false]` `[reject]` carried: spec status `in-review` vs `Status: done` text and counters (blind-hunter) — pass-2 status row; the fix edits this build's spec.
+  - `[low]` `[reject]` carried: AC says pops come every 450 ms, but the gap is set at the previous pop (blind-hunter) — 10 s rows; the fix edits spec wording. Group with the speed-up rows (26, 28, 40).
+  - `[low]` `[patch]` carried: hidden tab freezes the round, not in the contract (blind-hunter) — applied in pass 2 (README). Not patched again; the proposed spec Boundaries edit is rejected as a spec edit.
+  - `[low]` `[reject]` open decisions (several moles, lockout, press scoring) are not listed as open and no question was asked (blind-hunter) — the fix edits the spec, and step-04 allows no human interaction; the decisions go to the user in the final report.
+  - `[low]` `[reject]` spec is oversized, repeats its decisions and cites line numbers (blind-hunter) — the fix edits this build's spec.
+  - `[medium]` `[patch]` header is a no-wrap row: at 360 px wide the Best box runs off the edge and the page scrolls sideways (blind-hunter) — verified by headless screenshot at 360×640 before the fix. Patched: `flex-wrap: wrap` on `header`; screenshot after: Best on its own row, no sideways or vertical scroll. Group with 23.
+  - `[low]` `[reject]` field sized by width only, so landscape or very short screens scroll; a drag that starts on a hole whacks at press (blind-hunter) — portrait 360×640 fits with no scroll, so this needs landscape or a short screen; the fix needs press-slop state, which adds a guard. Group with 22, 42.
+  - `[low]` `[reject]` a double-tap in the 120 ms slide after a hit costs −1 (blind-hunter) — carried from the slide-window rows; group with 38.
+  - `[false]` `[reject]` Shift+digit is dropped, so AZERTY cannot whack with the digit row (blind-hunter) — `onKey` reads the physical `e.code`, so the digit row works on AZERTY without Shift; the Shift guard is the spec's modified-key rule.
+  - `[low]` `[reject]` carried: end line shown twice, in `#message` and `#status` (blind-hunter) — pass-2 row; harmless, and `#status` must keep its text for the live region.
+  - `[low]` `[reject]` Best box stays stale during a round that beats it; the end line has no "New best" label (blind-hunter) — contract does not require a live Best, the end line shows the correct best, and the label adds a branch.
+  - `[low]` `[reject]` carried: a miss on an empty hole gives no feedback on the field (blind-hunter) — pass-1 feedback row; a flash adds state.
+  - `[low]` `[reject]` legend omits the plain mole's +1; hint says "click a mole" for a hole (blind-hunter) — cosmetic; the legend lists the special kinds and the first hit shows +1.
+  - `[low]` `[patch]` the 100 ms frame cap runs the round slow below 10 fps, undocumented (blind-hunter) — patched: shortcut comment above the cap line, as the ponytail rule asks; no behaviour change.
+  - `[low]` `[patch]` clause `!want.includes(20400)` can never fail, since 20400 is on neither schedule (blind-hunter) — patched: clause deleted, nothing else changed.
+  - `[low]` `[patch]` hits comment says a click was already whacked on pointerdown; no check that press plus click whacks once (blind-hunter) — patched: comment corrected; added a check that a left press then a detail-1 click on a mole scores +1, once.
+  - `[low]` `[reject]` the spec's headless-screenshot claim has no artifact in the repo (blind-hunter) — the fix edits this build's spec; the residual risk is disclosed. Group with 44.
+  - `[low]` `[reject]` carried: stored best of Infinity, a negative or a fraction is shown as-is (edge-case) — pass-1 and pass-2 rows; hand-edited storage only.
+  - `[low]` `[reject]` Space during a round may scroll a short window (edge-case) — carried from the pass-1 row; needs a focus branch.
+  - `[low]` `[reject]` Ctrl/Alt/Meta/Shift with Enter or Space on a focused hole or Start still reaches the native click (edge-case) — unlikely in everyday play; the fix is a modifier guard in the click listener. Pass 2 logged this row as patch without sending a fix; re-judged here. Group with 30.
+  - `[low]` `[reject]` a touch that starts on a hole and pans still whacks at press (edge-case) — group with 8.
+  - `[medium]` `[patch]` header overflow at narrow width (edge-case) — group with 7; patched with it.
+  - `[low]` `[reject]` carried: focus drops to body when the round ends, because the field goes inert (edge-case) — pass-2 focus row; one Tab reaches Start.
+  - `[low]` `[reject]` carried: two tabs, a stale in-memory best overwrites a higher stored best (edge-case) — pass-2 row; needs two tabs.
+  - `[low]` `[reject]` carried: first fast-phase pop can come up to 350 ms late (edge-case) — 10 s rows; group with 3.
+  - `[low]` `[reject]` carried: release on Start after a round ends under the finger restarts at once (edge-case) — pass-2 no-lockout row. Click goes to the nearest common ancestor when down and up targets differ, so the stated path is unlikely; the mashing case is the lockout row.
+  - `[low]` `[reject]` carried: AC's "every 450 ms" does not hold for the first fast gap (edge-case) — 10 s rows; group with 3.
+  - `[low]` `[reject]` carried: test pins the 9.5 s switch by copying the code's formula (edge-case) — pass-1 row; group with 26.
+  - `[low]` `[reject]` "modified keys ignored" is not true of native clicks (edge-case) — same as 21; group.
+  - `[medium]` `[patch]` removing the `Math.max(0, …)` clamp leaves the suite green; a round that overshoots 0 never ends (verification-gap, pre-verified) — patched: two checks after the time-up block (a step past 0; a 60 fps loop). Scratch mutant: the clamp check fails.
+  - `[false]` `[reject]` `#panel[hidden]` rule untested; removing it covers the field mid-round (verification-gap) — carried from the pass-2 overlay row; the rule is in the code. Browser probe: removal covers the field; no browser runner in repo. Group with 35.
+  - `[false]` `[reject]` `.up .mole` and `.mole` pointer-events untested; removing either breaks play (verification-gap) — both rules are in the code; pointer-events carried from the pass-1 row. Group with 33.
+  - `[low]` `[patch]` ready-phase `idle` check cannot fail, because the 0 score floor hides a whack (verification-gap) — patched: assertion right after the first press that the mole is still up. Scratch mutant: the whack-guard removal fails at the new check.
+  - `[false]` `[reject]` the panel overlay rule is untested, stub boolean only (intent-alignment) — same as 32.
+  - `[false]` `[reject]` `.up .mole` removal would hide moles and no test sees it (intent-alignment) — same as 33.
+  - `[false]` `[reject]` `pointer-events` removal would swallow taps on the mole, and no test sees it (intent-alignment) — carried from the pass-1 row; same as 33.
+  - `[low]` `[reject]` a press during the slide-down scores −1 (intent-alignment) — carried from the pass-2 slide row; group with 9.
+  - `[false]` `[reject]` `inert` checked only as a stub boolean; Tab order untested (intent-alignment) — carried from the pass-2 inert row; the code sets it and the platform applies it.
+  - `[low]` `[reject]` the 800 ms gap that straddles the 10 s mark is not 450 ms (intent-alignment) — carried; group with 26.
+  - `[maybe-false]` `[reject]` the ★ and ✸ glyphs may not render on some devices (intent-alignment) — if true, golden and bomb still differ by colour and label, so this would only be low. The headless screenshot renders both.
+  - `[low]` `[reject]` touch whack at press on a pan start (intent-alignment) — group with 8.
+  - `[false]` `[reject]` keyboard whacks rely on the native click, never observed in a browser (intent-alignment) — Enter and Space on a focused button both fire click with detail 0; the click listener handles detail 0.
+  - `[maybe-false]` `[reject]` carried: player-facing evidence is prose; real taps, animation and reload not checked (intent-alignment) — pass-2 row; the fix edits this build's spec, and the residual is disclosed in Auto Run Result. Group with 18.
+
 ## Verification
 
 **Commands:**
@@ -180,3 +228,30 @@ Status: done
 **Verification:** all six test suites pass. The new popIn test fails against a build with `popIn += …` changed to `popIn = …`; the new numpad assertions fail with swapped table entries.
 
 **Residual risks:** Real browser taps, the slide animation and `localStorage` reload persistence are still unchecked. A round-end lockout is a design choice left to the user. docs/CODEBASE_MAP.md still lacks Molebop.
+
+### Follow-up pass 3 (2026-11-24)
+
+Status: done
+
+**Summary:** Third review pass over the branch diff since the baseline. 44 findings, no high. Patched 7 rows (3 medium: header overflow at 360 px, round-end clamp not pinned; 4 low: frame-cap comment, vacuous test clause, a wrong comment with a missing press-then-click check, ready-phase whack check). `molebop.html` changed only by `flex-wrap: wrap` on `header` and one comment line.
+
+**Files changed (this pass):**
+- `molebop.html` -- `flex-wrap: wrap` on `header`; shortcut comment above the frame cap.
+- `test-molebop.mjs` -- deleted the vacuous `20400` clause; corrected the hits comment and added a press-then-click check; added the round-end clamp checks; added a mole-still-up check in `idle`.
+- `_bmad-output/implementation-artifacts/spec-molebop-whack-game.md` -- this spec.
+
+**Review findings:** 44 total (blind-hunter 18, edge-case 12, verification-gap 4, intent-alignment 10). Patched 7 rows (medium 3, low 4); row 4 carried from pass 2 (no new action). Deferred: none new (row 1 carried). Rejected 35: spec edits (rows 2, 3, 5, 6, 18, 44); carried from earlier passes (3, 9, 11, 13, 19, 20, 24–30, 32, 33, 35–40, 42, 43); polish or no reachable defect (8, 12, 14, 21, 22, 41); AZERTY claim false (10). Full reasons are in the triage log above.
+
+**Follow-up review recommendation:** false. No high patched; medium patched 3 (header, clamp), low patched 4.
+
+**Verification performed:**
+- `node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs && node test-minefield.mjs && node test-molebop.mjs` -- all pass.
+- Scratch mutant, clamp removed: the new round-end check fails.
+- Scratch mutant, whack phase guard removed: the new ready-phase `idle` check fails.
+- Headless Chrome, 360×640: header before the fix has Best clipped and a sideways scrollbar; after the fix Best wraps to its own row with no scroll.
+
+**Residual risks:**
+- No browser runner in the repo. CSS rules (panel hide, mole rise, pointer-events) are checked only by reading and one-off headless probes, so a CSS regression would not fail the suite.
+- Real taps, the slide animation and reload persistence are not exercised in a browser.
+- Open design choices for the user, not patched: no input lockout at round end; scoring on press; several moles at once.
+- `docs/CODEBASE_MAP.md` still lacks Molebop (deferred).

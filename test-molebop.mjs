@@ -86,7 +86,9 @@ const holeState = (x) => x.json('[score, holes, phase]');
 const idle = (x) => {
   const before = holeState(x);
   x.put(2, 'mole');
-  x.down(2); x.click(x.hole(2), 0); x.key('Digit3'); x.key('Numpad9');
+  x.down(2);
+  assert.equal(x.run('holes[2]?.kind'), 'mole', 'hole whacked outside a round'); // the score floor would hide it
+  x.click(x.hole(2), 0); x.key('Digit3'); x.key('Numpad9');
   x.down(5); x.key('Digit6');
   x.run('holes[2] = null');
   assert.deepEqual(holeState(x), before);
@@ -157,7 +159,7 @@ for (let t = 50; t <= 30000; t += 50) {
 const want = [];
 for (let t = 500; t < 30000; t += 30000 - t <= 10000 ? 450 : 800) want.push(t);
 assert.deepEqual(pops, want);
-assert.ok(want.includes(20500) && want.includes(20950) && want.includes(19700) && !want.includes(20400), 'switch at 10 s left');
+assert.ok(want.includes(20500) && want.includes(20950) && want.includes(19700), 'switch at 10 s left');
 assert.equal(g.run('phase'), 'over');
 
 // ---- Up time: 700 + rand * 500 ms; an untouched mole goes down with no score change ----
@@ -212,13 +214,19 @@ assert.equal(g.run('score'), 5);
 g.put(3, 'mole');
 g.down(3, 2); // right button: nothing
 assert.deepEqual([g.run('score'), g.json('holes[3].kind')], [5, 'mole']);
-g.click(g.hole(3)); // a pointer click (detail 1) already whacked on pointerdown
+g.click(g.hole(3)); // a pointer click (detail 1) does nothing on its own; its pointerdown whacks
 assert.equal(g.run('score'), 5);
 g.click(g.hole(3), 0); // keyboard click (Enter / Space on the focused hole)
 assert.deepEqual([g.run('score'), g.json('holes[3]')], [6, null]);
 g.run('score = 0');
 g.down(0); g.key('Digit1');
 assert.equal(g.run('score'), 0, 'miss went below 0');
+// a left press and the click that follows it whack once, not twice
+g = game();
+g.click(g.els.start);
+g.put(1, 'mole');
+g.down(1); g.click(g.hole(1));
+assert.deepEqual([g.run('score'), g.json('holes[1]')], [1, null]);
 
 // ---- Bomb: ends the round at the current score, clears the field, updates best ----
 g = game({ localStorage: memStorage({}) });
@@ -256,6 +264,14 @@ g.key('Enter');
 assert.deepEqual(g.json('[phase, score, timeLeft, popIn]'), ['playing', 0, 30000, 500]);
 assert.deepEqual([g.text('score'), g.text('time'), g.text('status'), g.els.panel.hidden], ['0', '30', '', true]);
 assert.ok(g.els.field.children.length === 9 && els0.every((el, i) => g.hole(i) === el), 'hole elements not reused');
+// a step that overshoots 0 still ends the round, at 0
+const late = game();
+late.click(late.els.start);
+late.run('timeLeft = 50; step(100)');
+assert.deepEqual(late.json('[phase, reason, timeLeft]'), ['over', 'time', 0]);
+late.click(late.els.start); // 60 fps steps never land exactly on 0
+for (let k = 0; k < 2000 && late.run('phase') === 'playing'; k++) late.run('step(1000 / 60)');
+assert.deepEqual(late.json('[phase, reason, timeLeft]'), ['over', 'time', 0]);
 
 // ---- Countdown shows ceil(timeLeft / 1000) ----
 for (const [left, shownT] of [[30000, '30'], [29999, '30'], [29000, '29'], [10001, '11'], [10000, '10'], [1, '1']]) {
