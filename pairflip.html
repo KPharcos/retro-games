@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pairflip</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #1d1b2f;
+            color: #ece8f5;
+            font-family: Arial, sans-serif;
+            user-select: none;
+        }
+        #game-container { max-width: 96vw; padding: 12px 0; }
+        header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+        h1 { margin: 0 auto 0 0; font-size: 30px; letter-spacing: 2px; color: #f7c948; }
+        .box { background: #2c2946; border-radius: 6px; padding: 4px 10px; text-align: center; min-width: 54px; }
+        .box small { display: block; font-size: 11px; color: #b3acd1; text-transform: uppercase; }
+        .box span { font-size: 18px; font-weight: bold; font-family: 'Courier New', monospace; }
+        .buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+        button { font: inherit; font-size: 14px; cursor: pointer; }
+        .buttons button, #win button {
+            color: #1d1b2f; background: #a9e5d4;
+            border: 0; border-radius: 6px; padding: 6px 14px;
+        }
+        .buttons button[aria-pressed="true"] { background: #f7c948; }
+        #restart { margin-left: auto; }
+        .stage { position: relative; }
+        #board {
+            --size: min(calc((96vw - 24px) / var(--cols) - 8px), var(--max));
+            display: grid;
+            grid-template-columns: repeat(var(--cols), var(--size));
+            gap: 8px;
+            padding: 12px;
+            width: max-content;
+            margin: 0 auto;
+            background: #2c2946;
+            border-radius: 10px;
+            touch-action: manipulation;
+        }
+        #board.normal { --cols: 4; --max: 84px; }
+        #board.hard { --cols: 6; --max: 60px; }
+        .card {
+            position: relative;
+            width: var(--size); height: var(--size); padding: 0;
+            border: 0; border-radius: 6px; background: none;
+            transform-style: preserve-3d;
+            transform: perspective(500px) rotateY(0deg);
+            transition: transform 0.3s ease;
+        }
+        .card.up { transform: perspective(500px) rotateY(180deg); cursor: default; }
+        .card::before, .card::after {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 6px;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+        .card::before { /* back */
+            content: '';
+            background: repeating-linear-gradient(45deg, #6c5ce7 0 6px, #5a4bd1 6px 12px);
+            box-shadow: inset 0 0 0 3px #8f83f0;
+        }
+        .card::after { /* front */
+            content: attr(data-face);
+            transform: rotateY(180deg);
+            background: #ece8f5; color: #1d1b2f;
+            font: bold calc(var(--size) * 0.5) 'Courier New', monospace;
+        }
+        .card.matched::after { background: #a9e5d4; color: #145244; }
+        .card:not(.up):hover::before { box-shadow: inset 0 0 0 3px #f7c948; }
+        .card:focus-visible { outline: 3px solid #f7c948; outline-offset: 2px; }
+        @media (prefers-reduced-motion: reduce) { .card { transition: none; } }
+        #win {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+            background: rgba(29, 27, 47, 0.88); border-radius: 10px; text-align: center;
+        }
+        #win[hidden] { display: none; }
+        #win h2 { margin: 0; color: #f7c948; font-size: 28px; }
+        #win p { margin: 0; font-size: 18px; }
+        #status { min-height: 20px; margin-top: 8px; font-size: 16px; }
+        #hint { margin-top: 8px; font-size: 14px; color: #b3acd1; }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <header>
+            <h1>Pairflip</h1>
+            <div class="box"><small>Moves</small><span id="moves">0</span></div>
+            <div class="box"><small>Time</small><span id="time">0:00</span></div>
+        </header>
+        <div class="buttons">
+            <button id="normal" aria-pressed="true">Normal 4x4</button>
+            <button id="hard" aria-pressed="false">Hard 6x6</button>
+            <button id="restart">Restart</button>
+        </div>
+        <div class="stage">
+            <div id="board" class="normal" role="group" aria-label="Cards, 4 by 4"></div>
+            <div id="win" hidden>
+                <h2>All pairs found!</h2>
+                <p id="result"></p>
+                <button id="again">Play again</button>
+            </div>
+        </div>
+        <div id="status" aria-live="polite"></div>
+        <div id="hint">Click / Enter / Space: flip a card · R: restart</div>
+    </div>
+
+<script>
+const MODES = { normal: 4, hard: 6 }; // cards per side
+const FLIP_BACK = 800; // ms a mismatched pair stays face-up
+
+function shuffle(a, rand) { // Fisher-Yates, in place
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+let mode = 'normal';
+let cards;   // [{face, up, matched}]
+let open;    // indices of face-up unmatched cards, 0-2
+let moves, elapsed, hold; // hold: ms left before a mismatch flips back, 0 = none
+let note;    // what the last flip did, for #status
+
+const won = () => cards.every(c => c.matched);
+const started = () => moves > 0 || open.length > 0;
+
+function reset() {
+  const faces = Array.from({ length: MODES[mode] ** 2 / 2 }, (_, i) => String.fromCharCode(65 + i));
+  cards = shuffle([...faces, ...faces], Math.random).map(face => ({ face, up: false, matched: false }));
+  open = [];
+  moves = elapsed = hold = 0;
+  note = '';
+}
+
+function flip(i) {
+  const c = cards[i];
+  if (won() || c.up || open.length === 2) return; // matched cards stay up, so c.up covers them
+  c.up = true;
+  open.push(i);
+  note = c.face;
+  if (open.length === 2) {
+    moves++;
+    const [a, b] = open, match = cards[a].face === cards[b].face;
+    note = `${cards[a].face} and ${cards[b].face}, ${match ? 'matched' : 'no match'}`;
+    if (match) { cards[a].matched = cards[b].matched = true; open = []; }
+    else hold = FLIP_BACK;
+  }
+  render();
+  if (won()) $('again').focus(); // the board goes inert under the panel
+}
+
+function step(dt) {
+  if (started() && !won()) elapsed += dt;
+  if (hold > 0 && (hold -= dt) <= 0) {
+    for (const i of open) cards[i].up = false;
+    open = [];
+    hold = 0;
+  }
+}
+
+function onKey(e) {
+  if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return; // leave Ctrl+R to the browser
+  if (e.code === 'KeyR') { reset(); render(); }
+}
+
+// ---- rendering (reads game state; writes only the DOM) ----
+const $ = (id) => document.getElementById(id);
+const boardEl = $('board');
+let cardEls = []; // one button per card index, rebuilt only when the card count changes
+
+function setText(id, v) { const el = $(id); if (el.textContent !== v) el.textContent = v; }
+function setAttr(el, k, v) { if (el.getAttribute(k) !== v) el.setAttribute(k, v); }
+const clock = (ms) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+
+function render() {
+  const side = MODES[mode];
+  if (cardEls.length !== cards.length) {
+    cardEls.forEach(el => el.remove());
+    cardEls = cards.map(() => boardEl.appendChild(document.createElement('button')));
+    boardEl.className = mode;
+    boardEl.setAttribute('aria-label', `Cards, ${side} by ${side}`);
+  }
+  cards.forEach((c, i) => {
+    const el = cardEls[i], name = c.matched ? 'card up matched' : c.up ? 'card up' : 'card';
+    if (el.className !== name) el.className = name;
+    setAttr(el, 'data-face', c.face);
+    setAttr(el, 'aria-label', `Row ${Math.floor(i / side) + 1}, column ${i % side + 1}, ${c.matched ? c.face + ', matched' : c.up ? c.face : 'face down'}`);
+  });
+  for (const id of Object.keys(MODES)) setAttr($(id), 'aria-pressed', String(id === mode));
+  setText('moves', String(moves));
+  setText('time', clock(elapsed));
+  const done = won(), msg = done ? `You found all ${cards.length / 2} pairs in ${moves} moves and ${clock(elapsed)}.` : '';
+  const win = $('win');
+  if (win.hidden !== !done) win.hidden = !done;
+  if (boardEl.inert !== done) boardEl.inert = done;
+  setText('result', msg);
+  setText('status', done ? msg : note);
+}
+
+let last = null;
+function frame(t) {
+  const shown = Math.floor(elapsed / 1000), held = open.length;
+  if (last !== null) step(Math.min(t - last, 100)); // cap: a resumed tab catches up at most 100 ms
+  last = t;
+  if (Math.floor(elapsed / 1000) !== shown || open.length !== held) render(); // clicks render themselves
+  requestAnimationFrame(frame);
+}
+
+document.addEventListener('keydown', onKey);
+document.addEventListener('click', (e) => {
+  const t = e.target, i = cardEls.indexOf(t);
+  if (i >= 0) flip(i);
+  else if (t?.id === 'restart' || t?.id === 'again') { reset(); render(); if (t.id === 'again') cardEls[0].focus(); } // #again just hid
+  else if (MODES[t?.id]) { mode = t.id; reset(); render(); }
+});
+reset();
+render();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
