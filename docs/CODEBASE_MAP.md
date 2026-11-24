@@ -12,7 +12,7 @@ The totals count the 24 tracked project files. The vendored BMAD install (`_bmad
 
 ## System Overview
 
-The project holds seven standalone browser games, each a single HTML file built on the same testable pattern (three canvas games with a rAF loop; Twofold, a turn-based DOM game; and Minefield, Molebop and Pairflip, DOM games whose rAF loop only drives their clocks). A shared Node harness drives it in `node:vm`, and a BMAD agent-framework install produced the specs. There is no build step and no package.json.
+The project holds eight standalone browser games, each a single HTML file built on the same testable pattern (four canvas games with a rAF loop; Twofold, a turn-based DOM game; and Minefield, Molebop and Pairflip, DOM games whose rAF loop only drives their clocks). A shared Node harness drives it in `node:vm`, and a BMAD agent-framework install produced the specs. There is no build step and no package.json.
 
 ```mermaid
 graph TB
@@ -24,6 +24,7 @@ graph TB
         Mine[minefield.html]
         Mole[molebop.html]
         Pair[pairflip.html]
+        Brick[bricklash.html]
     end
     subgraph Tests
         H[harness.mjs<br/>load: vm + stub DOM]
@@ -34,6 +35,7 @@ graph TB
         TM[test-minefield.mjs]
         TMB[test-molebop.mjs]
         TPF[test-pairflip.mjs]
+        TBL[test-bricklash.mjs]
     end
     subgraph BMAD["BMAD tooling (core, bmm, gds, cis, tea, bmb, bmad-loop)"]
         Cfg[_bmad/config.toml + custom/]
@@ -52,6 +54,7 @@ graph TB
     TM --> H
     TMB --> H
     TPF --> H
+    TBL --> H
     H -->|regex-extracts script| Gap
     H -->|regex-extracts script| Snk
     H -->|regex-extracts script| Stk
@@ -59,6 +62,7 @@ graph TB
     H -->|regex-extracts script| Mine
     H -->|regex-extracts script| Mole
     H -->|regex-extracts script| Pair
+    H -->|regex-extracts script| Brick
     Skills --> Scripts
     Scripts --> Cfg
     Scripts --> Render
@@ -71,6 +75,7 @@ graph TB
     Specs -.documents.-> Mine
     Specs -.documents.-> Mole
     Specs -.documents.-> Pair
+    Specs -.documents.-> Brick
 ```
 
 ## Directory Structure
@@ -84,6 +89,7 @@ retro-games/
 ├── minefield.html      # Minefield: mine-sweeping puzzle, DOM button grid, board model + shell, rAF timer
 ├── molebop.html        # Molebop: 30 s whack-the-mole, 3x3 DOM button holes, rAF clock, localStorage best
 ├── pairflip.html       # Pairflip: memory pairs, 4x4 or 6x6 DOM button cards, CSS 3D flip, rAF clock
+├── bricklash.html      # Bricklash: brick-breaker, 480x640 canvas, 120 Hz fixed step, wide/multi power-ups
 ├── harness.mjs         # load(file, globals): runs a game's <script> in node:vm with stub DOM
 ├── test-gapwing.mjs    # Gapwing self-check (`node test-gapwing.mjs`)
 ├── test-snake.mjs      # Snake self-check (`node test-snake.mjs`)
@@ -92,6 +98,7 @@ retro-games/
 ├── test-minefield.mjs  # Minefield self-check (`node test-minefield.mjs`)
 ├── test-molebop.mjs    # Molebop self-check (`node test-molebop.mjs`)
 ├── test-pairflip.mjs   # Pairflip self-check (`node test-pairflip.mjs`)
+├── test-bricklash.mjs  # Bricklash self-check (`node test-bricklash.mjs`)
 ├── docs/               # Project knowledge (BMAD project_knowledge path). This map.
 ├── _bmad-output/
 │   └── implementation-artifacts/
@@ -101,7 +108,8 @@ retro-games/
 │       ├── spec-twofold-merge-puzzle.md # status: done, three review passes logged
 │       ├── spec-minefield-mine-puzzle.md # status: done, three review passes logged
 │       ├── spec-molebop-whack-game.md    # status: done, three review passes logged, end-lock change log
-│       └── spec-pairflip-memory-game.md  # status: done, three review passes logged, two deferred items
+│       ├── spec-pairflip-memory-game.md  # status: done, three review passes logged, two deferred items
+│       └── spec-bricklash-brick-breaker.md # status: in-progress
 ├── _bmad/              # BMAD v6.12.4 install: core, bmm, gds 0.7.2, cis 0.3.2, tea 1.27.2, bmb 2.2.2, bmad-loop 0.13.2
 │   ├── config.toml, config.user.toml   # installer-managed. Do not edit.
 │   ├── custom/                         # SAFE to edit: team/personal overrides
@@ -240,7 +248,22 @@ retro-games/
 | 3D flip CSS | `.card` `transform-style: preserve-3d`, `perspective(500px) rotateY(0deg)`, `transition: transform 0.3s`; `.card.up` `rotateY(180deg)`. Back = `::before` (violet stripes), front = `::after` with `content: attr(data-face)` and its own `rotateY(180deg)`; both `backface-visibility: hidden`. `.card.matched::after` turns mint. Hover ring inside `@media (hover: hover)`; amber `:focus-visible` outline; `prefers-reduced-motion` drops the transition. |
 | Layout | `#board` grid with `--size: min(calc((96vw - 24px) / var(--cols) - 8px), var(--max))`; `.normal` 4 cols / 84 px max, `.hard` 6 cols / 60 px max. `#win` is an absolute `inset: 0` overlay inside `.stage`, with `#win[hidden] { display: none }`. Needs about 2021 (`?.`, `min()`, `inset`); `inert` and `:focus-visible` degrade gracefully. |
 
-### harness.mjs, test-gapwing.mjs, test-snake.mjs, test-stackfall.mjs, test-twofold.mjs, test-minefield.mjs, test-molebop.mjs, test-pairflip.mjs
+### bricklash.html
+
+**Purpose**: Original brick-breaker on a 480×640 canvas: a 6x10 wall (one color per row, top row 60 points down to 10), paddle by mouse/touch or arrows, 3 lives, levels with a faster ball, and wide-paddle / multi-ball capsules. Canvas shapes only.
+**Entry point**: open the file in a browser. The script ends with `reset(); requestAnimationFrame(frame);`.
+
+| Item | Detail |
+|---|---|
+| Constants | `W=480`, `H=640`, `HUD=40` (ceiling), `TICK=1000/120`, `HZ=120`, bricks `COLS=10`×`ROWS=6` of `BW=48`×`BH=20` from `TOP=80`, `PADDLE_Y=600`, `PADDLE_H=12`, `PADDLE_W=80`, `WIDE_W=120`, `PADDLE_SPEED=480` px/s, `BALL_R=6`, `CAP_W/CAP_H=24/10`, `CAP_SPEED=150` px/s, `DROP_P=0.125`, `WIDE_TICKS=1200` (10 s), `COLORS` per row |
+| State | Top-level `let`s: `state` (`serve`/`playing`/`over`), `score`, `lives`, `level`, `bricks` (60 booleans, index `r*10+c`), `balls` (`{x,y,vx,vy,px,py}[]`, px/s), `capsules` (`{x,y,type}[]`), `paddleX` (left edge), `paddleW`, `wide` (ticks left), `acc`; `keyL`/`keyR` (held arrows, not reset). Ball speed `speed()` = `min(720, 360 + 40·(level-1))`. |
+| Logic | `tick()`: `movePaddle()`; in serve the ball rests on the paddle centre and nothing else runs; otherwise each ball moves `v/120`, then `walls()`, `paddleHit()` (only while `vy > 0`; angle `60°·clamp(offset)` from vertical, same speed), `brickHit()` (first overlapping cell, one per ball per tick, reflects away from the cell by the previous centre, rolls a capsule). Then fallen balls are dropped (`loseLife()` when none left), the wide timer counts down, capsules fall and are caught, and an empty wall calls `nextLevel()`. `serve()` clears capsules and the wide paddle. `launch()` serves at 30° right of vertical, or resets from over. |
+| Render | `render()` only reads state: HUD band with `Score N` / `Lives N` / `Level N`, bricks inset 1 px (collision uses the full cell), capsules labelled W / M, paddle (amber while wide), balls, serve title and game-over overlay. `setText()` updates `#status`. |
+| Loop | `frame(t)`: `step(min(dt,100))` then `render()`; `step` runs `tick()` per 8.33 ms in the accumulator except while over. |
+| Input | `keydown` → `onKey` (`preventDefault` on Space and arrows; arrows set `keyL`/`keyR`, a non-repeat Space calls `launch()`), `keyup` clears them; `pointermove` centres the paddle on the pointer scaled by the canvas `getBoundingClientRect()`; `pointerdown` with `button === 0` calls `launch()`. All on `document`. Canvas has `touch-action: none` so a drag steers. |
+| Persistence | None (by spec). |
+
+### harness.mjs, test-gapwing.mjs, test-snake.mjs, test-stackfall.mjs, test-twofold.mjs, test-minefield.mjs, test-molebop.mjs, test-pairflip.mjs, test-bricklash.mjs
 
 **harness.mjs** exports `load(file, globals = {})`. It:
 - regex-extracts the single bare `<script>`;
@@ -284,6 +307,8 @@ Run it with `node test-gapwing.mjs`. It uses only Node built-ins plus `node:asse
 **test-molebop.mjs** covers each row of the Molebop spec's I/O matrix: page markup (one script, no canvas/setInterval/audio/assets, title, aria-live, field role and label, Start button, rAF), the opening page, input ignored outside `playing` (with a mole-still-up check, since the 0 score floor would hide a whack), Start by button, Space, Enter and NumpadEnter (prevent counts, repeats, modifiers), spawn timing (first pop at 500 ms, 800 then 450 ms, a whole-round pop trace in 50 ms steps, overshoot carry 794/444), up-time range, random empty-hole choice, kind rolls, a full field, hits and misses (score floor, right button, `detail` 0 vs 1, press plus click whacks once), the bomb end and the 500 ms end lock, time-up and a step past 0 (60 fps loop), the countdown `ceil`, looks and labels (a mole keeps its look while sliding down), change-only render writes, rAF re-queue / 100 ms cap / render only on change, the Digit and Numpad maps, and best score with `memStorage`, junk, throwing and missing storage. Its `makeDoc()` adds `className`, `hidden` and `inert` setters and a write counter `w.n`; the `Math` stub takes queued values from `rq` and counts draws in `calls` (3 per pop); `put(i, kind, up)` places a mole by hand. Run it with `node test-molebop.mjs`.
 
 **test-pairflip.mjs** covers the Pairflip spec's I/O matrix and the review-pass fixes: page markup (one script; no `setTimeout`, `setInterval`, canvas, audio, `src=`, `href=`, `@import`, `url(`, `localStorage` or emoji; CSS strings for the flip, `attr(data-face)`, the hover media query and reduced motion), `shuffle` outputs for fixed `rand` values and in-place, every letter exactly twice over 50 seeded deals per mode, the opening page (no `data-face`, `tabindex` 0), timer start on first flip, mismatch still up at 799 ms and down at 800 ms through `frame`, third click and re-clicks ignored, the 100 ms dt cap, matches (`tabindex` -1), the win (inert board, `#again` focused, frozen timer), held-key prevents, Play again / Restart / R (reshuffle, stale `data-face`, focus rules, Hard kept), Hard 6x6 and back, mode-click focus, and `clock()`. Its own `makeDoc()` asserts each id exists in the markup, tracks `focused.el` behind `document.activeElement`, and counts writes (`touches.n`/`touches.sets`, per-id `writes`) so quiet frames and unchanged renders must write nothing; `tick(ms)` asserts `frame` re-queued itself; `stubMath` takes a swappable `rand`. Run it with `node test-pairflip.mjs`.
+
+**test-bricklash.mjs** covers each row of the Bricklash spec's I/O matrix: markup (canvas 480x640, one script, no named-game branding), the opening serve (60 bricks, ball on the paddle, HUD text), serve follow and keyup, launch angle and speed with repeat and right-click ignored, paddle bounce at centre and both edges, no bounce while rising, paddle clamp by keys and by pointer (including a half-size canvas rect), walls and ceiling, bricks from below / left / right, one brick per tick at a seam, row values, losing a life, multi-ball loss, game over and Space reset, level clear and the 720 cap, the 120 Hz step and 100 ms dt cap, capsule rolls through a queued `Math.random` stub, the wide timer and restart, multi-ball angles, missed capsules, `preventDefault` scope, rAF wiring, read-only `render()` and `#status` writes. `play(balls, more)` resets into play with given balls; `ball(i)` spreads a ball into a host array (vm arrays fail `deepEqual`). Run it with `node test-bricklash.mjs`.
 
 ### _bmad-output/implementation-artifacts
 
@@ -354,7 +379,7 @@ sequenceDiagram
   - Pointer input, if any, also goes on `document` (the harness's stub elements have no `addEventListener`).
   - A `frame(t)` rAF loop caps dt at 100ms. The script ends with `reset(); requestAnimationFrame(frame);`.
 - **DOM games** (Twofold) are turn-based: no canvas, `step(dt)` or rAF loop; actions mutate state and call `render()`, which reuses one element per tile so CSS transitions animate it. Minefield, Molebop and Pairflip are DOM-based too but keep `step(dt)` and the rAF loop for their clocks (Minefield's timer and long press; Molebop's round, pops and end lock; Pairflip's timer and 800 ms flip-back), rendering from the loop only when what they show changes.
-- Canvas 2D draws the board in the canvas games. DOM HUD text goes through `setText()`, which skips unchanged values so `aria-live` doesn't re-announce them. The three canvas games draw their score on the canvas and use `setText()` only for `#status`; Twofold writes `#score`, `#best`, `#message-text` and `#status`, Minefield `#mines`, `#time` and `#status`, Molebop `#score`, `#time`, `#best`, `#message` and `#status`, and Pairflip `#moves`, `#time`, `#result` and `#status`, through `setText()`.
+- Canvas 2D draws the board in the canvas games. DOM HUD text goes through `setText()`, which skips unchanged values so `aria-live` doesn't re-announce them. The four canvas games draw their score on the canvas and use `setText()` only for `#status`; Twofold writes `#score`, `#best`, `#message-text` and `#status`, Minefield `#mines`, `#time` and `#status`, Molebop `#score`, `#time`, `#best`, `#message` and `#status`, and Pairflip `#moves`, `#time`, `#result` and `#status`, through `setText()`.
 - Each game gets a test file `test-<name>.mjs` that uses `load()` from `harness.mjs`.
 - Specs go to `_bmad-output/implementation-artifacts/spec-<name>.md`. Record changes in a Spec Change Log rather than rewriting history.
 
@@ -390,8 +415,9 @@ sequenceDiagram
 - **Change Minefield rules:** the board model (`newBoard`, `placeMines`, `openCell`, `reveal`, `cycleMark`, `chord`, `status`) is at the top of `minefield.html`; `open()`, `mark()` and `step()` wire it to the page. Then update `test-minefield.mjs`.
 - **Change Molebop timing, scoring or kinds:** the constants are at the top of `molebop.html`; `step()` owns the clock, pops and end lock, `pop()` picks hole and kind, `whack()` scores, `end()` saves the best. Then update `test-molebop.mjs`.
 - **Change Pairflip modes, flip-back delay or focus handling:** `MODES` and `FLIP_BACK` are at the top of `pairflip.html`; `reset()` deals, `flip()` scores and focuses `#again` on a win, `step()` owns the clock and flip-back, `restart()` handles focus. Then update `test-pairflip.mjs`.
+- **Change Bricklash speeds, sizes or power-ups:** the constants and `speed()` are at the top of `bricklash.html`; `tick()` runs one 120 Hz step, `paddleHit()` sets the bounce angle, `brickHit()` scores and drops capsules, `catchCapsule()` applies them. Then update `test-bricklash.mjs`.
 - **Change Twofold rules:** the pure functions (`track`, `slide`, `addTile`, `canMove`) are at the top of `twofold.html`; `move()` wires them to state. Then update `test-twofold.mjs`.
-- **Run the tests:** `node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs && node test-minefield.mjs && node test-molebop.mjs && node test-pairflip.mjs`. Nothing in the repo drives the games in a real browser.
+- **Run the tests:** `node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs && node test-minefield.mjs && node test-molebop.mjs && node test-pairflip.mjs && node test-bricklash.mjs`. Nothing in the repo drives the games in a real browser.
 - **Customize a BMAD agent or workflow:** use `_bmad/custom/<skill>.toml` (team) or `.user.toml` (personal). The `bmad-customize` skill helps with this.
 - **Change BMAD output paths:** set `[core].output_folder` and `[modules.<mod>].*_artifacts` in `_bmad/custom/config.toml`.
 - **Add or remove BMAD modules:** `npx bmad-method@6.12.4 install --directory . --modules bmm,gds,cis,tea,bmb,bmad-loop --tools claude-code,opencode,qwen --set gds.primary_platform=other --action update --yes`. Leaving a module out of `--modules` does not delete its skill directories; remove those by hand.

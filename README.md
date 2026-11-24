@@ -11,12 +11,13 @@ Small retro browser games. Each game is one self-contained HTML file with no bui
 | Minefield | `minefield.html` | A mine-sweeping puzzle in three sizes, with a safe first click, flags and question marks, chording and a timer (mouse, touch or keyboard) |
 | Molebop | `molebop.html` | An original 30-second whack-the-mole game on a 3x3 field, with golden moles, bombs and a saved best score (mouse, touch or keyboard) |
 | Pairflip | `pairflip.html` | An original memory game: find the matching letter pairs on a 4x4 or 6x6 board, with a moves counter and a timer (mouse, touch or keyboard) |
+| Bricklash | `bricklash.html` | An original brick-breaker: bounce the ball off the paddle to clear a 6x10 wall, with faster levels and wide-paddle and multi-ball power-ups (mouse, touch or keyboard) |
 
 ## Play
 
-Play online: [Gapwing](https://kpharcos.github.io/retro-games/gapwing.html) · [Snake](https://kpharcos.github.io/retro-games/snake.html) · [Stackfall](https://kpharcos.github.io/retro-games/stackfall.html) · [Twofold](https://kpharcos.github.io/retro-games/twofold.html) · [Minefield](https://kpharcos.github.io/retro-games/minefield.html) · [Molebop](https://kpharcos.github.io/retro-games/molebop.html) · [Pairflip](https://kpharcos.github.io/retro-games/pairflip.html)
+Play online: [Gapwing](https://kpharcos.github.io/retro-games/gapwing.html) · [Snake](https://kpharcos.github.io/retro-games/snake.html) · [Stackfall](https://kpharcos.github.io/retro-games/stackfall.html) · [Twofold](https://kpharcos.github.io/retro-games/twofold.html) · [Minefield](https://kpharcos.github.io/retro-games/minefield.html) · [Molebop](https://kpharcos.github.io/retro-games/molebop.html) · [Pairflip](https://kpharcos.github.io/retro-games/pairflip.html) · [Bricklash](https://kpharcos.github.io/retro-games/bricklash.html)
 
-You can also clone the repo and open `gapwing.html`, `snake.html`, `stackfall.html`, `twofold.html`, `minefield.html`, `molebop.html` or `pairflip.html` in a browser.
+You can also clone the repo and open `gapwing.html`, `snake.html`, `stackfall.html`, `twofold.html`, `minefield.html`, `molebop.html`, `pairflip.html` or `bricklash.html` in a browser.
 
 ### Gapwing controls
 
@@ -115,12 +116,22 @@ Pairflip is DOM-based: each card is a `<button>` that turns over with a CSS 3D t
 
 Pairflip needs a browser from about 2021 or later (it uses `?.`, `min()` and `inset`). It also uses `inert` (about 2023) to lock the board under the win panel; an older browser without `inert` still plays the same, Tab just also walks the covered cards. `:focus-visible` (available in all current browsers since March 2022) draws the keyboard focus ring; an older browser still plays the same but shows no ring on a focused card.
 
+### Bricklash controls
+
+| Input | Action |
+|---|---|
+| Mouse / touch drag | Move the paddle (centred under the pointer) |
+| ← / → | Move the paddle while held |
+| Space / click / tap | Launch the ball from the paddle; after game over, start a new game |
+
+The wall has 6 rows of 10 bricks; a brick in the top row scores 60, and each row below scores 10 less, down to 10 in the bottom row. Where the ball lands on the paddle sets its angle: the centre sends it straight up, the edges up to 60° to the side. The paddle only returns a ball that comes down onto its top, so a ball already level with the paddle is lost. You have 3 lives; a life is lost when the last ball falls past the bottom. Clearing the wall starts the next level with a full wall and a faster ball: 360 px/s at level 1, 40 px/s more per level, up to 720 px/s. A broken brick drops a capsule one time in eight: W widens the paddle from 80 to 120 px for 10 s, M adds two more balls. Losing a life or clearing a level ends any power-up and clears falling capsules. The game runs on a fixed 120 Hz step. There is no pause, sound or saved score.
+
 ## Tests
 
 The tests need Node 18+ and nothing else:
 
 ```sh
-node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs && node test-minefield.mjs && node test-molebop.mjs && node test-pairflip.mjs
+node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs && node test-minefield.mjs && node test-molebop.mjs && node test-pairflip.mjs && node test-bricklash.mjs
 ```
 
 `harness.mjs` loads a game's inline `<script>` into `node:vm` with a stub DOM, so the tests can drive game state and key presses directly.

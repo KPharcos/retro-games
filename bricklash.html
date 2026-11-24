@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bricklash</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #10141f;
+            font-family: Arial, sans-serif;
+            touch-action: none; /* a drag anywhere steers the paddle instead of panning (and cancelling the pointer) */
+            user-select: none;
+        }
+        canvas {
+            border: 2px solid #333;
+            background-color: #1a2133;
+            max-width: 100%;
+            max-height: 80vh;
+        }
+        #game-container {
+            text-align: center;
+        }
+        #status {
+            color: white;
+            font-size: 16px;
+            min-height: 20px;
+            margin-top: 8px;
+        }
+        #hint {
+            color: #aaa;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="480" height="640" role="img" aria-label="Bricklash game: bounce the ball off the paddle to break the wall of bricks"></canvas>
+        <div id="status" aria-live="polite"></div>
+        <div id="hint">Mouse / drag / ← → : move · Space / click / tap: launch</div>
+    </div>
+
+<script>
+const W = 480, H = 640, HUD = 40, TICK = 1000 / 120, HZ = 120;
+const COLS = 10, ROWS = 6, BW = 48, BH = 20, TOP = 80;
+const PADDLE_Y = 600, PADDLE_H = 12, PADDLE_W = 80, WIDE_W = 120, PADDLE_SPEED = 480;
+const BALL_R = 6, SERVE_ANGLE = Math.PI / 6, MAX_BOUNCE = Math.PI / 3, MULTI_ANGLE = Math.PI / 4;
+const CAP_W = 24, CAP_H = 10, CAP_SPEED = 150, DROP_P = 0.125, WIDE_TICKS = Math.round(10000 / TICK);
+const COLORS = ['#ef476f', '#f78c6b', '#ffd166', '#06d6a0', '#3fb8e8', '#9b7bea']; // row 0 (top) .. row 5
+
+let state, score, lives, level, bricks, balls, capsules, paddleX, paddleW, wide, acc;
+let keyL = false, keyR = false; // held arrows survive a restart
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const speed = () => Math.min(720, 360 + 40 * (level - 1));
+
+function reset() {
+  score = 0; lives = 3; level = 1;
+  bricks = Array(COLS * ROWS).fill(true);
+  paddleW = PADDLE_W; paddleX = (W - PADDLE_W) / 2;
+  acc = 0;
+  serve();
+}
+
+function setWidth(w) {
+  const centre = paddleX + paddleW / 2;
+  paddleW = w;
+  paddleX = clamp(centre - w / 2, 0, W - w);
+}
+
+function restBall(b) { b.x = paddleX + paddleW / 2; b.y = PADDLE_Y - BALL_R; }
+
+// Power-ups end with the serve too, so a capsule can't land while the ball sits on the paddle.
+function serve() {
+  state = 'serve';
+  capsules = []; wide = 0; setWidth(PADDLE_W);
+  balls = [{ x: 0, y: 0, vx: 0, vy: 0 }];
+  restBall(balls[0]);
+}
+
+function launch() {
+  if (state === 'over') { reset(); return; }
+  if (state !== 'serve') return;
+  const b = balls[0];
+  restBall(b);
+  b.vx = speed() * Math.sin(SERVE_ANGLE);
+  b.vy = -speed() * Math.cos(SERVE_ANGLE);
+  state = 'playing';
+}
+
+function movePaddle() {
+  paddleX = clamp(paddleX + ((keyR ? 1 : 0) - (keyL ? 1 : 0)) * PADDLE_SPEED / HZ, 0, W - paddleW);
+}
+
+function walls(b) {
+  if (b.x - BALL_R < 0) { b.x = BALL_R; b.vx = Math.abs(b.vx); }
+  if (b.x + BALL_R > W) { b.x = W - BALL_R; b.vx = -Math.abs(b.vx); }
+  if (b.y - BALL_R < HUD) { b.y = HUD + BALL_R; b.vy = Math.abs(b.vy); }
+}
+
+function paddleHit(b) {
+  if (b.vy <= 0 || b.py + BALL_R > PADDLE_Y) return; // must come from above: a paddle moved under a low ball can't scoop it back up
+  if (b.y + BALL_R < PADDLE_Y || b.y - BALL_R > PADDLE_Y + PADDLE_H) return;
+  if (b.x + BALL_R < paddleX || b.x - BALL_R > paddleX + paddleW) return;
+  const s = Math.hypot(b.vx, b.vy);
+  const a = MAX_BOUNCE * clamp((b.x - (paddleX + paddleW / 2)) / (paddleW / 2), -1, 1);
+  b.vx = s * Math.sin(a);
+  b.vy = -s * Math.cos(a);
+}
+
+// At most one brick per ball per tick; collision uses the full cell.
+function brickHit(b) {
+  for (let i = 0; i < bricks.length; i++) {
+    if (!bricks[i]) continue;
+    const r = Math.floor(i / COLS), cx = (i % COLS) * BW, cy = TOP + r * BH;
+    const dx = b.x - clamp(b.x, cx, cx + BW), dy = b.y - clamp(b.y, cy, cy + BH);
+    if (dx * dx + dy * dy >= BALL_R * BALL_R) continue;
+    bricks[i] = false;
+    score += (ROWS - r) * 10;
+    // Flip away from the cell (not a bare negate), so a ball already leaving can't be turned back into the wall.
+    const side = b.px < cx || b.px > cx + BW, corner = side && (b.py < cy || b.py > cy + BH);
+    if (b.px < cx) b.vx = -Math.abs(b.vx);
+    else if (b.px > cx + BW) b.vx = Math.abs(b.vx);
+    if (!side || corner) b.vy = b.py < cy + BH / 2 ? -Math.abs(b.vy) : Math.abs(b.vy);
+    if (Math.random() < DROP_P)
+      capsules.push({ x: cx + BW / 2, y: cy + BH / 2, type: Math.random() < 0.5 ? 'wide' : 'multi' });
+    return;
+  }
+}
+
+function catchCapsule(c) {
+  if (c.type === 'wide') { setWidth(WIDE_W); wide = WIDE_TICKS; return; }
+  const b = balls[0], s = speed();
+  for (const a of [-MULTI_ANGLE, MULTI_ANGLE])
+    balls.push({ x: b.x, y: b.y, vx: s * Math.sin(a), vy: -s * Math.cos(a) });
+}
+
+function loseLife() {
+  if (--lives <= 0) state = 'over';
+  else serve();
+}
+
+function nextLevel() {
+  level++;
+  bricks = Array(COLS * ROWS).fill(true);
+  serve();
+}
+
+function tick() {
+  movePaddle();
+  if (state === 'serve') { restBall(balls[0]); return; }
+  for (const b of balls) {
+    b.px = b.x; b.py = b.y;
+    b.x += b.vx / HZ; b.y += b.vy / HZ;
+    walls(b); paddleHit(b); brickHit(b);
+  }
+  balls = balls.filter(b => b.y - BALL_R < H);
+  if (!balls.length) { loseLife(); return; }
+  if (wide > 0 && --wide === 0) setWidth(PADDLE_W); // before catches, so a catch this tick keeps the full 10 s
+  capsules = capsules.filter(c => {
+    c.y += CAP_SPEED / HZ;
+    const caught = c.y + CAP_H / 2 >= PADDLE_Y && c.y - CAP_H / 2 <= PADDLE_Y + PADDLE_H
+      && c.x + CAP_W / 2 >= paddleX && c.x - CAP_W / 2 <= paddleX + paddleW;
+    if (caught) catchCapsule(c);
+    return !caught && c.y - CAP_H / 2 < H;
+  });
+  if (!bricks.some(Boolean)) nextLevel();
+}
+
+function step(dt) {
+  if (state === 'over') return;
+  acc += dt;
+  while (state !== 'over' && acc >= TICK) { acc -= TICK; tick(); }
+}
+
+function onKey(e) {
+  const code = String(e.code); // String(): synthetic events may lack code
+  if (code === 'Space' || code.startsWith('Arrow')) e.preventDefault();
+  if (code === 'ArrowLeft') keyL = true;
+  else if (code === 'ArrowRight') keyR = true;
+  else if (code === 'Space' && !e.repeat) launch();
+}
+
+// keyup never arrives if the window loses focus mid-hold; bare global so the harness (no window) can load it
+onblur = () => { keyL = keyR = false; };
+
+function onKeyUp(e) {
+  if (e.code === 'ArrowLeft') keyL = false;
+  else if (e.code === 'ArrowRight') keyR = false;
+}
+
+// ---- rendering (reads state only) ----
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+function onPointerMove(e) {
+  const r = canvas.getBoundingClientRect(); // canvas may be shrunk by CSS
+  paddleX = clamp((e.clientX - r.left) * W / r.width - paddleW / 2, 0, W - paddleW);
+}
+
+function setText(id, v) { const el = document.getElementById(id); if (el.textContent !== v) el.textContent = v; }
+
+function render() {
+  ctx.fillStyle = '#1a2133';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#10141f'; // HUD band
+  ctx.fillRect(0, 0, W, HUD);
+
+  bricks.forEach((alive, i) => {
+    if (!alive) return;
+    const r = Math.floor(i / COLS);
+    ctx.fillStyle = COLORS[r];
+    ctx.fillRect((i % COLS) * BW + 1, TOP + r * BH + 1, BW - 2, BH - 2);
+  });
+
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 9px Arial';
+  for (const c of capsules) {
+    ctx.fillStyle = c.type === 'wide' ? '#ffd166' : '#3fb8e8';
+    ctx.fillRect(c.x - CAP_W / 2, c.y - CAP_H / 2, CAP_W, CAP_H);
+    ctx.fillStyle = '#10141f';
+    ctx.fillText(c.type === 'wide' ? 'W' : 'M', c.x, c.y + 3);
+  }
+
+  ctx.fillStyle = wide > 0 ? '#ffd166' : '#e8ecf4';
+  ctx.fillRect(paddleX, PADDLE_Y, paddleW, PADDLE_H);
+  ctx.fillStyle = '#ffffff';
+  for (const b of balls) { ctx.beginPath(); ctx.arc(b.x, b.y, BALL_R, 0, Math.PI * 2); ctx.fill(); }
+
+  ctx.font = 'bold 18px Arial';
+  ctx.textAlign = 'left';
+  ctx.fillText('Score ' + score, 12, 27);
+  ctx.textAlign = 'center';
+  ctx.fillText('Lives ' + lives, W / 2, 27);
+  ctx.textAlign = 'right';
+  ctx.fillText('Level ' + level, W - 12, 27);
+
+  ctx.textAlign = 'center';
+  if (state === 'serve') {
+    ctx.font = 'bold 40px Arial';
+    ctx.fillText('Bricklash', W / 2, 320);
+    ctx.font = '20px Arial';
+    ctx.fillText('Space or click to launch', W / 2, 360);
+  } else if (state === 'over') {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 36px Arial';
+    ctx.fillText('Game Over', W / 2, 290);
+    ctx.font = '22px Arial';
+    ctx.fillText('Score: ' + score, W / 2, 330);
+    ctx.fillText('Space or click to play again', W / 2, 370);
+  }
+
+  setText('status', state === 'serve' ? 'Level ' + level + ', ' + lives + ' lives. Press Space or click to launch.'
+    : state === 'playing' ? 'Playing.'
+    : 'Game Over. Score: ' + score + '. Press Space or click to play again.');
+}
+
+let last = null;
+function frame(t) {
+  if (last !== null) step(Math.min(t - last, 100)); // cap: a backgrounded tab resumes with at most 100 ms of play
+  last = t;
+  render();
+  requestAnimationFrame(frame);
+}
+
+document.addEventListener('keydown', onKey);
+document.addEventListener('keyup', onKeyUp);
+document.addEventListener('pointermove', onPointerMove);
+document.addEventListener('pointerdown', (e) => { if (e.button === 0) launch(); }); // primary button; touch and pen report 0 too
+reset();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
