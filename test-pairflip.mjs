@@ -7,7 +7,7 @@ const html = readFileSync(new URL('./pairflip.html', import.meta.url), 'utf8');
 
 // Page: one bare <script>, DOM buttons (no canvas, timers, sound, assets, saved scores or emoji), 3D flip, reduced motion
 assert.equal(html.match(/<script/g).length, 1);
-for (const banned of ['setTimeout', 'setInterval', '<canvas', '<audio', 'Audio(', 'src=', 'href=', 'localStorage']) assert.ok(!html.includes(banned), banned);
+for (const banned of ['setTimeout', 'setInterval', '<canvas', '<audio', 'Audio(', 'src=', 'href=', '@import', 'url(', 'localStorage']) assert.ok(!html.includes(banned), banned);
 assert.ok(!/\p{Extended_Pictographic}/u.test(html), 'emoji in page');
 assert.match(html, /<title>Pairflip<\/title>/);
 assert.match(html, /id="status" aria-live="polite"/);
@@ -116,6 +116,7 @@ assert.equal(g.els.board.getAttribute('aria-label'), 'Cards, 4 by 4');
 assert.deepEqual(['normal', 'hard'].map(id => g.els[id].getAttribute('aria-pressed')), ['true', 'false']);
 assert.equal(g.cards()[5].getAttribute('aria-label'), 'Row 2, column 2, face down');
 assert.ok(g.cards().every(c => c.getAttribute('data-face') === null), 'no letter on a never-flipped card');
+assert.ok(g.cards().every(c => c.getAttribute('tabindex') === '0'), 'every unmatched card is a Tab stop');
 const els0 = [...g.cards()];
 
 // Timer stays at 0 before the first flip; quiet frames don't render
@@ -176,6 +177,7 @@ assert.equal(g.run('elapsed'), 1100);
 g.tap(0); g.tap(8);
 assert.deepEqual([g.ups(), g.shown()[0], g.json('open'), g.run('hold')], [[0, 8], '2', [], 0]);
 assert.ok(g.cards()[0].className === 'card up matched' && g.cards()[8].className === 'card up matched');
+assert.deepEqual([0, 8, 1].map(i => g.cards()[i].getAttribute('tabindex')), ['-1', '-1', '0'], 'matched cards leave the Tab order');
 assert.equal(g.cards()[8].getAttribute('aria-label'), 'Row 3, column 1, B, matched');
 assert.equal(g.els.status.textContent, 'B and B, matched');
 g.tap(3); // no hold after a match
@@ -226,6 +228,7 @@ rand = () => 0;
 assert.equal(g.els.win.hidden, true);
 assert.equal(g.els.board.inert, false);
 assert.equal(g.focused.el, g.cards()[0], 'Play again focuses the first card');
+assert.ok(g.cards().every(c => c.getAttribute('tabindex') === '0'), 'a new game puts every card back in the Tab order');
 assert.deepEqual([g.ups(), g.shown(), g.run('elapsed'), g.els.status.textContent], [[], ['0', '0:00'], 0, '']);
 assert.ok(g.cards().every((c, i) => c === els0[i]), 'same count: buttons reused');
 
@@ -255,7 +258,8 @@ assert.equal(g.json('cards.map(c => c.face).join("")'), 'BCDEFGHABCDEFGHA');
 
 // ---- Hard mode: 36 cards, new game; Normal goes back to 16 ----
 g.tap(0);
-g.button('hard');
+g.button('hard'); // focus was on card 5, which this removes
+assert.equal(g.focused.el, g.els.hard, 'mode click focuses its button');
 assert.equal(g.cards().length, 36);
 assert.equal(g.els.board.className, 'hard');
 assert.equal(g.els.board.getAttribute('aria-label'), 'Cards, 6 by 6');
@@ -276,6 +280,7 @@ for (const act of [() => g.button('again'), () => g.button('restart'), () => g.k
   assert.ok(g.cards().every((c, i) => c === hardEls[i]), 'hard buttons reused');
 }
 g.button('normal');
+assert.equal(g.focused.el, g.els.normal, 'mode click focuses its button');
 assert.equal(g.cards().length, 16);
 assert.equal(g.els.board.className, 'normal');
 assert.deepEqual([g.els.win.hidden, g.ups(), g.shown()], [true, [], ['0', '0:00']]);

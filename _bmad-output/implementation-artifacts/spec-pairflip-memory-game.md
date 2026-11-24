@@ -17,6 +17,13 @@ deferred:
     location: >-
       docs/CODEBASE_MAP.md
     severity: low
+  - summary: >-
+      Pairflip's 3D flip is verified in headless Chrome and Firefox only; Safari is unverified.
+    evidence: |-
+      Review pass 3 (blind-hunter, maybe-false). Chrome and Firefox headless screenshots show the front face, the back face hidden and the letters unmirrored. A Safari run of the preserve-3d button pseudo-element flip would settle it; no Safari is available here.
+    location: >-
+      pairflip.html (.card, .card.up, ::before and ::after)
+    severity: medium (unverified)
 ---
 
 <intent-contract>
@@ -130,6 +137,36 @@ deferred:
   - `[low]` `[patch]` R pressed while Play again has focus (edge-case-hunter) — same root cause and fix as the R-key row.
   - `[low]` `[defer]` carried: `docs/CODEBASE_MAP.md` stale (edge-case-hunter) — already in `deferred`.
 
+### 2026-11-24 — Review pass (follow-up 3)
+- verdicts: 26 findings — high 0, medium 0, low 17, false 8, maybe-false 1
+- findings:
+  - `[false]` `[reject]` carried: click-only input vs CLAUDE.md's `pointerdown` line (blind-hunter) — same claim as the pass-2 row; no behaviour is wrong.
+  - `[low]` `[patch]` no Tab row in the Pairflip README controls table (blind-hunter) — checked: the table lists click and Enter/Space only; Tab / Shift+Tab row added.
+  - `[low]` `[patch]` `:focus-visible` missing from the README browser note (blind-hunter) — MDN: available across browsers since March 2022; sentence added with the fallback (no focus ring, game still plays).
+  - `[false]` `[reject]` board class and label set only on rebuild (blind-hunter) — checked: Normal (16) and Hard (36) differ in card count, so every mode switch rebuilds; the spec forbids other modes.
+  - `[low]` `[patch]` matched cards stay Tab stops that do nothing (blind-hunter) — `tabindex` set to -1 on matched cards and 0 otherwise through `setAttr`; test added.
+  - `[maybe-false]` `[defer]` 3D flip checked only in headless Chrome; Safari and Firefox untested (blind-hunter) — Firefox headless screenshot refutes it: front faces, backs hidden, letters unmirrored, overlay right. Safari not available here; claim if true is medium, so deferred as medium (unverified).
+  - `[low]` `[reject]` no pairs-left readout (blind-hunter) — a feature, not in the intent (moves and timer only); not asked.
+  - `[false]` `[reject]` shuffle loop blind to order (blind-hunter) — checked by mutation: a no-op shuffle fails the Fisher-Yates asserts (first `shuffle([1,2,3,4], () => 0)` check); the 50-deal loop is not the only check.
+  - `[low]` `[defer]` carried: docs/CODEBASE_MAP.md stale and the hand-copied test chain (blind-hunter) — same as the pass-2 row; already in `deferred`.
+  - `[false]` `[reject]` spec status edit uncommitted and outside the diff (blind-hunter) — grouped with the intent-alignment row below; the spec is committed at finalize.
+  - `[low]` `[reject]` double-click on Play again or the last card flips a card or dismisses the win panel (edge-case-hunter) — checked: a double-click on Play again restarts, then the second click flips the card under the pointer (one card up, timer started). Fix needs a timed guard (state plus branch); rare; rejected as low.
+  - `[low]` `[patch]` Safari mouse click on a mode button leaves focus on a card that the switch removes (edge-case-hunter) — Safari does not focus a clicked button, and a mode switch removes cards, so focus drops to body. Fix: `t.focus()` after the switch; test added.
+  - `[false]` `[reject]` header overflows the viewport below about 295 px (edge-case-hunter) — measured in headless Chrome: header right edge at 267 px in a 280 px viewport and 291 px in 300 px; no sideways overflow.
+  - `[low]` `[reject]` one long frame (800 ms) leaves a mismatch face-up (edge-case-hunter) — by contract: dt is capped at 100 ms, so a hitch delays the flip-back by about the hitch minus 100 ms; removing the cap breaks the contract.
+  - `[low]` `[reject]` the four CSS state rules (`#win[hidden]`, `:focus-visible`, `.card.matched::after`, `aria-pressed` highlight) have no test (verification-gap) — grouped with the intent-alignment win-panel row. This session's screenshots confirm three (no overlay mid-game, mint matched cards, yellow pressed mode) and the win overlay; focus-visible not checked. Closing needs a browser runner the repo does not have (no-dependencies rule); rejected as low.
+  - `[low]` `[reject]` carried: flip, face-letter and reduced-motion rules covered only by source-text regexes (verification-gap) — same claim as the pass-1 row; Chrome and Firefox screenshots show the flip works.
+  - `[low]` `[defer]` carried: docs/CODEBASE_MAP.md (verification-gap) — same as the blind-hunter map row above; already in `deferred`.
+  - `[low]` `[reject]` win-panel visibility untested (intent-alignment) — grouped with the CSS state-rules row above; `#win[hidden]` is present and the play and win screenshots confirm it.
+  - `[low]` `[reject]` carried: flip visuals and reduced motion checked only as text (intent-alignment) — same as the regex row above.
+  - `[low]` `[reject]` carried: 800 ms counted from the frame boundary before the click; visible turn-back about 300 ms after the state flip (intent-alignment) — same as the pass-1 and pass-2 rows.
+  - `[low]` `[reject]` carried: blocked cards show the hover ring and pointer cursor during the hold (intent-alignment) — same as the pass-1 row.
+  - `[low]` `[reject]` carried: Enter, Space and touch never exercised by the tests (intent-alignment) — same as the pass-1 and pass-2 rows.
+  - `[low]` `[patch]` the page-rules banned list checks only `src=` and `href=`, so `@import` or `url(` would pass (intent-alignment) — checked: the shipped file has neither; both tokens added to the banned list.
+  - `[false]` `[reject]` carried: active mode button restarts the game, untested (intent-alignment) — same as the pass-2 row; the spec leaves it open.
+  - `[false]` `[reject]` `render()` read-only not asserted (intent-alignment) — checked: render writes only the DOM (setText, setAttr, className, hidden, inert) and changes no state.
+  - `[false]` `[reject]` spec edit uncommitted and not in the diff (intent-alignment) — grouped with the blind-hunter spec row above; committed at finalize.
+
 ## Design Notes
 
 State: `mode` (`'normal'|'hard'`), `cards` (`[{face, up, matched}]`), `open` (indices of face-up unmatched cards, 0-2), `moves`, `elapsed` (ms), `hold` (ms left before a mismatch flips back, 0 = none). `won` = every card matched; `started` = any card ever flipped this game.
@@ -190,3 +227,22 @@ Status: done
 **Verification:** all seven suites pass. Headless Chrome: a scripted win then `KeyR` leaves focus on the first card, the old letters on the turning cards, the board un-inert and moves 0.
 
 **Residual risks:** the live 800 ms flip-back, Safari `preserve-3d` on `<button>` pseudo-elements, touch hover and real screen-reader output were not checked; `docs/CODEBASE_MAP.md` still lacks Pairflip.
+
+### Follow-up pass 3 (2026-11-24)
+
+**Summary:** A third follow-up pass ran on the committed change. Four reviewers, 26 findings (high 0, medium 0, low 17, false 8, maybe-false 1). Five fixes applied; one new deferred item (Safari unverified); the map row stays deferred as before.
+
+**Patched:**
+- `README.md`: Tab / Shift+Tab row in the Pairflip controls; a `:focus-visible` sentence (available across browsers since March 2022) in the browser note.
+- `pairflip.html`: matched cards get `tabindex` -1 (others 0), so they leave the Tab order; a mode click focuses its button (Safari does not focus clicked buttons).
+- `test-pairflip.mjs`: `'@import'` and `'url('` added to the page-rules banned list; tests for `tabindex` and mode-click focus.
+
+**Deferred (new):** Safari unverified for the 3D flip (medium, unverified). Firefox headless screenshot is fine.
+
+**Rejected (pass 3):** pairs readout (not in the intent); double-click on Play again (rare; timed guard needed); header overflow below about 295 px (false: measured at 280 and 300 px); one 800 ms frame (by the 100 ms dt-cap contract); board class and label on rebuild (false: modes differ in count); shuffle order (false: a no-op shuffle fails the Fisher-Yates asserts); CSS state rules and flip regex coverage (low; closing needs a browser runner the repo does not have); spec commit (false: committed at finalize). Carried rows rejected as before.
+
+**Follow-up review recommendation:** false. This pass patched no high; only low-severity items.
+
+**Verification:** all seven suites pass. Mutation runs (implementer): removing the `t.focus()` call, the `tabindex` line, a matched-only `tabindex`, and an `@import` or `url(` in the CSS each fail the suite. Headless Firefox win state: overlay and flip correct. Headless Chrome at 280 px: header right edge 267 px.
+
+**Residual risks:** Safari 3D flip; Tab skipping matched cards and Safari focus after a mode click not run in a real browser; screen-reader output not heard; `docs/CODEBASE_MAP.md` still lacks Pairflip (deferred).

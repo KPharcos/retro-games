@@ -105,6 +105,7 @@ Molebop needs a browser from about 2023 or later (it uses `inert`, `aspect-ratio
 | Input | Action |
 |---|---|
 | Click / tap a card, or Enter / Space on the focused card | Flip it |
+| Tab / Shift+Tab | Move focus between cards and buttons |
 | Normal 4x4 / Hard 6x6 buttons | Start a new game with 8 pairs (letters A-H) or 18 pairs (A-R) |
 | R / Restart button / Play again button | Start a new game in the current mode |
 
@@ -112,7 +113,7 @@ The deck is shuffled with Fisher-Yates at the start of every game. A move is one
 
 Pairflip is DOM-based: each card is a `<button>` that turns over with a CSS 3D transition (off when the system asks for reduced motion); a rAF loop runs only the clock and the flip-back. Each card has a label for screen readers.
 
-Pairflip needs a browser from about 2021 or later (it uses `?.`, `min()` and `inset`). It also uses `inert` (about 2023) to lock the board under the win panel; an older browser without `inert` still plays the same, Tab just also walks the covered cards.
+Pairflip needs a browser from about 2021 or later (it uses `?.`, `min()` and `inset`). It also uses `inert` (about 2023) to lock the board under the win panel; an older browser without `inert` still plays the same, Tab just also walks the covered cards. `:focus-visible` (available in all current browsers since March 2022) draws the keyboard focus ring; an older browser still plays the same but shows no ring on a focused card.
 
 ## Tests
 

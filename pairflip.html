@@ -192,6 +192,7 @@ function render() {
     if (el.className !== name) el.className = name;
     if (c.up) setAttr(el, 'data-face', c.face); // a card turning face-down keeps its old letter
     setAttr(el, 'aria-label', `Row ${Math.floor(i / side) + 1}, column ${i % side + 1}, ${c.matched ? c.face + ', matched' : c.up ? c.face : 'face down'}`);
+    setAttr(el, 'tabindex', c.matched ? '-1' : '0'); // a matched card does nothing, so it leaves the Tab order
   });
   for (const id of Object.keys(MODES)) setAttr($(id), 'aria-pressed', String(id === mode));
   setText('moves', String(moves));
@@ -225,7 +226,7 @@ document.addEventListener('click', (e) => {
   const t = e.target, i = cardEls.indexOf(t);
   if (i >= 0) flip(i);
   else if (t?.id === 'restart' || t?.id === 'again') restart();
-  else if (MODES[t?.id]) { mode = t.id; reset(); render(); }
+  else if (MODES[t?.id]) { mode = t.id; reset(); render(); t.focus(); } // Safari doesn't focus a clicked button, and the focused card may be gone
 });
 reset();
 render();
