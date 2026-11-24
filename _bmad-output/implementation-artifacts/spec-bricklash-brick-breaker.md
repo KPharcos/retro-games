@@ -5,7 +5,8 @@ created: '2026-11-24'
 status: 'done'
 baseline_revision: 'a0b92b3e62ba07497d7051f303897fe3ebd56795'
 review_loop_iteration: 0
-followup_review_recommended: true
+followup_review_recommended: false
+followup_pass: true
 context: ['{project-root}/CLAUDE.md']
 warnings: ['oversized']
 deferred:
@@ -15,6 +16,13 @@ deferred:
       Review pass 1 (verification-gap, blind-hunter). CODEBASE_MAP is an agent-context doc linked from CLAUDE.md, so the fix is deferred; a cartographer re-map refreshes it, as after earlier games.
     location: >-
       docs/CODEBASE_MAP.md
+    severity: low
+  - summary: >-
+      The Bricklash section of docs/CODEBASE_MAP.md is stale after the review patches: it says the canvas carries `touch-action: none` (it is on `body`), that `keyL`/`keyR` are not reset (`onblur` clears them), that `paddleHit` runs only while `vy > 0` (it also needs the ball's previous bottom at or above the paddle top), and it omits `onblur`.
+    evidence: |-
+      Follow-up pass 1 (intent-alignment, verification-gap, blind-hunter, edge-case-hunter). CODEBASE_MAP is an agent-context doc linked from CLAUDE.md, so the fix is deferred together with the totals row above; a cartographer re-map refreshes it.
+    location: >-
+      docs/CODEBASE_MAP.md (Bricklash section, Input / State / Logic rows)
     severity: low
 ---
 
@@ -120,6 +128,44 @@ deferred:
   - `[low]` `[reject]` screen readers hear only "Playing." during play (blind-hunter) — same pattern as Gapwing; per-event announcements add branches and noise.
   - `[low]` `[reject]` same serve overlay every life/level, no level cue on the canvas (blind-hunter) — the HUD shows the level and #status says it; cosmetic.
 
+### 2026-11-24 — Review pass (follow-up)
+- verdicts: 34 findings — high 0, medium 2, low 26, false 6, maybe-false 0
+- findings:
+  - `[false]` `[reject]` carried: game not named "Breakout" and a test forbids the word (intent-alignment) — carried: deliberate; the repo builds originals in a genre, and every Breakout-genre rule in the intent is built.
+  - `[false]` `[reject]` carried: "edge = steeper" read in the genre sense (intent-alignment) — carried: genre norm in Design Notes, centre straight up, edge 60° from vertical.
+  - `[low]` `[reject]` carried: life lost at the canvas bottom, not at the paddle line (intent-alignment) — carried: timing only; the paddle-from-above patch bars the sweep save. The reported 52 px is 0.07 s at 720 px/s and 0.14-0.17 s at level-1 speed, so "under 0.1 s" in the earlier row holds only at high speed; harm unchanged.
+  - `[low]` `[reject]` carried: ball speed stops rising after level 10 (intent-alignment) — carried: the 720 px/s cap keeps the 6 px-per-tick no-tunnelling bound.
+  - `[false]` `[reject]` carried: click/tap launch and extra files go past "Space" and "single HTML file" (intent-alignment) — carried: Space still launches; one game file, tests and docs follow repo convention.
+  - `[false]` `[reject]` carried: on-screen size may be below 480x640 (intent-alignment) — carried: the canvas is 480x640; CSS only shrinks it on small viewports.
+  - `[false]` `[reject]` carried: look and play never run in a real browser; end-to-end play and `onblur` not driven (intent-alignment) — carried: headless Chrome screenshots were inspected; the harness stubs input by repo design.
+  - `[low]` `[reject]` row colors asserted only as a set of six constants, not as drawn (intent-alignment) — a recording canvas stub is more than a correction; the screenshot shows six distinct row colors and a mutant wiring a wrong color would show at once in play.
+  - `[low]` `[defer]` CODEBASE_MAP says `touch-action: none` is on the canvas; the code has it on `body` (intent-alignment) — agent-context doc; deferred with the map row.
+  - `[low]` `[patch]` `step()` game-over guard unpinned: dropping `state !== 'over' &&` still passes (verification-gap) — test: last life lost inside `step(100)` ends at lives 0, state over.
+  - `[medium]` `[patch]` paddle left-side miss untested: dropping the `b.x + BALL_R < paddleX` clause still passes (verification-gap) — test: ball left of the paddle keeps vy 360.
+  - `[medium]` `[patch]` capsule catch box checked only on its right edge (verification-gap) — tests: no catch above, left, below or 1 px out of reach; catches at the left and bottom edges.
+  - `[low]` `[patch]` releasing ArrowLeft never asserted (verification-gap) — test: keydown, keyup, `tick()` leaves paddleX and keyL unchanged without `onblur()`.
+  - `[low]` `[patch]` HUD asserted only at start values (verification-gap) — test: score 70, lives 2, level 2 are drawn.
+  - `[low]` `[patch]` `launch()` re-seating the ball on the paddle unpinned (verification-gap) — test: pointermove then pointerdown with no tick puts balls[0].x at the paddle centre. The reviewer filed it as defer; it is a one-assert test of a demonstrated gap, so it was patched.
+  - `[low]` `[patch]` serve status reads "1 lives" (verification-gap) — "1 life" for one life; test added.
+  - `[low]` `[defer]` CODEBASE_MAP says touch-action on the canvas (verification-gap) — same root cause as the map row above; deferred.
+  - `[low]` `[reject]` carried: instant restart after game over, no guard like Gapwing's 500 ms (blind-hunter) — carried: same claim as the pass-1 row on any tap restarting after game over. Here no input is used during play (launch only matters in serve), so the case needs a fresh tap in the moment the last ball falls; a guard adds timer state, a step branch and a spec-unsettled delay.
+  - `[low]` `[patch]` game over leaves capsules and the wide paddle (blind-hunter) — `loseLife` clears capsules, wide and paddleW on the last life too; test added.
+  - `[low]` `[defer]` CODEBASE_MAP stale: touch-action wording, "not reset" keys, missing `onblur`, spec tree status (blind-hunter) — agent-context doc; deferred with the map rows.
+  - `[false]` `[reject]` spec frontmatter says in-review while the result says done (blind-hunter) — transient state of this follow-up pass; finalize writes `status: done` and the recommendation.
+  - `[low]` `[reject]` spec contract and Spec Change Log no longer describe the corner flip, paddle-from-above, blur reset (blind-hunter) — the fix edits this build's spec; the Auto Run Result records the changes.
+  - `[low]` `[reject]` dt-cap test accepts 11 or 12 ticks, so a 99 ms cap passes (blind-hunter) — float rounding makes the tick count differ by one at exactly 100 ms; the same tolerance is in Gapwing's test and a 99 ms cap is not a defect.
+  - `[low]` `[reject]` pointer mapping ignores the 2 px canvas border (blind-hunter) — a paddle offset under 2 px of 80 is not felt; the fix needs `clientLeft`/`clientWidth` on the stub canvas in every pointer test.
+  - `[low]` `[reject]` focus loss only clears keys; the game keeps running (blind-hunter) — no pause is a Gapwing-style rule here, and a pause needs new state and input.
+  - `[low]` `[reject]` `touch-action: none` on `body` blocks pinch zoom page-wide (blind-hunter) — reverting it reopens the pass-1 defect (drag outside the canvas pans and cancels the pointer); browser and text zoom still work.
+  - `[low]` `[reject]` no render interpolation on the 120 Hz step (blind-hunter) — the intent asks for a fixed step, not interpolation; adding it is new draw logic for judder on non-60 Hz displays.
+  - `[low]` `[patch]` last-life loss leaves capsules and wide paddle (edge-case-hunter) — same root cause and fix as the blind-hunter row.
+  - `[low]` `[reject]` second finger moves the paddle (edge-case-hunter) — a one-finger game; the `isPrimary` guard also makes every pointer test pass `isPrimary`.
+  - `[low]` `[reject]` 2 px border offset in pointer mapping (edge-case-hunter) — same as the blind-hunter row.
+  - `[low]` `[patch]` "1 lives" in the serve status (edge-case-hunter) — same fix as the verification-gap row.
+  - `[low]` `[reject]` contract says one-axis flips but the corner flips both (edge-case-hunter) — the fix edits this build's spec; the behavior is the pass-1 patch.
+  - `[low]` `[defer]` CODEBASE_MAP says touch-action on the canvas (edge-case-hunter) — same root cause as the map rows above; deferred.
+  - `[low]` `[defer]` CODEBASE_MAP omits the paddle-from-above rule, `onblur` and the key reset (edge-case-hunter) — same root cause; deferred.
+
 ## Design Notes
 
 "Edge = steeper" is read as the genre norm: a hit nearer the edge sends the ball out at a wider angle from vertical (up to 60°), centre sends it straight up. Brick side detection uses the previous centre, which is exact enough at 6 px per tick.
@@ -164,3 +210,22 @@ Status: done
 **Verification:** `node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs && node test-minefield.mjs && node test-molebop.mjs && node test-pairflip.mjs && node test-bricklash.mjs` -- all eight pass. The implementer reverted each of the five pre-review behaviours one at a time and each made the suite fail. A headless Chrome screenshot of mid-play shows the HUD, six colored rows, capsules, wide paddle and balls.
 
 **Residual risks:** real-browser feel (mouse, touch, blur) unplayed; no `visibilitychange` handling beyond the 100 ms dt cap; `docs/CODEBASE_MAP.md` totals stale (deferred).
+
+### Follow-up pass 2026-11-24
+
+**Summary:** A second review pass (`followup_pass`) ran on the committed change. Four reviewers, 34 findings (high 0, medium 2, low 26, false 6). Eight entries were patched in 8 fixes: two code fixes and six test gaps; one deferred entry (map rows); the rest were carried or rejected.
+
+**Patched:**
+- `bricklash.html`: `loseLife` clears capsules, the wide timer and the wide paddle on the last life too, so the game-over screen shows no frozen capsule or amber paddle (the README already said so).
+- `bricklash.html`: the serve status reads "1 life" for one life, "N lives" otherwise.
+- `test-bricklash.mjs`: the `step()` game-over guard, a paddle left-side miss, the capsule catch box (above, left, below, 1 px out, and the left and bottom edges that catch), the ArrowLeft release, the HUD at score 70 / lives 2 / level 2, the `launch()` re-seat of the ball, and both fixes above. The implementer broke each rule once and every one failed the suite.
+
+**Deferred (new):** the Bricklash section of `docs/CODEBASE_MAP.md` (touch-action on body, key reset on blur, the paddle-from-above rule, `onblur`); the earlier map row (status line and totals) is carried.
+
+**Rejected (pass 2):** instant restart after game over (carried); the earlier name, "steeper", life-loss timing, 720 cap, extra inputs, display size and browser-look rows (carried); row colors checked as constants; spec contract not updated for the corner flip and paddle rule (fix edits the spec); loose dt-cap tick count; 2 px border in pointer mapping; multi-touch `isPrimary`; no pause on focus loss; `touch-action: none` on body and pinch zoom; no render interpolation.
+
+**Follow-up review recommendation:** false. Follow-up pass: converged, since this pass patched no high (high 0, medium 2, low 6 entries).
+
+**Verification:** `node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs && node test-minefield.mjs && node test-molebop.mjs && node test-pairflip.mjs && node test-bricklash.mjs` -- all pass.
+
+**Residual risks:** real-browser feel (mouse, touch, blur) still unplayed; `docs/CODEBASE_MAP.md` lags the code in two deferred rows; the 120 Hz step has no render interpolation.

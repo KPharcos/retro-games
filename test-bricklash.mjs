@@ -23,6 +23,9 @@ assert.deepEqual(ball(), [240, 594, 0, 0]);
 texts.length = 0;
 run('render()');
 for (const t of ['Score 0', 'Lives 3', 'Level 1']) assert.ok(texts.includes(t), t);
+texts.length = 0;
+run('score = 70; lives = 2; level = 2; render(); reset()');
+for (const t of ['Score 70', 'Lives 2', 'Level 2']) assert.ok(texts.includes(t), t);
 assert.equal(run('new Set(COLORS).size'), 6, 'one color per row');
 
 // Serve: ball follows the paddle until launch
@@ -75,10 +78,13 @@ assert.equal(run('paddleX'), 360);
 play('{ x: 240, y: 300, vx: 0, vy: 0 }', "setWidth(WIDE_W); capsules = [{ x: 311, y: 600, type: 'multi' }]");
 run('tick()');
 assert.deepEqual([run('capsules.length'), run('balls.length')], [0, 3]);
-// Ball past the paddle side misses it
+// Ball past the paddle side misses it, on either side
 play('{ x: 300, y: 592, vx: 0, vy: 360 }', 'paddleX = 0');
 run('tick()');
 assert.equal(ball()[3], 360);
+play('{ x: 100, y: 592, vx: 0, vy: 360 }', 'paddleX = 200');
+run('tick()');
+assert.equal(ball()[3], 360, 'left of the paddle');
 
 // Paddle clamp: keys and pointer
 run('reset(); paddleX = 0; keyL = true; tick()');
@@ -107,6 +113,11 @@ assert.deepEqual([...p.run('[balls[0].x, balls[0].y, state]')], [100, 594, 'serv
 p.run("state = 'playing'; balls = [{ x: 240, y: 300, vx: 0, vy: 0 }]; setWidth(WIDE_W)");
 pd.pointermove({ clientX: 480 });
 assert.equal(p.run('paddleX'), 360, 'wide paddle clamps at the right wall');
+// Launch re-seats the ball on the paddle even with no tick since the pointer moved
+p.run('reset()');
+pd.pointermove({ clientX: 400 });
+pd.pointerdown({ button: 0 });
+assert.deepEqual([...p.run('[balls[0].x, state]')], [400, 'playing']);
 
 // Walls and ceiling reflect
 play('{ x: 7, y: 300, vx: -360, vy: 0 }');
@@ -194,6 +205,10 @@ near(Math.hypot(ball()[2], ball()[3]), 400, 'level 2 speed');
 run('reset(); level = 20; launch()');
 near(Math.hypot(ball()[2], ball()[3]), 720, 'speed cap');
 
+// step() stops ticking once the game is over (no lives below 0)
+play('{ x: 240, y: 645, vx: 0, vy: 360 }', 'lives = 1; step(100)');
+assert.deepEqual([run('lives'), run('state')], [0, 'over']);
+
 // Fixed step: 8 ms is no tick, one more ms is exactly one (3 px at 360 px/s)
 play('{ x: 240, y: 400, vx: 0, vy: -360 }');
 run('step(8)');
@@ -243,6 +258,12 @@ for (const [i, sign] of [[1, -1], [2, 1]]) {
   near(vx, sign * 400 * Math.SQRT1_2, `multi vx ${i}`);
   near(vy, -400 * Math.SQRT1_2, `multi vy ${i}`);
 }
+// Catch box: paddle 200..280 x 600..612, capsule 24x10, one tick falls 1.25 px
+for (const [x, y, caught] of [[240, 300, 0], [100, 600, 0], [240, 620, 0], [187, 600, 0], [188, 600, 1], [240, 615.75, 1]]) {
+  play(hold, `capsules = [{ x: ${x}, y: ${y}, type: 'multi' }]`);
+  run('tick()');
+  assert.deepEqual([run('capsules.length'), run('balls.length'), run('paddleW')], [1 - caught, 1 + 2 * caught, 80], `capsule at ${x},${y}`);
+}
 // A missed capsule falls off and is removed
 play(`${hold}`, `paddleX = 0; capsules = [{ x: 400, y: 600, type: 'multi' }]`);
 run('for (let i = 0; i < 35; i++) tick()');
@@ -254,6 +275,10 @@ assert.equal(run('capsules.length'), 0);
 play(`{ x: 240, y: 645, vx: 0, vy: 360 }`, `capsules = [{ x: 400, y: 300, type: 'multi' }]; setWidth(WIDE_W); wide = 99`);
 run('tick()');
 assert.deepEqual([run('capsules.length'), run('paddleW'), run('wide')], [0, 80, 0]);
+// ...and so does losing the last life
+play(`{ x: 240, y: 645, vx: 0, vy: 360 }`, `lives = 1; capsules = [{ x: 400, y: 300, type: 'multi' }]; setWidth(WIDE_W); wide = 99`);
+run('tick()');
+assert.deepEqual([run('state'), run('capsules.length'), run('wide'), run('paddleW')], ['over', 0, 0, 80]);
 
 // Keys: Space and arrows prevent scroll; others untouched
 let prevented = 0;
@@ -262,6 +287,11 @@ for (const code of ['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'KeyA', 'Tab'
 assert.equal(prevented, 4);
 listeners.keyup({ code: 'ArrowLeft' });
 listeners.keyup({ code: 'ArrowRight' });
+play(hold);
+key('ArrowLeft');
+listeners.keyup({ code: 'ArrowLeft' });
+run('tick()');
+assert.deepEqual([run('paddleX'), run('keyL')], [200, false], 'ArrowLeft released');
 // Window blur drops held arrows (keyup never comes)
 key('ArrowLeft'); key('ArrowRight');
 run('onblur()');
@@ -302,5 +332,7 @@ assert.equal(writes.status, 2);
 g.run('balls = [{ x: 240, y: 700, vx: 0, vy: 0 }]; lives = 1; tick(); render(); render()');
 assert.equal(els.status.textContent, 'Game Over. Score: 50. Press Space or click to play again.');
 assert.equal(writes.status, 3);
+g.run('reset(); lives = 1; level = 3; render()');
+assert.equal(els.status.textContent, 'Level 3, 1 life. Press Space or click to launch.');
 
 console.log('all bricklash tests passed');

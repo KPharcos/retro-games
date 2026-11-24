@@ -141,8 +141,9 @@ function catchCapsule(c) {
 }
 
 function loseLife() {
-  if (--lives <= 0) state = 'over';
-  else serve();
+  if (--lives > 0) { serve(); return; }
+  state = 'over';
+  capsules = []; wide = 0; setWidth(PADDLE_W); // game-over screen shows no leftover power-ups
 }
 
 function nextLevel() {
@@ -257,7 +258,7 @@ function render() {
     ctx.fillText('Space or click to play again', W / 2, 370);
   }
 
-  setText('status', state === 'serve' ? 'Level ' + level + ', ' + lives + ' lives. Press Space or click to launch.'
+  setText('status', state === 'serve' ? 'Level ' + level + ', ' + lives + (lives === 1 ? ' life' : ' lives') + '. Press Space or click to launch.'
     : state === 'playing' ? 'Playing.'
     : 'Game Over. Score: ' + score + '. Press Space or click to play again.');
 }
