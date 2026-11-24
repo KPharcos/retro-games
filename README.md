@@ -10,12 +10,13 @@ Small retro browser games. Each game is one self-contained HTML file with no bui
 | Twofold | `twofold.html` | An original sliding-merge number puzzle on a 4x4 board, with one-step undo and a saved best score (keyboard or swipe) |
 | Minefield | `minefield.html` | A mine-sweeping puzzle in three sizes, with a safe first click, flags and question marks, chording and a timer (mouse, touch or keyboard) |
 | Molebop | `molebop.html` | An original 30-second whack-the-mole game on a 3x3 field, with golden moles, bombs and a saved best score (mouse, touch or keyboard) |
+| Pairflip | `pairflip.html` | An original memory game: find the matching letter pairs on a 4x4 or 6x6 board, with a moves counter and a timer (mouse, touch or keyboard) |
 
 ## Play
 
-Play online: [Gapwing](https://kpharcos.github.io/retro-games/gapwing.html) · [Snake](https://kpharcos.github.io/retro-games/snake.html) · [Stackfall](https://kpharcos.github.io/retro-games/stackfall.html) · [Twofold](https://kpharcos.github.io/retro-games/twofold.html) · [Minefield](https://kpharcos.github.io/retro-games/minefield.html) · [Molebop](https://kpharcos.github.io/retro-games/molebop.html)
+Play online: [Gapwing](https://kpharcos.github.io/retro-games/gapwing.html) · [Snake](https://kpharcos.github.io/retro-games/snake.html) · [Stackfall](https://kpharcos.github.io/retro-games/stackfall.html) · [Twofold](https://kpharcos.github.io/retro-games/twofold.html) · [Minefield](https://kpharcos.github.io/retro-games/minefield.html) · [Molebop](https://kpharcos.github.io/retro-games/molebop.html) · [Pairflip](https://kpharcos.github.io/retro-games/pairflip.html)
 
-You can also clone the repo and open `gapwing.html`, `snake.html`, `stackfall.html`, `twofold.html`, `minefield.html` or `molebop.html` in a browser.
+You can also clone the repo and open `gapwing.html`, `snake.html`, `stackfall.html`, `twofold.html`, `minefield.html`, `molebop.html` or `pairflip.html` in a browser.
 
 ### Gapwing controls
 
@@ -99,12 +100,27 @@ Molebop is DOM-based: each hole is a `<button>` and the moles slide with a CSS t
 
 Molebop needs a browser from about 2023 or later (it uses `inert`, `aspect-ratio`, `inset`, `min()` / `clamp()`, `?.` and `catch {}` without a binding). An older browser without `inert` still plays the same; Tab just also walks the empty holes between rounds.
 
+### Pairflip controls
+
+| Input | Action |
+|---|---|
+| Click / tap a card, or Enter / Space on the focused card | Flip it |
+| Tab / Shift+Tab | Move focus between cards and buttons |
+| Normal 4x4 / Hard 6x6 buttons | Start a new game with 8 pairs (letters A-H) or 18 pairs (A-R) |
+| R / Restart button / Play again button | Start a new game in the current mode |
+
+The deck is shuffled with Fisher-Yates at the start of every game. A move is one pair of flips. A matching pair stays face-up; a mismatched pair turns back after 0.8 s, and other cards ignore clicks until it does. Face-up and matched cards ignore clicks. The timer starts on the first flip, shows minutes and seconds, stops when the last pair is found and pauses while the tab is hidden. Finding every pair shows a panel with your moves and time. Nothing is saved.
+
+Pairflip is DOM-based: each card is a `<button>` that turns over with a CSS 3D transition (off when the system asks for reduced motion); a rAF loop runs only the clock and the flip-back. Each card has a label for screen readers.
+
+Pairflip needs a browser from about 2021 or later (it uses `?.`, `min()` and `inset`). It also uses `inert` (about 2023) to lock the board under the win panel; an older browser without `inert` still plays the same, Tab just also walks the covered cards. `:focus-visible` (available in all current browsers since March 2022) draws the keyboard focus ring; an older browser still plays the same but shows no ring on a focused card.
+
 ## Tests
 
 The tests need Node 18+ and nothing else:
 
 ```sh
-node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs && node test-minefield.mjs && node test-molebop.mjs
+node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs && node test-minefield.mjs && node test-molebop.mjs && node test-pairflip.mjs
 ```
 
 `harness.mjs` loads a game's inline `<script>` into `node:vm` with a stub DOM, so the tests can drive game state and key presses directly.

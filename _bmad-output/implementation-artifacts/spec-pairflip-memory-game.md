@@ -1,0 +1,248 @@
+---
+title: 'Pairflip: memory card game'
+type: 'feature'
+created: '2026-11-24'
+status: 'done'
+baseline_revision: '04615c250e81514f56aeeda453f2c53d22efb3b6'
+review_loop_iteration: 0
+followup_review_recommended: false
+followup_pass: true
+context: ['{project-root}/CLAUDE.md']
+warnings: ['oversized']
+deferred:
+  - summary: >-
+      docs/CODEBASE_MAP.md does not cover Pairflip: it still says six games and has no pairflip.html / test-pairflip.mjs entries or per-game section.
+    evidence: |-
+      Review pass 1 (blind-hunter). CODEBASE_MAP is an agent-context doc linked from CLAUDE.md, so the fix is deferred; a cartographer re-map refreshes it, as after Minefield and Molebop.
+    location: >-
+      docs/CODEBASE_MAP.md
+    severity: low
+  - summary: >-
+      Pairflip's 3D flip is verified in headless Chrome and Firefox only; Safari is unverified.
+    evidence: |-
+      Review pass 3 (blind-hunter, maybe-false). Chrome and Firefox headless screenshots show the front face, the back face hidden and the letters unmirrored. A Safari run of the preserve-3d button pseudo-element flip would settle it; no Safari is available here.
+    location: >-
+      pairflip.html (.card, .card.up, ::before and ::after)
+    severity: medium (unverified)
+---
+
+<intent-contract>
+
+## Intent
+
+**Problem:** The repo has no memory/pairs game. The user wants one in a single HTML file, DOM + CSS (no canvas): a 4x4 grid of 8 pairs with letter faces, click to flip, a match stays open, a mismatch flips back after 800 ms, clicks blocked while two cards are face-up, a moves counter and a timer, a win screen, a Fisher-Yates shuffle and a Restart button. Stretch: a 6x6 hard mode and a CSS 3D flip animation.
+
+**Approach:** Add `pairflip.html` under the original name "Pairflip" (generic genre rules, no existing product's name or look), plus `test-pairflip.mjs` driving it through `harness.mjs`. It is a DOM game with a clock, like `minefield.html`: one `<button>` per card, `step(dt)` and a rAF loop run the timer and the 800 ms flip-back, and `render()` runs from the loop only when what it shows changes. Both stretch goals are in scope.
+
+## Boundaries & Constraints
+
+**Always:** exactly one bare `<script>`; top-level `let` state; `reset()`, `step(dt)`, read-only `render()`; `onKey(e)` on `e.code` via `document.addEventListener`; rAF `frame` loop with `dt` capped at 100 ms. Faces are plain letters `A`.. (`A`-`H` normal, `A`-`R` hard), never emoji. The deck is shuffled with an in-place Fisher-Yates over `Math.random`. `render()` reuses one button per card index (rebuilt only when the card count changes). A move = one completed pair of flips. Timer starts on the first flip and stops on the win. The 800 ms flip-back is counted in `step(dt)`, not `setTimeout`. Cards keep accessible names (`aria-label`) that say face-down / the letter / matched. `prefers-reduced-motion` turns the flip transition off.
+
+**Never:** canvas, `setTimeout`/`setInterval`, audio, external assets or dependencies, emoji, saved best scores, extra modes beyond Normal 4x4 and Hard 6x6.
+
+## I/O & Edge-Case Matrix
+
+| Scenario | Input / State | Expected Output / Behavior | Error Handling |
+|----------|--------------|---------------------------|----------------|
+| First flip | fresh board, click card | card face-up, timer starts, moves 0 | — |
+| Match | second card same letter | both stay face-up as matched, moves +1, clicks open again at once | — |
+| Mismatch | second card other letter | both face-up; at 799 ms still up, at 800 ms both face-down; moves +1 | — |
+| Third click during hold | two unmatched face-up | ignored (no flip, no move) | — |
+| Re-click | face-up or matched card | ignored | — |
+| Win | last pair matched | win panel shows moves and time, timer frozen, card clicks ignored | — |
+| Restart | any time, incl. during hold | new shuffled deck, all face-down, moves 0, timer 0 and stopped, win panel hidden | — |
+| Hard mode | press Hard 6x6 | 36 cards (18 pairs), new game; Normal 4x4 goes back to 16 | — |
+| Key R | keydown `KeyR`, not repeat, no Ctrl/Meta/Alt | same as Restart | repeat / modified ignored |
+
+</intent-contract>
+
+## Code Map
+
+- `minefield.html` -- pattern to copy: level buttons with `aria-pressed`, `cellEls` reuse in `render()`, `setText()`, `frame()` rendering only when the shown second changes, document `click` listener dispatching by `cellEls.indexOf(target)` / button id, `KeyN` guard on `repeat`/modifiers.
+- `harness.mjs` -- `load(file, globals)`; pass `document`, `Math` and `requestAnimationFrame` stubs via `globals`.
+- `test-minefield.mjs:18-60` -- `makeDoc()` stub DOM (persistent element per id, `createElement`/`appendChild`, attribute tracking) and `stubMath`; copy the trimmed parts needed.
+- `README.md:5-18,98-107` -- games table, play links, open-file line, per-game controls section, test command.
+- `CLAUDE.md` -- game count/list, stack line, DOM-with-clock note, test command.
+
+## Tasks & Acceptance
+
+**Execution:**
+- `pairflip.html` -- the game: header (title, Moves, Time `m:ss`), mode buttons `normal`/`hard` + `restart`, `#board` CSS grid of card buttons (3D flip via `transform: rotateY(180deg)` on `.up`, faces from `::before`/`::after` with `backface-visibility: hidden`, letter from `data-face`), `#win` panel (hidden until won) with text and a Play again button, aria-live status.
+- `test-pairflip.mjs` -- node:vm self-check covering every I/O matrix row, the Fisher-Yates order for a fixed `Math.random`, each letter appearing exactly twice, button reuse across moves, and page rules (one script, no canvas/timers/emoji).
+- `README.md`, `CLAUDE.md` -- add Pairflip to the lists, a controls section, and `node test-pairflip.mjs` to the test command.
+
+**Acceptance Criteria:**
+- Given the page opens, when it loads, then a 4x4 grid of 16 face-down cards shows with Moves 0 and Time 0:00.
+- Given a board with a pair face-up after a mismatch, when the clock advances 800 ms through `frame`, then both cards render face-down without any click.
+- Given all pairs matched, when the last match lands, then the win panel is visible with the move count and time and the Play again button starts a new game.
+- Given `node test-gapwing.mjs && ... && node test-pairflip.mjs`, when run, then every suite passes.
+
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-11-24 — Review pass
+- verdicts: 23 findings — high 0, medium 4, low 13, false 6, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` rAF re-arm in `frame()` untested; deleting it keeps the suite green but softlocks the game after the first mismatch (verification-gap, pre-verified by mutation) — test asserts `rafs` grows by one per tick.
+  - `[false]` `[reject]` README "timer pauses while the tab is hidden" overstates the code (verification-gap) — browsers stop rAF in hidden tabs and `dt` is capped at 100 ms, so the timer does pause; same wording and mechanism as Minefield.
+  - `[low]` `[reject]` 3D flip only checked as CSS text (intent-alignment) — settled by hand: headless Chrome screenshots show the back hidden, the letter unmirrored on face-up and matched cards, and the 6x6 layout; no browser harness in the repo to add.
+  - `[low]` `[reject]` the face is fully visible ~650 ms of the 800 ms because the 0.3 s turn overlaps the hold (intent-alignment) — 800 ms from the second click is the literal intent; delaying the hold until the turn ends adds a branch for no felt gain.
+  - `[false]` `[reject]` blocking ends while cards are still turning back; Restart/mode buttons not blocked (intent-alignment) — once state has turned the pair down no two cards are face-up, so the intent's block no longer applies; Restart must always work.
+  - `[low]` `[reject]` Enter/Space flipping untested (intent-alignment) — native `<button>` activation fires `click`, which the tests drive; a stub can't observe the browser's key-to-click mapping.
+  - `[false]` `[reject]` timer measured in game time, not wall time (intent-alignment) — the intent sets no clock source; game-time pause while hidden is the repo's Minefield behaviour.
+  - `[low]` `[reject]` win overlay covering the board untested (intent-alignment) — settled by hand: headless Chrome win screenshot shows the panel over the whole board.
+  - `[low]` `[reject]` `data-face` holds the letter on face-down cards (intent-alignment) — only visible in devtools; accessible names hide it; moving it adds a blank-face flash on flip-back.
+  - `[false]` `[reject]` shuffle fairness untested (intent-alignment) — `j = floor(rand() * (i + 1))` is the unbiased Fisher-Yates step and the exact-sequence test pins it.
+  - `[false]` `[reject]` test file and doc edits exceed "single HTML file" (intent-alignment) — the game is one self-contained file; tests and docs follow the repo convention for every game.
+  - `[medium]` `[patch]` win panel leaves focus on a card under the overlay and every card in the Tab order (edge-case-hunter; same as blind-hunter row below) — `boardEl.inert = won()` in render, `#again` focused on the winning flip.
+  - `[low]` `[reject]` first started frame can count up to 100 ms from before the first flip (edge-case-hunter) — at most one frame (~16 ms normally); fix needs a flip timestamp.
+  - `[medium]` `[patch]` win panel focus (blind-hunter) — grouped with the edge-case row above; same fix.
+  - `[low]` `[patch]` Play again hides the focused button, dropping focus to `<body>` (blind-hunter) — first card focused after a reset from `#again`.
+  - `[medium]` `[patch]` screen readers hear nothing until the win (blind-hunter) — a `note` string set in `flip()` ("B", "B and C, no match", "B and B, matched") goes to `#status`.
+  - `[low]` `[reject]` blocked cards still show the hover ring during the 800 ms hold (blind-hunter) — cosmetic, 0.8 s window, needs a board busy class.
+  - `[low]` `[defer]` `docs/CODEBASE_MAP.md` not updated (blind-hunter) — agent-context file; recorded in `deferred`.
+  - `[false]` `[reject]` spec file untracked, so the test header points to nothing (blind-hunter) — the spec is committed with the change at finalize.
+  - `[low]` `[patch]` Hard mode kept by Play again / Restart / R untested (blind-hunter) — test added.
+  - `[low]` `[patch]` Play again reshuffle untested (rand stayed 0) (blind-hunter) — test now changes `rand` and asserts a new order.
+  - `[low]` `[patch]` render-only-on-change in `frame` untested (blind-hunter) — test counts DOM writes over quiet frames.
+  - `[low]` `[patch]` `Object.hasOwn` raises the browser floor for nothing (blind-hunter) — `MODES[t.id]`; README compat line lowered.
+
+### 2026-11-24 — Review pass (follow-up)
+- verdicts: 25 findings — high 0, medium 0, low 21, false 4, maybe-false 0
+- findings:
+  - `[low]` `[patch]` new deck's letters show on cards turning back after Play again / Restart / R, because `data-face` is rewritten while `.up` drops (blind-hunter) — verified in `render()`: class and `data-face` change in one pass while the 0.3 s turn runs; fix: write `data-face` only when `c.up`, which also keeps never-flipped cards free of the new letters.
+  - `[low]` `[patch]` R key hides the win panel under the focused Play again and drops focus to body (blind-hunter) — verified: `onKey` resets without a focus move, unlike the click path; shared `restart()` moves focus.
+  - `[low]` `[patch]` held Enter on the winning card re-clicks the focused Play again via key repeat (blind-hunter) — introduced by pass 1's focus move; Molebop's `preventDefault` on repeated Space/Enter copied.
+  - `[low]` `[patch]` README browser floor omits `inert` (blind-hunter) — code sets `boardEl.inert`; README line extended with the fallback.
+  - `[low]` `[defer]` `docs/CODEBASE_MAP.md` not updated (blind-hunter) — carried: already in `deferred`.
+  - `[low]` `[patch]` hover ring sticks on the last-tapped face-down card on touch screens (blind-hunter) — verified: `:hover` is unguarded; wrapped in `@media (hover: hover)`.
+  - `[low]` `[reject]` Hard 6x6 taller than a landscape phone, board sized by width only (blind-hunter) — page scrolls; the fix needs a row-count variable and a guessed header height for a rare device and mode.
+  - `[low]` `[reject]` carried: 3D-flip CSS pinned by text regexes, not every declaration (blind-hunter) — same claim as pass 1's "3D flip only checked as CSS text"; pass-1 and pass-2 headless Chrome probes show the flip, back-face hiding and unmirrored letter work.
+  - `[low]` `[reject]` missing tests for a click on a non-control, a mode switch during a hold, dt of 0 or below, and a template literal with no interpolation (blind-hunter) — non-control ids fall through `MODES[t?.id]` to nothing, `reset()` zeroes `hold` and `open`, `dt` comes from the capped rAF clock; no named harm.
+  - `[false]` `[reject]` click-only input deviates from CLAUDE.md's `pointerdown` line (blind-hunter) — `click` serves mouse, touch and Enter/Space on buttons, and Minefield's reveal path does the same; no behaviour is wrong.
+  - `[low]` `[patch]` `setText` / `setAttr` / className / `hidden` / `inert` write guards unpinned; a redundant rewrite of aria-live `#status` would pass the suite (verification-gap, pre-verified by mutation) — `writes` counter and render-twice assert added.
+  - `[false]` `[reject]` clicking the active mode button restarts the game and no test says so (verification-gap) — the spec leaves it open, Minefield's level buttons do the same, and no harm is named; pinning it would freeze an arbitrary choice.
+  - `[low]` `[patch]` R key focus loss (verification-gap, other findings) — grouped with the blind-hunter R-key row; same `restart()` fix and test.
+  - `[low]` `[reject]` carried: 3D flip and win overlay checked as text only (intent-alignment) — same claim as pass 1; probes in headless Chrome computed `preserve-3d`, `0.3s` transition, `backface-visibility: hidden` and the shown win panel.
+  - `[low]` `[reject]` carried: Enter/Space and touch never exercised; no `pointerdown` (intent-alignment) — same as pass 1's Enter/Space row; a stub cannot see the browser's key-to-click mapping.
+  - `[low]` `[reject]` the 800 ms hold is counted from the frame boundary before the click, so it can end one frame early or late (intent-alignment) — a headless run flipped back at 805 ms; fixing it needs a click timestamp for a 16 ms error.
+  - `[low]` `[reject]` carried: letters live in `data-face` and face-down cards hold one (intent-alignment) — same claim as pass 1's `data-face` row; the pass-2 `data-face` patch also stops unflipped cards from carrying the new deck's letters.
+  - `[low]` `[patch]` stub does not model `inert` or the focus loss on KeyR (intent-alignment) — KeyR part grouped with the R-key row (test added); the `inert` modelling is rejected: the `won()` guard in `flip()` is what the test proves and the stub cannot block clicks.
+  - `[false]` `[reject]` the test replaces `document` so `harness.mjs`'s `listeners`/`key` helpers go unused (intent-alignment) — `load(file, globals)` is designed for this and `test-minefield.mjs` does the same.
+  - `[low]` `[defer]` carried: `docs/CODEBASE_MAP.md` still lacks Pairflip; spec outside the diff; docs beyond the contract (intent-alignment) — map row already in `deferred`; spec is committed with the change; docs follow the repo convention.
+  - `[false]` `[reject]` "Never" list checked by substring and regex on the source (intent-alignment) — a source scan is the only way to check that `setTimeout`, canvas and emoji are absent.
+  - `[low]` `[patch]` new deck flash on reset (edge-case-hunter) — same root cause and fix as the first row.
+  - `[low]` `[patch]` Enter held on the last card (edge-case-hunter) — same root cause and fix as the held-Enter row.
+  - `[low]` `[patch]` R pressed while Play again has focus (edge-case-hunter) — same root cause and fix as the R-key row.
+  - `[low]` `[defer]` carried: `docs/CODEBASE_MAP.md` stale (edge-case-hunter) — already in `deferred`.
+
+### 2026-11-24 — Review pass (follow-up 3)
+- verdicts: 26 findings — high 0, medium 0, low 17, false 8, maybe-false 1
+- findings:
+  - `[false]` `[reject]` carried: click-only input vs CLAUDE.md's `pointerdown` line (blind-hunter) — same claim as the pass-2 row; no behaviour is wrong.
+  - `[low]` `[patch]` no Tab row in the Pairflip README controls table (blind-hunter) — checked: the table lists click and Enter/Space only; Tab / Shift+Tab row added.
+  - `[low]` `[patch]` `:focus-visible` missing from the README browser note (blind-hunter) — MDN: available across browsers since March 2022; sentence added with the fallback (no focus ring, game still plays).
+  - `[false]` `[reject]` board class and label set only on rebuild (blind-hunter) — checked: Normal (16) and Hard (36) differ in card count, so every mode switch rebuilds; the spec forbids other modes.
+  - `[low]` `[patch]` matched cards stay Tab stops that do nothing (blind-hunter) — `tabindex` set to -1 on matched cards and 0 otherwise through `setAttr`; test added.
+  - `[maybe-false]` `[defer]` 3D flip checked only in headless Chrome; Safari and Firefox untested (blind-hunter) — Firefox headless screenshot refutes it: front faces, backs hidden, letters unmirrored, overlay right. Safari not available here; claim if true is medium, so deferred as medium (unverified).
+  - `[low]` `[reject]` no pairs-left readout (blind-hunter) — a feature, not in the intent (moves and timer only); not asked.
+  - `[false]` `[reject]` shuffle loop blind to order (blind-hunter) — checked by mutation: a no-op shuffle fails the Fisher-Yates asserts (first `shuffle([1,2,3,4], () => 0)` check); the 50-deal loop is not the only check.
+  - `[low]` `[defer]` carried: docs/CODEBASE_MAP.md stale and the hand-copied test chain (blind-hunter) — same as the pass-2 row; already in `deferred`.
+  - `[false]` `[reject]` spec status edit uncommitted and outside the diff (blind-hunter) — grouped with the intent-alignment row below; the spec is committed at finalize.
+  - `[low]` `[reject]` double-click on Play again or the last card flips a card or dismisses the win panel (edge-case-hunter) — checked: a double-click on Play again restarts, then the second click flips the card under the pointer (one card up, timer started). Fix needs a timed guard (state plus branch); rare; rejected as low.
+  - `[low]` `[patch]` Safari mouse click on a mode button leaves focus on a card that the switch removes (edge-case-hunter) — Safari does not focus a clicked button, and a mode switch removes cards, so focus drops to body. Fix: `t.focus()` after the switch; test added.
+  - `[false]` `[reject]` header overflows the viewport below about 295 px (edge-case-hunter) — measured in headless Chrome: header right edge at 267 px in a 280 px viewport and 291 px in 300 px; no sideways overflow.
+  - `[low]` `[reject]` one long frame (800 ms) leaves a mismatch face-up (edge-case-hunter) — by contract: dt is capped at 100 ms, so a hitch delays the flip-back by about the hitch minus 100 ms; removing the cap breaks the contract.
+  - `[low]` `[reject]` the four CSS state rules (`#win[hidden]`, `:focus-visible`, `.card.matched::after`, `aria-pressed` highlight) have no test (verification-gap) — grouped with the intent-alignment win-panel row. This session's screenshots confirm three (no overlay mid-game, mint matched cards, yellow pressed mode) and the win overlay; focus-visible not checked. Closing needs a browser runner the repo does not have (no-dependencies rule); rejected as low.
+  - `[low]` `[reject]` carried: flip, face-letter and reduced-motion rules covered only by source-text regexes (verification-gap) — same claim as the pass-1 row; Chrome and Firefox screenshots show the flip works.
+  - `[low]` `[defer]` carried: docs/CODEBASE_MAP.md (verification-gap) — same as the blind-hunter map row above; already in `deferred`.
+  - `[low]` `[reject]` win-panel visibility untested (intent-alignment) — grouped with the CSS state-rules row above; `#win[hidden]` is present and the play and win screenshots confirm it.
+  - `[low]` `[reject]` carried: flip visuals and reduced motion checked only as text (intent-alignment) — same as the regex row above.
+  - `[low]` `[reject]` carried: 800 ms counted from the frame boundary before the click; visible turn-back about 300 ms after the state flip (intent-alignment) — same as the pass-1 and pass-2 rows.
+  - `[low]` `[reject]` carried: blocked cards show the hover ring and pointer cursor during the hold (intent-alignment) — same as the pass-1 row.
+  - `[low]` `[reject]` carried: Enter, Space and touch never exercised by the tests (intent-alignment) — same as the pass-1 and pass-2 rows.
+  - `[low]` `[patch]` the page-rules banned list checks only `src=` and `href=`, so `@import` or `url(` would pass (intent-alignment) — checked: the shipped file has neither; both tokens added to the banned list.
+  - `[false]` `[reject]` carried: active mode button restarts the game, untested (intent-alignment) — same as the pass-2 row; the spec leaves it open.
+  - `[false]` `[reject]` `render()` read-only not asserted (intent-alignment) — checked: render writes only the DOM (setText, setAttr, className, hidden, inert) and changes no state.
+  - `[false]` `[reject]` spec edit uncommitted and not in the diff (intent-alignment) — grouped with the blind-hunter spec row above; committed at finalize.
+
+## Design Notes
+
+State: `mode` (`'normal'|'hard'`), `cards` (`[{face, up, matched}]`), `open` (indices of face-up unmatched cards, 0-2), `moves`, `elapsed` (ms), `hold` (ms left before a mismatch flips back, 0 = none). `won` = every card matched; `started` = any card ever flipped this game.
+
+```js
+function shuffle(a, rand) { // Fisher-Yates, in place
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+```
+
+## Verification
+
+**Commands:**
+- `node test-pairflip.mjs` -- expected: prints `all pairflip tests passed`, exit 0.
+- `node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs && node test-minefield.mjs && node test-molebop.mjs && node test-pairflip.mjs` -- expected: all pass.
+
+**Manual checks (if no CLI):**
+- Open `pairflip.html`: cards flip in 3D, mismatches turn back after ~0.8 s, Hard shows 6x6, win panel appears.
+
+## Auto Run Result
+
+Status: done
+
+**Summary:** Added Pairflip, an original memory pairs game: one `<button>` per card in a CSS grid, letter faces (A-H on Normal 4x4, A-R on Hard 6x6), Fisher-Yates shuffle, a CSS 3D flip (`rotateY` with pseudo-element faces and `backface-visibility`, off under reduced motion), a match stays up and a mismatch turns back after 800 ms counted in `step(dt)`, card clicks blocked while two are face-up, a moves counter (one per pair), an `m:ss` timer from the first flip to the win, a win panel with Play again, Restart button and `R` key. `#status` announces each flip, match and mismatch; on the win the board goes inert and focus moves to Play again.
+
+**Files changed:**
+- `pairflip.html` -- the game.
+- `test-pairflip.mjs` -- node:vm self-check for every I/O matrix row plus rAF re-arm, quiet frames, focus/inert and status notes.
+- `README.md` -- Pairflip row, play link, controls section, browser-compat line, test command.
+- `CLAUDE.md` -- seven games, Pairflip in the stack and DOM-with-clock notes, test command.
+- `_bmad-output/implementation-artifacts/spec-pairflip-memory-game.md` -- this spec.
+
+**Review findings:** 23 total (high 0, medium 4, low 13, false 6). Patched 9 rows in 8 fixes (medium: rAF re-arm test, win focus + inert board, `#status` flip notes; low: focus after Play again, Hard-mode restart test, Play again reshuffle test, quiet-frame test, `Object.hasOwn` dropped). Deferred 1 (CODEBASE_MAP refresh). Rejected 13: 3D flip / overlay checked only as text (settled by headless Chrome screenshots); face visible ~650 of 800 ms (literal intent); block ends during turn-back and Restart not blocked (false); Enter/Space untested (native button click); game-time timer (false); `data-face` on face-down cards (devtools only); shuffle fairness (false, pinned); scope beyond one file (false, repo convention); README hidden-tab pause (false); first-frame ≤100 ms (unfelt); hover ring during hold (cosmetic); untracked spec (false, committed now).
+
+**Follow-up review recommendation:** true — first pass patched 3 medium entries (high 0, medium 3, low 5 entries). Unverified risk: the `#status` announcements and `inert`/focus moves were never run with a real screen reader, and the live 800 ms flip-back and timer were not observed in a browser (headless Chrome's rAF stalled under virtual time).
+
+**Verification:** `node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs && node test-minefield.mjs && node test-molebop.mjs && node test-pairflip.mjs` -- all pass. Headless Chrome (google-chrome-stable): screenshots of Normal mid-play, the win panel and Hard 6x6 render correctly; a scripted win leaves focus on `#again` with the board inert, and Play again focuses the first card with the board live.
+
+**Residual risks:** Safari `preserve-3d` on `<button>` pseudo-elements not checked; screen-reader output not heard; `docs/CODEBASE_MAP.md` still lacks Pairflip (deferred).
+
+### Follow-up pass 2026-11-24
+
+**Summary:** A second review pass (`followup_pass`) ran on the committed change. It found 25 findings (high 0, medium 0, low 21, false 4); 11 rows were fixed in 6 patches and nothing new was deferred.
+
+**Patched:**
+- `pairflip.html`: `data-face` is written only for face-up cards, so Play again / Restart / R no longer flash the new deck on the turning cards, and unflipped cards no longer carry the new letters.
+- `pairflip.html`: one `restart()` for `R`, Restart and Play again moves focus to the first card when Play again had focus (the R path used to drop focus to `<body>`).
+- `pairflip.html`: repeated Space / Enter / NumpadEnter keydowns are `preventDefault`ed (copied from Molebop), so a held Enter cannot dismiss the win panel.
+- `pairflip.html`: the card hover ring is inside `@media (hover: hover)`, so touch screens keep no sticky ring.
+- `README.md`: the Pairflip browser line names `inert` and its fallback.
+- `test-pairflip.mjs`: per-write counters pin every render write guard, including the aria-live `#status`; new asserts for the `data-face` rule, `restart()` focus, held keys and the hover media query. Ten mutants (the guards, the `data-face` rule, the focus lines, the `preventDefault` line, the hover wrapper) each make the suite fail.
+
+**Rejected (pass 2):** Hard 6x6 taller than a landscape phone; 3D flip, Enter/Space and `data-face` claims carried from pass 1; missing click / dt tests; click-only input vs CLAUDE.md (false); active mode button restarts (false); 800 ms counted from the frame boundary; `inert` not modelled in the stub; unused harness helpers (false); source scans for the "Never" list (false). The CODEBASE_MAP row stays deferred (carried).
+
+**Follow-up review recommendation:** false. Follow-up pass: converged, since this pass patched no high (high 0, medium 0, low 6 entries).
+
+**Verification:** all seven suites pass. Headless Chrome: a scripted win then `KeyR` leaves focus on the first card, the old letters on the turning cards, the board un-inert and moves 0.
+
+**Residual risks:** the live 800 ms flip-back, Safari `preserve-3d` on `<button>` pseudo-elements, touch hover and real screen-reader output were not checked; `docs/CODEBASE_MAP.md` still lacks Pairflip.
+
+### Follow-up pass 3 (2026-11-24)
+
+**Summary:** A third follow-up pass ran on the committed change. Four reviewers, 26 findings (high 0, medium 0, low 17, false 8, maybe-false 1). Five fixes applied; one new deferred item (Safari unverified); the map row stays deferred as before.
+
+**Patched:**
+- `README.md`: Tab / Shift+Tab row in the Pairflip controls; a `:focus-visible` sentence (available across browsers since March 2022) in the browser note.
+- `pairflip.html`: matched cards get `tabindex` -1 (others 0), so they leave the Tab order; a mode click focuses its button (Safari does not focus clicked buttons).
+- `test-pairflip.mjs`: `'@import'` and `'url('` added to the page-rules banned list; tests for `tabindex` and mode-click focus.
+
+**Deferred (new):** Safari unverified for the 3D flip (medium, unverified). Firefox headless screenshot is fine.
+
+**Rejected (pass 3):** pairs readout (not in the intent); double-click on Play again (rare; timed guard needed); header overflow below about 295 px (false: measured at 280 and 300 px); one 800 ms frame (by the 100 ms dt-cap contract); board class and label on rebuild (false: modes differ in count); shuffle order (false: a no-op shuffle fails the Fisher-Yates asserts); CSS state rules and flip regex coverage (low; closing needs a browser runner the repo does not have); spec commit (false: committed at finalize). Carried rows rejected as before.
+
+**Follow-up review recommendation:** false. This pass patched no high; only low-severity items.
+
+**Verification:** all seven suites pass. Mutation runs (implementer): removing the `t.focus()` call, the `tabindex` line, a matched-only `tabindex`, and an `@import` or `url(` in the CSS each fail the suite. Headless Firefox win state: overlay and flip correct. Headless Chrome at 280 px: header right edge 267 px.
+
+**Residual risks:** Safari 3D flip; Tab skipping matched cards and Safari focus after a mode click not run in a real browser; screen-reader output not heard; `docs/CODEBASE_MAP.md` still lacks Pairflip (deferred).
