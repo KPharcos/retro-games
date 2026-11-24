@@ -95,12 +95,13 @@
     </div>
 
 <script>
-const ROUND = 30000, FIRST_POP = 500, POP_EVERY = 800, POP_FAST = 450, FAST_AT = 10000; // ms
+const ROUND = 30000, FIRST_POP = 500, POP_EVERY = 800, POP_FAST = 450, FAST_AT = 10000, LOCK = 500; // ms
 const BEST_KEY = 'molebop-best';
 const NAMES = { mole: 'mole', golden: 'golden mole', bomb: 'bomb' };
 const GLYPH = { mole: '', golden: '★', bomb: '✸' };
 
 let phase, reason, score, timeLeft, popIn, holes; // holes[i]: null or {kind, up: ms left above ground}
+let lock = 0; // ms after a round ends before Start works again, so a mashed key can't skip the end screen
 let best = 0;
 try { best = Number(localStorage.getItem(BEST_KEY)) || 0; } catch {} // blocked or missing storage: best stays 0
 
@@ -111,13 +112,20 @@ function reset() {
   timeLeft = ROUND;
   popIn = FIRST_POP;
   holes = Array(9).fill(null);
+  lock = 0;
 }
 
-function start() { reset(); phase = 'playing'; render(); }
+function start() {
+  if (lock > 0) return;
+  reset();
+  phase = 'playing';
+  render();
+}
 
 function end(why) {
   phase = 'over';
   reason = why;
+  lock = LOCK;
   holes.fill(null);
   if (score > best) {
     best = score;
@@ -133,6 +141,7 @@ function pop() {
 }
 
 function step(dt) {
+  if (phase === 'over') { lock = Math.max(0, lock - dt); return; }
   if (phase !== 'playing') return;
   timeLeft = Math.max(0, timeLeft - dt);
   if (!timeLeft) return end('time');

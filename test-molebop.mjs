@@ -123,7 +123,7 @@ g.run('score = 2');
 for (const code of ['Space', 'Enter', 'NumpadEnter']) g.key(code, { repeat: true });
 g.key('Digit1', { repeat: true }); // other repeats are left alone
 assert.deepEqual([g.run('score'), g.prevented()], [2, 4]);
-g.run("end('time'); render()"); // held Enter from the end screen doesn't restart either
+g.run("end('time'); step(500); render()"); // held Enter from the end screen doesn't restart either, even after the lock
 g.key('Enter', { repeat: true });
 assert.deepEqual([g.run('phase'), g.prevented()], ['over', 5]);
 g = game();
@@ -240,10 +240,28 @@ assert.deepEqual([g.els.panel.hidden, g.els.field.inert], [false, true]);
 assert.equal(g.text('status'), 'Boom! A bomb ended the round. You scored 7. Best: 7.');
 assert.equal(g.text('message'), g.text('status'));
 assert.deepEqual([g.text('best'), g.hole(0).className, g.hole(8).getAttribute('aria-label')], ['7', 'hole', 'Hole 9, empty']);
-idle(g);
+idle(g); // its step(5000) also runs out the 500 ms end lock
 g.click(g.els.start); // Start from `over` begins a fresh round
 assert.deepEqual(g.json('[phase, reason, score, timeLeft, popIn, holes.every(h => h === null)]'), ['playing', '', 0, 30000, 500, true]);
 assert.deepEqual([g.text('score'), g.text('time'), g.text('status'), g.els.panel.hidden, g.els.field.inert], ['0', '30', '', true, false]);
+
+// ---- End lock: for 500 ms of step time after a round ends, Start / Enter do nothing, so a mashed key can't skip the end screen ----
+g = game();
+g.run('step(1000)');
+assert.equal(g.run('lock'), 0, 'lock in ready');
+g.click(g.els.start);
+for (let k = 0; k < 10; k++) g.run('step(100)');
+assert.equal(g.run('lock'), 0, 'lock during a round');
+g.put(4, 'bomb');
+g.down(4);
+assert.deepEqual(g.json('[phase, lock]'), ['over', 500]);
+g.click(g.els.start); g.key('Enter');
+g.run('step(499)');
+g.click(g.els.start); g.key('Enter');
+assert.deepEqual(g.json('[phase, reason, lock]'), ['over', 'bomb', 1]);
+g.run('step(1)');
+g.click(g.els.start);
+assert.deepEqual(g.json('[phase, score, timeLeft, lock]'), ['playing', 0, 30000, 0]);
 
 // ---- Time up: 30 s of step time ends the round; Start begins a fresh one with score 0 and Time 30 ----
 g = game();
@@ -260,6 +278,7 @@ g.run('render()');
 assert.equal(g.text('status'), "Time's up! You scored 3. Best: 3.");
 assert.equal(g.text('time'), '0');
 const els0 = g.els.field.children.slice();
+g.run('step(500)'); // past the end lock
 g.key('Enter');
 assert.deepEqual(g.json('[phase, score, timeLeft, popIn]'), ['playing', 0, 30000, 500]);
 assert.deepEqual([g.text('score'), g.text('time'), g.text('status'), g.els.panel.hidden], ['0', '30', '', true]);
@@ -269,7 +288,9 @@ const late = game();
 late.click(late.els.start);
 late.run('timeLeft = 50; step(100)');
 assert.deepEqual(late.json('[phase, reason, timeLeft]'), ['over', 'time', 0]);
+late.run('step(500)'); // past the end lock
 late.click(late.els.start); // 60 fps steps never land exactly on 0
+assert.equal(late.run('phase'), 'playing');
 for (let k = 0; k < 2000 && late.run('phase') === 'playing'; k++) late.run('step(1000 / 60)');
 assert.deepEqual(late.json('[phase, reason, timeLeft]'), ['over', 'time', 0]);
 

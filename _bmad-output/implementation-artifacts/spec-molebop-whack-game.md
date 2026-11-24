@@ -73,6 +73,8 @@ deferred:
 
 ## Spec Change Log
 
+- 2026-11-24 — user decision after review: Start, Space, Enter and NumpadEnter are ignored for 500 ms after a round ends (`LOCK`), so a mashed key cannot skip the end screen. Start still begins a round from `over` once the lock has passed. Press scoring and several moles at once are kept (user confirmed). The intent contract above is unchanged; this entry is the amendment.
+
 ## Review Triage Log
 
 ### 2026-11-24 — Review pass
@@ -255,3 +257,5 @@ Status: done
 - Real taps, the slide animation and reload persistence are not exercised in a browser.
 - Open design choices for the user, not patched: no input lockout at round end; scoring on press; several moles at once.
 - `docs/CODEBASE_MAP.md` still lacks Molebop (deferred).
+
+**Post-review change (2026-11-24):** 500 ms end-of-round input lock, a user decision; see Spec Change Log.

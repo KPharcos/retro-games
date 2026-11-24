@@ -88,7 +88,7 @@ Minefield needs a browser from about 2022 or later (it uses `Object.hasOwn`, `?.
 
 | Input | Action |
 |---|---|
-| Start button / Space / Enter | Start a round (from the start or end screen) |
+| Start button / Space / Enter | Start a round, from the start screen or the end screen; the end screen ignores it for 0.5 s after a round ends |
 | Click / tap a hole, or Enter / Space on the focused hole | Whack it |
 | 1-9 | Whack a hole in reading order (1 is top-left, 9 bottom-right) |
 | Numpad 1-9 | Whack a hole as laid out on the pad (7 is top-left, 3 bottom-right) |
