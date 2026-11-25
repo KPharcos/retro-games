@@ -166,6 +166,54 @@ deferred:
   - `[low]` `[defer]` CODEBASE_MAP says touch-action on the canvas (edge-case-hunter) — same root cause as the map rows above; deferred.
   - `[low]` `[defer]` CODEBASE_MAP omits the paddle-from-above rule, `onblur` and the key reset (edge-case-hunter) — same root cause; deferred.
 
+### 2026-11-25 — Review pass (follow-up)
+- verdicts: 44 findings — high 0, medium 0, low 33, false 10, maybe-false 1
+- findings:
+  - `[low]` `[reject]` carried: corner brick hit flips both vx and vy, but the contract says flip vx or vy (intent-alignment) — carried: pass-2 row on the contract text; the fix edits this build's spec.
+  - `[low]` `[reject]` carried: flip away from the cell, not a bare negate, against the contract word "flip" (intent-alignment) — carried: same contract-text row; the behaviour is pinned by the "already leaving" tests.
+  - `[low]` `[reject]` carried: the paddle bounce also needs the previous bottom above the paddle top, which the contract's "moves down" rule does not say (intent-alignment) — carried: same contract-text row; the fix edits this build's spec.
+  - `[false]` `[reject]` life loss clears capsules and the wide paddle, while the contract names only level clear (intent-alignment) — refuted: the matrix life-loss row says only "lives - 1, serve state", the level-clear clause is one-way, and the comment in serve() says a capsule must not land while the ball sits on the paddle.
+  - `[low]` `[reject]` carried: click restarts after game over, while the matrix says Space resets (intent-alignment) — carried: same claim as the pass-1 "any tap restarts after game over" row.
+  - `[low]` `[reject]` carried: the dt-cap test accepts 11 or 12 ticks (intent-alignment) — carried: pass-2 dt-cap row.
+  - `[false]` `[reject]` carried: touch and blur go past the literal "mouse or arrow keys" (intent-alignment) — carried: pass-2 extra-inputs row; the auditor calls them additions, not contradictions.
+  - `[low]` `[reject]` carried: draw layer unobserved (row colours only as a constant, HUD placement and overlays not asserted) (intent-alignment) — carried: pass-2 row-colours row; a recording canvas stub is more than a correction, and the pass-1 headless screenshot shows the HUD and rows.
+  - `[false]` `[reject]` carried: CSS, the hint and the page-level patches have no tests (intent-alignment) — carried: pass-2 browser-look row; CSS strings are not game behaviour and the screenshot covers layout.
+  - `[false]` `[reject]` carried: real window.onblur wiring and event dispatch are not exercised (intent-alignment) — carried: pass-2 browser-look row (onblur not driven).
+  - `[false]` `[reject]` carried: real rAF timing is not exercised; the loop runs on hand-fed timestamps (intent-alignment) — carried: pass-2 browser-look row.
+  - `[false]` `[reject]` carried: the screenshot evidence in the spec is not in the repo (intent-alignment) — carried: pass-2 browser-look row; the screenshots were inspected in pass 1 and the harness stubs input by design.
+  - `[low]` `[patch]` paddle reach window unpinned: a ball 1–20 px above the paddle top can bounce and the suite stays green (verification-gap) — the test after the from-above assert now pins a ball with its bottom 1 px above the paddle top to keep vy 360; the 20 px cutoff mutant fails on that line.
+  - `[low]` `[reject]` carried: brick and paddle fills unobserved; the "one colour per row" test checks the palette constant only (verification-gap) — carried: pass-2 row-colours row; a recording canvas stub is more than a correction.
+  - `[low]` `[defer]` carried: the Bricklash section of docs/CODEBASE_MAP.md is stale (touch-action on the canvas, paddleHit vy-only, no onblur) (verification-gap) — carried: pass-2 map row; agent-context doc, deferred.
+  - `[maybe-false]` `[reject]` real Math.random in most bricklash tests, so a future capsule assertion could flake (verification-gap) — not settled as a current defect: 25 reruns were clean and no current assertion reads a drop; it would settle with a seeded Math.random in every test that breaks a brick. Claim is low, so rejected.
+  - `[low]` `[patch]` README and hint say "drag", but hover moves the paddle too (blind-hunter) — the README pointer row now reads "Mouse move / touch drag"; the hint now reads "Mouse, touch or ← → : move · Space / click / tap: launch".
+  - `[false]` `[reject]` carried: spec frontmatter says in-review while the Auto Run Result says done (blind-hunter) — carried: pass-2 status row; finalize sets status done, and the map status line sits in the carried defer row.
+  - `[low]` `[reject]` the Auto Run Result counts ("patched 7", "medium 3") do not match the triage rows (12 patch tags, 5 medium) (blind-hunter) — the fix edits this build's spec; the per-row verdicts and the 27 total in the log are correct, and the summary text is from the pass-1 finalize.
+  - `[low]` `[reject]` carried: corner hit flips both axes while the contract line and matrix row say one axis (blind-hunter) — carried: pass-2 spec-contract row; the fix edits this build's spec.
+  - `[low]` `[reject]` carried: the Spec Change Log is empty though behaviour changed after review (blind-hunter) — carried: pass-2 spec-change-log row; the fix edits this build's spec.
+  - `[low]` `[reject]` the Design Notes tick sketch calls capsules() and wideTimer(), which do not exist, and omits the serve early return (blind-hunter) — the fix edits this build's spec; the code is the record.
+  - `[low]` `[reject]` the game is named Bricklash, not Breakout, without asking the user, though the global rule says to ask on naming (blind-hunter) — the name is spec contract and the fix edits it; the name is in policy (an original game in the genre, not a Breakout recreation). Surfaced to the user as a decision.
+  - `[false]` `[reject]` carried: "edge = steeper" is built as 60° from vertical, which is shallower (blind-hunter) — carried: pass-1 steeper row (genre-norm refutation in Design Notes). Surfaced to the user as a decision.
+  - `[false]` `[reject]` carried: the look-and-play evidence (screenshots) is not in the repo or reproducible (blind-hunter) — carried: pass-2 browser-look row.
+  - `[low]` `[patch]` the canvas uses content-box sizing: max-width 100% plus a 2 px border overflows by 4 px on phones narrower than about 484 px (blind-hunter) — box-sizing: border-box added to the canvas rule. Stackfall sets it; gapwing has the same gap and is untouched here.
+  - `[low]` `[reject]` carried: body touch-action none blocks pinch zoom page-wide (blind-hunter) — carried: pass-2 row; reverting it reopens the drag-cancels-pointer defect.
+  - `[low]` `[reject]` carried: no restart delay after game over; Gapwing waits 500 ms (blind-hunter) — carried: pass-2 instant-restart row.
+  - `[low]` `[reject]` carried: a touch steering finger launches the ball on pointerdown (blind-hunter) — carried: pass-1 touch-launch row.
+  - `[low]` `[reject]` onKey calls preventDefault on Space and arrows even with Alt, Ctrl or Meta held, so Alt+Left may be swallowed (blind-hunter) — rare in use, and the fix adds a modifier-guard branch; gapwing does not check modifiers either.
+  - `[low]` `[reject]` carried: multi-ball spawns at balls[0] even when it is below the paddle top (blind-hunter) — carried: pass-1 multi-spawn row.
+  - `[low]` `[reject]` multi-ball has no cap, and each multi catch adds two balls (blind-hunter) — the spec sets no cap; the capsule rate (1 in 8 bricks, half multi) bounds it; a cap is a new rule.
+  - `[low]` `[reject]` no in-game legend for the row points, the W/M labels or the wide countdown (blind-hunter) — the intent's HUD is score, lives and level; a legend adds new screen text; the README documents it.
+  - `[low]` `[reject]` carried: the pointer mapping uses the border-box rect and ignores the 2 px border (blind-hunter) — carried: pass-2 border row.
+  - `[low]` `[defer]` carried: Bricklash map rows stale (touch-action, keys not reset, paddleHit, onblur) and totals not updated (blind-hunter) — carried: pass-1 totals row and pass-2 map row; agent-context doc, deferred.
+  - `[low]` `[reject]` no test guard keeps storage or external assets out of bricklash.html (blind-hunter) — no current violation; the spec's Never list excludes a saved score; a guard is a new test rule, not a defect fix.
+  - `[low]` `[reject]` carried: the dt-cap assert accepts 11 or 12 ticks, so a 99 ms cap passes (blind-hunter) — carried: pass-2 dt-cap row; not re-verified, as the carry rule requires.
+  - `[low]` `[reject]` carried: restart at once after the last life (click or Space) skips the game-over screen (edge-case-hunter) — carried: pass-2 instant-restart row.
+  - `[low]` `[reject]` a ball already level with the paddle that slides into its side is lost with no side bounce (edge-case-hunter) — the from-above gate is what stops the scoop fixed in pass 2, and README states the rule; a side bounce is a new branch that reopens the scoop; the window is a few ticks.
+  - `[low]` `[reject]` carried: a multi catch while balls[0] is below the paddle spawns balls below it (edge-case-hunter) — carried: pass-1 multi-spawn row.
+  - `[low]` `[reject]` carried: the pointer mapping counts the 2 px canvas border (edge-case-hunter) — carried: pass-2 border row.
+  - `[false]` `[reject]` carried: edge hits go 60° from vertical, the reverse of "steeper" (edge-case-hunter) — carried: pass-1 steeper row. Surfaced to the user as a decision.
+  - `[low]` `[reject]` carried: the 2 px border puts the paddle off the pointer at the edges, against the acceptance line (edge-case-hunter) — carried: pass-2 border row.
+  - `[low]` `[defer]` carried: CODEBASE_MAP says touch-action is on the canvas (edge-case-hunter) — carried: pass-2 map row; agent-context doc, deferred.
+
 ## Design Notes
 
 "Edge = steeper" is read as the genre norm: a hit nearer the edge sends the ball out at a wider angle from vertical (up to 60°), centre sends it straight up. Brick side detection uses the previous centre, which is exact enough at 6 px per tick.
@@ -229,3 +277,22 @@ Status: done
 **Verification:** `node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs && node test-minefield.mjs && node test-molebop.mjs && node test-pairflip.mjs && node test-bricklash.mjs` -- all pass.
 
 **Residual risks:** real-browser feel (mouse, touch, blur) still unplayed; `docs/CODEBASE_MAP.md` lags the code in two deferred rows; the 120 Hz step has no render interpolation.
+
+### Follow-up pass 2026-11-25
+
+**Summary:** A fresh review pass (`followup_pass`) on the committed change, run from `done`. Four reviewers, 44 findings (high 0, medium 0, low 33, false 10, maybe-false 1). Three fixes applied; the rest were carried from earlier passes, rejected, or deferred.
+
+**Patched:**
+- `bricklash.html`: `box-sizing: border-box` on the canvas, so the 2 px border no longer pushes it 4 px past a phone narrower than about 484 px. The hint reads "Mouse, touch or ← → : move · Space / click / tap: launch".
+- `README.md`: the pointer row reads "Mouse move / touch drag", since hover moves the paddle.
+- `test-bricklash.mjs`: a ball whose bottom is 1 px above the paddle top does not bounce. The suite fails when the reach cutoff moves up 20 px.
+
+**Deferred (carried):** the Bricklash section of `docs/CODEBASE_MAP.md` (touch-action, key reset, paddle rule, `onblur`), with the earlier totals and status rows.
+
+**Rejected (pass 3):** carried from earlier passes: the contract text on the corner flip, flip-away and the paddle gate; "edge = steeper"; the name; the browser-look items; the 2 px pointer border; the restart delay; touch launch; body `touch-action`; multi-ball spawn below the paddle; the dt-cap tolerance. New and rejected: life loss clears power-ups (the serve() comment gives the reason); a side contact once the ball is level with the paddle; a modifier guard on arrow keys; a multi-ball cap; an in-game legend; a test guard against storage; the spec's own counts and Design Notes sketch (spec edits); the name without asking (spec edit, surfaced to the user). Latent flake risk from real `Math.random` in tests: not a current defect.
+
+**Follow-up review recommendation:** false. This pass patched no high (high 0, medium 0, low 3 entries).
+
+**Verification:** all eight suites pass, `node test-bricklash.mjs` included. The new reach test fails on the 20 px cutoff mutant.
+
+**Residual risks:** phone-width layout, touch drag and window blur not played in a real browser; "edge = steeper" and the name are open decisions for the user; `docs/CODEBASE_MAP.md` lags the code (deferred).

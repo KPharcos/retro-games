@@ -65,6 +65,7 @@ assert.deepEqual(ball().slice(2), [0, -360]);
 play('{ x: 240, y: 596, vx: 0, vy: 360 }');
 run('tick()');
 assert.equal(ball()[3], 360);
+play('{ x: 240, y: 590, vx: 0, vy: 360 }'); run('tick()'); assert.equal(ball()[3], 360, 'bottom 1 px above the paddle top does not bounce');
 // Wide paddle in play: 180..300, so the outer 20 px angle by the 60 px half-width; edge = 60°
 for (const [x, deg] of [[300, 60], [290, 50], [180, -60]]) {
   play(`{ x: ${x}, y: 592, vx: 0, vy: 360 }`, 'setWidth(WIDE_W)');

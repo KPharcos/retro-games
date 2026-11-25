@@ -17,6 +17,7 @@
             user-select: none;
         }
         canvas {
+            box-sizing: border-box;
             border: 2px solid #333;
             background-color: #1a2133;
             max-width: 100%;
@@ -42,7 +43,7 @@
     <div id="game-container">
         <canvas id="gameCanvas" width="480" height="640" role="img" aria-label="Bricklash game: bounce the ball off the paddle to break the wall of bricks"></canvas>
         <div id="status" aria-live="polite"></div>
-        <div id="hint">Mouse / drag / ← → : move · Space / click / tap: launch</div>
+        <div id="hint">Mouse, touch or ← → : move · Space / click / tap: launch</div>
     </div>
 
 <script>

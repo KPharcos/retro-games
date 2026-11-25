@@ -120,7 +120,7 @@ Pairflip needs a browser from about 2021 or later (it uses `?.`, `min()` and `in
 
 | Input | Action |
 |---|---|
-| Mouse / touch drag | Move the paddle (centred under the pointer) |
+| Mouse move / touch drag | Move the paddle (centred under the pointer) |
 | ← / → | Move the paddle while held |
 | Space / click / tap | Launch the ball from the paddle; after game over, start a new game |
 
