@@ -17,25 +17,25 @@ The project holds eight standalone browser games, each a single HTML file built 
 ```mermaid
 graph TB
     subgraph Games["Games (open directly in browser)"]
+        Brick[bricklash.html]
         Gap[gapwing.html]
-        Snk[snake.html]
-        Stk[stackfall.html]
-        Two[twofold.html]
         Mine[minefield.html]
         Mole[molebop.html]
         Pair[pairflip.html]
-        Brick[bricklash.html]
+        Snk[snake.html]
+        Stk[stackfall.html]
+        Two[twofold.html]
     end
     subgraph Tests
         H[harness.mjs<br/>load: vm + stub DOM]
+        TBL[test-bricklash.mjs]
         TG[test-gapwing.mjs]
-        TS[test-snake.mjs]
-        TF[test-stackfall.mjs]
-        TT[test-twofold.mjs]
         TM[test-minefield.mjs]
         TMB[test-molebop.mjs]
         TPF[test-pairflip.mjs]
-        TBL[test-bricklash.mjs]
+        TS[test-snake.mjs]
+        TF[test-stackfall.mjs]
+        TT[test-twofold.mjs]
     end
     subgraph BMAD["BMAD tooling (core, bmm, gds, cis, tea, bmb, bmad-loop)"]
         Cfg[_bmad/config.toml + custom/]
@@ -47,69 +47,69 @@ graph TB
     subgraph Output
         Specs[_bmad-output/implementation-artifacts/spec-*.md]
     end
+    TBL --> H
     TG --> H
-    TS --> H
-    TF --> H
-    TT --> H
     TM --> H
     TMB --> H
     TPF --> H
-    TBL --> H
+    TS --> H
+    TF --> H
+    TT --> H
+    H -->|regex-extracts script| Brick
     H -->|regex-extracts script| Gap
-    H -->|regex-extracts script| Snk
-    H -->|regex-extracts script| Stk
-    H -->|regex-extracts script| Two
     H -->|regex-extracts script| Mine
     H -->|regex-extracts script| Mole
     H -->|regex-extracts script| Pair
-    H -->|regex-extracts script| Brick
+    H -->|regex-extracts script| Snk
+    H -->|regex-extracts script| Stk
+    H -->|regex-extracts script| Two
     Skills --> Scripts
     Scripts --> Cfg
     Scripts --> Render
     Adapters -->|thin pointers| Skills
     Skills -->|bmad-build-auto writes| Specs
+    Specs -.documents.-> Brick
     Specs -.documents.-> Gap
-    Specs -.documents.-> Snk
-    Specs -.documents.-> Stk
-    Specs -.documents.-> Two
     Specs -.documents.-> Mine
     Specs -.documents.-> Mole
     Specs -.documents.-> Pair
-    Specs -.documents.-> Brick
+    Specs -.documents.-> Snk
+    Specs -.documents.-> Stk
+    Specs -.documents.-> Two
 ```
 
 ## Directory Structure
 
 ```
 retro-games/
+├── bricklash.html      # Bricklash: brick-breaker, 480x640 canvas, 120 Hz fixed step, wide/multi power-ups
 ├── gapwing.html        # Gapwing: one-button flyer, fixed 60 Hz frames, step(dt)
-├── snake.html          # Snake: 20x20 grid, tick accumulator at `speed` ticks/s, step(dt)
-├── stackfall.html      # Stackfall: 10x20 falling blocks, gravity + 500 ms lock delay in step(dt)
-├── twofold.html        # Twofold: 4x4 sliding-merge puzzle, DOM tiles + CSS transitions, no step/rAF
 ├── minefield.html      # Minefield: mine-sweeping puzzle, DOM button grid, board model + shell, rAF timer
 ├── molebop.html        # Molebop: 30 s whack-the-mole, 3x3 DOM button holes, rAF clock, localStorage best
 ├── pairflip.html       # Pairflip: memory pairs, 4x4 or 6x6 DOM button cards, CSS 3D flip, rAF clock
-├── bricklash.html      # Bricklash: brick-breaker, 480x640 canvas, 120 Hz fixed step, wide/multi power-ups
+├── snake.html          # Snake: 20x20 grid, tick accumulator at `speed` ticks/s, step(dt)
+├── stackfall.html      # Stackfall: 10x20 falling blocks, gravity + 500 ms lock delay in step(dt)
+├── twofold.html        # Twofold: 4x4 sliding-merge puzzle, DOM tiles + CSS transitions, no step/rAF
 ├── harness.mjs         # load(file, globals): runs a game's <script> in node:vm with stub DOM
+├── test-bricklash.mjs  # Bricklash self-check (`node test-bricklash.mjs`)
 ├── test-gapwing.mjs    # Gapwing self-check (`node test-gapwing.mjs`)
-├── test-snake.mjs      # Snake self-check (`node test-snake.mjs`)
-├── test-stackfall.mjs  # Stackfall self-check (`node test-stackfall.mjs`)
-├── test-twofold.mjs    # Twofold self-check (`node test-twofold.mjs`)
 ├── test-minefield.mjs  # Minefield self-check (`node test-minefield.mjs`)
 ├── test-molebop.mjs    # Molebop self-check (`node test-molebop.mjs`)
 ├── test-pairflip.mjs   # Pairflip self-check (`node test-pairflip.mjs`)
-├── test-bricklash.mjs  # Bricklash self-check (`node test-bricklash.mjs`)
+├── test-snake.mjs      # Snake self-check (`node test-snake.mjs`)
+├── test-stackfall.mjs  # Stackfall self-check (`node test-stackfall.mjs`)
+├── test-twofold.mjs    # Twofold self-check (`node test-twofold.mjs`)
 ├── docs/               # Project knowledge (BMAD project_knowledge path). This map.
 ├── _bmad-output/
 │   └── implementation-artifacts/
+│       ├── spec-bricklash-brick-breaker.md # status: done, three review passes logged, two deferred map items (resolved by this refresh)
 │       ├── spec-gapwing-flappy-game.md # status: done, three review passes logged
-│       ├── spec-snake-game.md          # status: done, three review passes logged
-│       ├── spec-stackfall-puzzle.md    # status: done, three review passes logged
-│       ├── spec-twofold-merge-puzzle.md # status: done, three review passes logged
 │       ├── spec-minefield-mine-puzzle.md # status: done, three review passes logged
 │       ├── spec-molebop-whack-game.md    # status: done, three review passes logged, end-lock change log
 │       ├── spec-pairflip-memory-game.md  # status: done, three review passes logged, two deferred items
-│       └── spec-bricklash-brick-breaker.md # status: done, three review passes logged, two deferred map items (resolved by this refresh)
+│       ├── spec-snake-game.md          # status: done, three review passes logged
+│       ├── spec-stackfall-puzzle.md    # status: done, three review passes logged
+│       └── spec-twofold-merge-puzzle.md # status: done, three review passes logged
 ├── _bmad/              # BMAD v6.12.4 install: core, bmm, gds 0.7.2, cis 0.3.2, tea 1.27.2, bmb 2.2.2, bmad-loop 0.13.2
 │   ├── config.toml, config.user.toml   # installer-managed. Do not edit.
 │   ├── custom/                         # SAFE to edit: team/personal overrides
@@ -125,6 +125,21 @@ retro-games/
 ```
 
 ## Module Guide
+
+### bricklash.html
+
+**Purpose**: Original brick-breaker on a 480×640 canvas: a 6x10 wall (one color per row, top row 60 points down to 10), paddle by mouse/touch or arrows, 3 lives, levels with a faster ball, and wide-paddle / multi-ball capsules. Canvas shapes only.
+**Entry point**: open the file in a browser. The script ends with `reset(); requestAnimationFrame(frame);`.
+
+| Item | Detail |
+|---|---|
+| Constants | `W=480`, `H=640`, `HUD=40` (ceiling), `TICK=1000/120`, `HZ=120`, bricks `COLS=10`×`ROWS=6` of `BW=48`×`BH=20` from `TOP=80`, `PADDLE_Y=600`, `PADDLE_H=12`, `PADDLE_W=80`, `WIDE_W=120`, `PADDLE_SPEED=480` px/s, `BALL_R=6`, `SERVE_ANGLE=π/6`, `MAX_BOUNCE=π/3`, `MULTI_ANGLE=π/4`, `CAP_W/CAP_H=24/10`, `CAP_SPEED=150` px/s, `DROP_P=0.125`, `WIDE_TICKS=1200` (10 s), `COLORS` per row, top row first |
+| State | Top-level `let`s: `state` (`serve`/`playing`/`over`), `score`, `lives`, `level`, `bricks` (60 booleans, index `r*10+c`), `balls` (`{x,y,vx,vy}[]`, px/s; `px`/`py`, the previous centre, are set at the start of each ball's step in `tick()`), `capsules` (`{x,y,type}[]`), `paddleX` (left edge), `paddleW`, `wide` (ticks left), `acc`, `last` (previous frame time, `null` until the first frame); `keyL`/`keyR` (held arrows: `reset()` leaves them, so a hold survives a restart, but the top-level `onblur` clears them). Ball speed `speed()` = `min(720, 360 + 40·(level-1))`. |
+| Logic | `tick()`: `movePaddle()`; in serve the ball rests on the paddle centre and nothing else runs; otherwise each ball moves `v/120`, then `walls()`, `paddleHit()` (needs `vy > 0`, the previous bottom `py+BALL_R <= PADDLE_Y` so a paddle slid under a low ball can't scoop it, the ball inside the paddle's y band, and x overlap within `BALL_R`; then angle `60°·clamp(offset/halfWidth)` from vertical at the same speed, ball not repositioned), `brickHit()` (first overlapping cell in index order, one per ball per tick, `(6-row)*10` points; by the previous centre, outside the cell's columns sets `vx` away with `Math.abs`, inside them sets `vy` away by which half it came from, and a corner does both, so a ball already leaving is never turned back; then `random() < 0.125` drops a capsule at the cell centre and `random() < 0.5` picks wide or multi). Then balls whose top passed 640 are dropped; with none left `loseLife()` runs and the tick ends. Otherwise the wide timer counts down before catches (a catch this tick keeps the full 1200 ticks), capsules fall 1.25 px and are caught when their 24×10 box overlaps the paddle rectangle (edges inclusive), and an empty wall calls `nextLevel()`. Multi adds two balls at `balls[0]`, ±45° up, at `speed()`, no cap. `serve()` sets `serve`, clears capsules and `wide`, restores the 80 px paddle about its centre and makes one resting ball; `loseLife()` on the last life clears the same power-ups. `launch()` resets from over, ignores any state but serve, re-seats the ball on the paddle, then fires 30° right of vertical at `speed()`. Helpers: `clamp`, `setWidth(w)` (resize about the centre, clamped to the walls), `restBall(b)`. |
+| Render | `render()` only reads state: HUD band with `Score N` / `Lives N` / `Level N`, bricks inset 1 px (collision uses the full cell), capsules labelled W / M, paddle (amber while wide), balls, serve title and game-over overlay. `setText()` updates `#status` (`aria-live`, written only on change): `Level N, M lives.` (`1 life` for one) `Press Space or click to launch.`, `Playing.`, or `Game Over. Score: N. Press Space or click to play again.` |
+| Loop | `frame(t)`: the first frame only renders; later frames call `step(min(dt,100))` then `render()`. `step` returns while over and its tick loop stops as soon as a tick ends the game. |
+| Input | `keydown` → `onKey` (`String(e.code)`; `preventDefault` on Space and every `Arrow*` code, repeats included; ArrowLeft/Right set `keyL`/`keyR`, a non-repeat Space calls `launch()`), `keyup` clears them; `pointermove` (hover too, no button needed) centres the paddle on the pointer scaled by the canvas `getBoundingClientRect()` (border included, so up to 2 px off); `pointerdown` with `button === 0` calls `launch()`. These four are on `document`. Window blur is a bare top-level `onblur = () => { keyL = keyR = false; }` (a held arrow's keyup never arrives after focus loss; a bare global because the harness has no `window`). `touch-action: none` and `user-select: none` are on `body`, so a drag anywhere steers instead of panning; the canvas has `box-sizing: border-box`, `max-width: 100%`, `max-height: 80vh`. `#hint`: "Mouse, touch or ← → : move · Space / click / tap: launch". |
+| Persistence | None (by spec). |
 
 ### gapwing.html
 
@@ -143,57 +158,6 @@ retro-games/
 | Persistence | None (by spec) |
 | A11y | Canvas has `role="img"` and an `aria-label`. `#status` is `aria-live="polite"` and changes only with the state. |
 | Layout | Canvas `width="400" height="600"`, CSS `max-width:100%`, `max-height:80vh`. `body` uses `min-height:100vh` so short viewports scroll instead of clipping; `touch-action: manipulation`. |
-
-### snake.html
-
-**Purpose**: Classic snake on a 400×400 canvas (20×20 cells of 20 px). No ready screen: the run starts moving right on load.
-**Entry point**: open the file in a browser. The script ends with `reset(); requestAnimationFrame(frame);`.
-
-| Item | Detail |
-|---|---|
-| Constants | `N=20`, `CELL=20`, `W=400`, `START_SPEED=8` ticks/s, `SPEED_UP=0.5`, `HS_KEY='snakeHighScore'`, `DIRS` (Arrow and WASD codes → `[dx,dy]`) |
-| State | Top-level `let`s: `snake` (`{x,y}[]`, head first), `dir` (last moved), `nextDir` (queued), `food` (`{x,y}` or `null` on a full board), `score`, `speed`, `acc`, `over`, `won`, `paused`, `wrap` (not touched by `reset()`), `high` (read from `localStorage` at load) |
-| Logic | `reset()`, `onSnake(x,y,cells)`, `placeFood()` (uniform pick over empty cells; none left → `end(true)`), `end(win)` (re-reads the stored high first so another tab's record survives, sets `over`/`won`, writes a beaten high score), `tick()` (one move: wrap or wall, body check against `snake.slice(0, -1)` so the vacating tail is always free (an eating head is never on the snake, since food only spawns on empty cells), grow, +10, +0.5 speed at each multiple of 50, no cap), `step(dt)` (accumulator, `1000/speed` ms per tick; nothing while over or paused; stops after a death mid-step), `onKey(e)` |
-| Render | `render()` only reads state: checkerboard, food, snake, `Score:`/`High:` (live best, `Math.max(high, score)`; `Wrap` only when on) on the canvas in row 0, then a `Paused` or `Game over`/`You win!` + score + `Press Space to restart` overlay. `setText()` updates `#status`. |
-| Loop | `frame(t)`: `step(min(dt,100))` then `render()` |
-| Input | keydown only. Arrows and Space get `preventDefault` (always, even while over). While over only Space acts (`reset()`). Otherwise P toggles pause, T toggles wrap (both ignore repeat), and a direction key sets `nextDir` unless it reverses `dir`, so two keys in one tick can't reverse the snake (the last valid key wins; steering and T still work while paused). Lookup is `Object.hasOwn(DIRS, e.code)`, and `String(e.code)` guards events with no `code`. |
-| Persistence | `localStorage['snakeHighScore']`, read at load and re-read in `end()`; every access is in try/catch, so blocked or missing storage gives high 0 (the in-memory best still updates). |
-| A11y | Canvas `role="img"` with `aria-label`; `#status` is `aria-live="polite"` and changes only with the state (playing + wrap, paused, over/win). |
-| Layout | Canvas `width="400" height="400"`, CSS `max-width:100%`, `max-height:80vh`; `body` `min-height:100vh`. Keyboard only: no pointer or touch handlers and no `touch-action`. |
-
-### stackfall.html
-
-**Purpose**: Original falling-blocks puzzle on a 450×600 canvas: a 10×20 board of 30 px cells plus a 150 px side panel (next, hold, score, lines, level). Own name and seven-colour palette.
-**Entry point**: open the file in a browser. The script ends with `reset(); requestAnimationFrame(frame);`.
-
-| Item | Detail |
-|---|---|
-| Constants | `COLS=10`, `ROWS=20`, `CELL=30`, `BW=300`, `H=600`, `W=450`, `LOCK_MS=500`, `SHAPES` (I, O, T, S, Z, J, L as square 0/1 matrices), `KEYS`, `COLORS` (I `#e07a5f`, O `#81b29a`, T `#f2cc8f`, S `#6d9dc5`, Z `#b388eb`, J `#ef6f9f`, L `#4c5ae6`), `POINTS=[0,100,300,500,800]` |
-| State | Top-level `let`s: `board` (20 rows of 10; `''` empty, else the shape key), `piece` (`{k,m,x,y}`), `bag`, `nextK`, `holdK` (`null` until first hold), `canHold`, `score`, `lines`, `dropAcc`, `lockTimer`, `over`. Level is derived: `level()` = 1 + floor(lines/10), `interval()` = max(50, round(1000·0.8^(level-1))) ms. |
-| Logic | `reset()`, `take()` (7-bag, Fisher–Yates on `Math.random`), `spawn(k)` (x = floor((10 - box)/2), y 0, zeroes `dropAcc` and `lockTimer`; collision → `over`), `spawnNext()`, `fits(m,x,y)`, `tryMove(dx,dy)` (a move down resets `lockTimer`; sideways moves don't), `rotate()` (clockwise in its box, kicks 0, -1, +1, never up; does not touch the timers), `ghostY()`, `lock()` (write cells, drop full rows, score × level before the clear, re-enable hold, spawn next), `hold()` (first hold takes `nextK` and one bag piece; a swap uses `spawn(holdK)` and leaves the bag alone; a blocked respawn ends the game), `step(dt)` (falls every `interval()` while it can and zeroes `dropAcc` on landing; when resting, zeroes `dropAcc`, `lockTimer += dt`, lock at 500; air time neither counts nor resets the lock timer), `onKey(e)` |
-| Render | `render()` only reads state: well and grid, locked cells, ghost outline (`strokeRect`, hidden while over), piece, the side panel (`Next`, `Hold` greyed while used, `Score:`/`Lines:`/`Level:`), then a `Game over` + score + `Press R to restart` overlay. `setText()` updates `#status`. |
-| Loop | `frame(t)`: `step(min(dt,100))` then `render()` |
-| Input | keydown only. Arrows and Space get `preventDefault` (always, even while over). While over only R acts (`reset()`). ←/→/↓ accept key repeat; ↑ rotate, Space hard drop and C/Shift hold ignore it. A successful soft drop zeroes `dropAcc`; drops score nothing. `String(e.code)` guards events with no `code`; modifier keys are not filtered. |
-| Persistence | None (by spec) |
-| A11y | Canvas `role="img"` with `aria-label`; `#status` is `aria-live="polite"` and reads `Level N.` or `Game over. Score: N. Press R to restart.`, written only when the text changes. |
-| Layout | Canvas `width="450" height="600"`, CSS `box-sizing:border-box` (so the 2 px border stays inside `max-width:100%`), `max-height:80vh`; `body` `min-height:100vh`. Keyboard only: no pointer or touch handlers. |
-
-### twofold.html
-
-**Purpose**: Original sliding-merge number puzzle on a 4×4 board. DOM-based: the board is a CSS grid of 16 static `.cell`s with absolutely positioned `.tile` elements that slide via `transition: transform`. Own name and teal→violet→coral→gold palette.
-**Entry point**: open the file in a browser. The script ends with `reset(); render();`. There is no `step(dt)` and no rAF loop: `move()`, `undo()` and the button/key handlers call `render()` directly.
-
-| Item | Detail |
-|---|---|
-| Constants | `SIZE=4`, `GOAL=2048`, `SWIPE=30` px, `BEST_KEY='twofoldBest'`, `DIRS` (`left/right/up/down`), `KEYS` (Arrow codes → dir), `CONTINUE_KEYS` (`Enter`, `NumpadEnter`, `KeyC`) |
-| Pure rules | No DOM or globals; inputs never mutated. `emptyBoard()`, `lines(dir)` (cells of each line ordered from the edge tiles slide toward), `track(board, dir)` → `{board, gained, moved, moves}` (compress, then merge equal neighbours with a skip after each merge), `slide(board, dir)` → `{board, gained, moved}`, `addTile(board, rand)` (first `rand()` picks a uniform empty cell, second gives 2 if < 0.9 else 4; full board → unchanged copy), `canMove(board)`, `hasTile(board, value)` |
-| State | Top-level `let`s: `board` (4×4 numbers, 0 empty), `score`, `best`, `won`, `keepPlaying`, `over`, `prev` (`{board, score, ids, won, keepPlaying}` or `null`), `undone`, `ids` (tile id per cell), `ghosts` (tiles merged away last move), `nextId` (never reset, so a new game never reuses an element), `swipeFrom` (`{id, x, y}` of the pointer that started a swipe, or `null`) |
-| Shell | `reset()` (empty board + two `addTile`, clears flags and `prev`), `move(dir)` (ignored while over or on the win message; no-op if nothing moved; else saves `prev`, carries ids via `track().moves`, spawns, scores, saves best, sets `won` on the first 2048 and `over` when `!canMove`, renders, then focuses `#continue` on the first 2048), `keepGoing()` (sets `keepPlaying`), `undo()` (restores `prev` once, including `won` and `keepPlaying`, so undoing past a Continue shows the 2048 message again; clears `over`), `onKey(e)`. `reset()` does not render; callers follow it with `render()`. |
-| Render | `render()` reads game state and writes only the DOM: one element per tile id in an `els` Map (created on first sight, removed when gone), class `tile v<value or big> d<digits>`, `transform: translate(calc(c * (100% + var(--gap))), …)`. Merged-away tiles stay one move as `.gone` under their partner. `setText()` updates `#score`, `#best`, `#message-text`, `#status`; `#message`/`#continue` toggle `hidden`, `#undo` `disabled`. It reads `document.activeElement` first and, if that control ends up hidden or disabled, focuses `#new` (Chrome drops focus to body as soon as a focused control is hidden). The win message wins over game over when both happen in one move. |
-| Input | keydown: arrows `preventDefault` + move (repeat moves again), N new game, U undo; while the win message is up, Enter, numpad Enter or C continue (with `preventDefault`, so the keypress can't click the newly focused button). Other keys untouched; modifiers are not filtered. Any handled key clears a pending swipe. Swipe on `document`: `pointerdown` from a primary pointer records `{id, x, y}` only for button 0 inside `.wrap` and not on a button (any other primary press clears it; a second finger is ignored); `pointercancel` with the same id clears it; `pointerup` with the same id moves if the drag length (`Math.hypot`) is ≥ 30 px, along the larger component, ties vertical. `click` on `document` delegates by `e.target.id` (`new`, `undo`, `continue`, the last with the same guard as the keys), since harness stub elements have no `addEventListener`. |
-| Persistence | `localStorage['twofoldBest']`, read at load, written whenever score beats it; every access in try/catch. Undo never lowers best. The game in progress is not saved. |
-| A11y | `#board` `role="grid"` with `aria-label`; `#status` `aria-live="polite"` written only on change: win, game over, `Move undone.`, else empty. `prefers-reduced-motion` drops the transitions. |
-| Layout | `#game-container` `min(400px, 92vw)`; board `aspect-ratio: 1`; the 16 tile uses dark text for contrast; needs a browser from about 2022 (`scale` in keyframes, `aspect-ratio`, `Object.hasOwn`); `.wrap` `touch-action: none` so swipes on the board don't scroll; `body` `min-height:100vh`. |
 
 ### minefield.html
 
@@ -248,22 +212,58 @@ retro-games/
 | 3D flip CSS | `.card` `transform-style: preserve-3d`, `perspective(500px) rotateY(0deg)`, `transition: transform 0.3s`; `.card.up` `rotateY(180deg)`. Back = `::before` (violet stripes), front = `::after` with `content: attr(data-face)` and its own `rotateY(180deg)`; both `backface-visibility: hidden`. `.card.matched::after` turns mint. Hover ring inside `@media (hover: hover)`; amber `:focus-visible` outline; `prefers-reduced-motion` drops the transition. |
 | Layout | `#board` grid with `--size: min(calc((96vw - 24px) / var(--cols) - 8px), var(--max))`; `.normal` 4 cols / 84 px max, `.hard` 6 cols / 60 px max. `#win` is an absolute `inset: 0` overlay inside `.stage`, with `#win[hidden] { display: none }`. Needs about 2021 (`?.`, `min()`, `inset`); `inert` and `:focus-visible` degrade gracefully. |
 
-### bricklash.html
+### snake.html
 
-**Purpose**: Original brick-breaker on a 480×640 canvas: a 6x10 wall (one color per row, top row 60 points down to 10), paddle by mouse/touch or arrows, 3 lives, levels with a faster ball, and wide-paddle / multi-ball capsules. Canvas shapes only.
+**Purpose**: Classic snake on a 400×400 canvas (20×20 cells of 20 px). No ready screen: the run starts moving right on load.
 **Entry point**: open the file in a browser. The script ends with `reset(); requestAnimationFrame(frame);`.
 
 | Item | Detail |
 |---|---|
-| Constants | `W=480`, `H=640`, `HUD=40` (ceiling), `TICK=1000/120`, `HZ=120`, bricks `COLS=10`×`ROWS=6` of `BW=48`×`BH=20` from `TOP=80`, `PADDLE_Y=600`, `PADDLE_H=12`, `PADDLE_W=80`, `WIDE_W=120`, `PADDLE_SPEED=480` px/s, `BALL_R=6`, `SERVE_ANGLE=π/6`, `MAX_BOUNCE=π/3`, `MULTI_ANGLE=π/4`, `CAP_W/CAP_H=24/10`, `CAP_SPEED=150` px/s, `DROP_P=0.125`, `WIDE_TICKS=1200` (10 s), `COLORS` per row, top row first |
-| State | Top-level `let`s: `state` (`serve`/`playing`/`over`), `score`, `lives`, `level`, `bricks` (60 booleans, index `r*10+c`), `balls` (`{x,y,vx,vy}[]`, px/s; `px`/`py`, the previous centre, are set at the start of each ball's step in `tick()`), `capsules` (`{x,y,type}[]`), `paddleX` (left edge), `paddleW`, `wide` (ticks left), `acc`, `last` (previous frame time, `null` until the first frame); `keyL`/`keyR` (held arrows: `reset()` leaves them, so a hold survives a restart, but the top-level `onblur` clears them). Ball speed `speed()` = `min(720, 360 + 40·(level-1))`. |
-| Logic | `tick()`: `movePaddle()`; in serve the ball rests on the paddle centre and nothing else runs; otherwise each ball moves `v/120`, then `walls()`, `paddleHit()` (needs `vy > 0`, the previous bottom `py+BALL_R <= PADDLE_Y` so a paddle slid under a low ball can't scoop it, the ball inside the paddle's y band, and x overlap within `BALL_R`; then angle `60°·clamp(offset/halfWidth)` from vertical at the same speed, ball not repositioned), `brickHit()` (first overlapping cell in index order, one per ball per tick, `(6-row)*10` points; by the previous centre, outside the cell's columns sets `vx` away with `Math.abs`, inside them sets `vy` away by which half it came from, and a corner does both, so a ball already leaving is never turned back; then `random() < 0.125` drops a capsule at the cell centre and `random() < 0.5` picks wide or multi). Then balls whose top passed 640 are dropped; with none left `loseLife()` runs and the tick ends. Otherwise the wide timer counts down before catches (a catch this tick keeps the full 1200 ticks), capsules fall 1.25 px and are caught when their 24×10 box overlaps the paddle rectangle (edges inclusive), and an empty wall calls `nextLevel()`. Multi adds two balls at `balls[0]`, ±45° up, at `speed()`, no cap. `serve()` sets `serve`, clears capsules and `wide`, restores the 80 px paddle about its centre and makes one resting ball; `loseLife()` on the last life clears the same power-ups. `launch()` resets from over, ignores any state but serve, re-seats the ball on the paddle, then fires 30° right of vertical at `speed()`. Helpers: `clamp`, `setWidth(w)` (resize about the centre, clamped to the walls), `restBall(b)`. |
-| Render | `render()` only reads state: HUD band with `Score N` / `Lives N` / `Level N`, bricks inset 1 px (collision uses the full cell), capsules labelled W / M, paddle (amber while wide), balls, serve title and game-over overlay. `setText()` updates `#status` (`aria-live`, written only on change): `Level N, M lives.` (`1 life` for one) `Press Space or click to launch.`, `Playing.`, or `Game Over. Score: N. Press Space or click to play again.` |
-| Loop | `frame(t)`: the first frame only renders; later frames call `step(min(dt,100))` then `render()`. `step` returns while over and its tick loop stops as soon as a tick ends the game. |
-| Input | `keydown` → `onKey` (`String(e.code)`; `preventDefault` on Space and every `Arrow*` code, repeats included; ArrowLeft/Right set `keyL`/`keyR`, a non-repeat Space calls `launch()`), `keyup` clears them; `pointermove` (hover too, no button needed) centres the paddle on the pointer scaled by the canvas `getBoundingClientRect()` (border included, so up to 2 px off); `pointerdown` with `button === 0` calls `launch()`. These four are on `document`. Window blur is a bare top-level `onblur = () => { keyL = keyR = false; }` (a held arrow's keyup never arrives after focus loss; a bare global because the harness has no `window`). `touch-action: none` and `user-select: none` are on `body`, so a drag anywhere steers instead of panning; the canvas has `box-sizing: border-box`, `max-width: 100%`, `max-height: 80vh`. `#hint`: "Mouse, touch or ← → : move · Space / click / tap: launch". |
-| Persistence | None (by spec). |
+| Constants | `N=20`, `CELL=20`, `W=400`, `START_SPEED=8` ticks/s, `SPEED_UP=0.5`, `HS_KEY='snakeHighScore'`, `DIRS` (Arrow and WASD codes → `[dx,dy]`) |
+| State | Top-level `let`s: `snake` (`{x,y}[]`, head first), `dir` (last moved), `nextDir` (queued), `food` (`{x,y}` or `null` on a full board), `score`, `speed`, `acc`, `over`, `won`, `paused`, `wrap` (not touched by `reset()`), `high` (read from `localStorage` at load) |
+| Logic | `reset()`, `onSnake(x,y,cells)`, `placeFood()` (uniform pick over empty cells; none left → `end(true)`), `end(win)` (re-reads the stored high first so another tab's record survives, sets `over`/`won`, writes a beaten high score), `tick()` (one move: wrap or wall, body check against `snake.slice(0, -1)` so the vacating tail is always free (an eating head is never on the snake, since food only spawns on empty cells), grow, +10, +0.5 speed at each multiple of 50, no cap), `step(dt)` (accumulator, `1000/speed` ms per tick; nothing while over or paused; stops after a death mid-step), `onKey(e)` |
+| Render | `render()` only reads state: checkerboard, food, snake, `Score:`/`High:` (live best, `Math.max(high, score)`; `Wrap` only when on) on the canvas in row 0, then a `Paused` or `Game over`/`You win!` + score + `Press Space to restart` overlay. `setText()` updates `#status`. |
+| Loop | `frame(t)`: `step(min(dt,100))` then `render()` |
+| Input | keydown only. Arrows and Space get `preventDefault` (always, even while over). While over only Space acts (`reset()`). Otherwise P toggles pause, T toggles wrap (both ignore repeat), and a direction key sets `nextDir` unless it reverses `dir`, so two keys in one tick can't reverse the snake (the last valid key wins; steering and T still work while paused). Lookup is `Object.hasOwn(DIRS, e.code)`, and `String(e.code)` guards events with no `code`. |
+| Persistence | `localStorage['snakeHighScore']`, read at load and re-read in `end()`; every access is in try/catch, so blocked or missing storage gives high 0 (the in-memory best still updates). |
+| A11y | Canvas `role="img"` with `aria-label`; `#status` is `aria-live="polite"` and changes only with the state (playing + wrap, paused, over/win). |
+| Layout | Canvas `width="400" height="400"`, CSS `max-width:100%`, `max-height:80vh`; `body` `min-height:100vh`. Keyboard only: no pointer or touch handlers and no `touch-action`. |
 
-### harness.mjs, test-gapwing.mjs, test-snake.mjs, test-stackfall.mjs, test-twofold.mjs, test-minefield.mjs, test-molebop.mjs, test-pairflip.mjs, test-bricklash.mjs
+### stackfall.html
+
+**Purpose**: Original falling-blocks puzzle on a 450×600 canvas: a 10×20 board of 30 px cells plus a 150 px side panel (next, hold, score, lines, level). Own name and seven-colour palette.
+**Entry point**: open the file in a browser. The script ends with `reset(); requestAnimationFrame(frame);`.
+
+| Item | Detail |
+|---|---|
+| Constants | `COLS=10`, `ROWS=20`, `CELL=30`, `BW=300`, `H=600`, `W=450`, `LOCK_MS=500`, `SHAPES` (I, O, T, S, Z, J, L as square 0/1 matrices), `KEYS`, `COLORS` (I `#e07a5f`, O `#81b29a`, T `#f2cc8f`, S `#6d9dc5`, Z `#b388eb`, J `#ef6f9f`, L `#4c5ae6`), `POINTS=[0,100,300,500,800]` |
+| State | Top-level `let`s: `board` (20 rows of 10; `''` empty, else the shape key), `piece` (`{k,m,x,y}`), `bag`, `nextK`, `holdK` (`null` until first hold), `canHold`, `score`, `lines`, `dropAcc`, `lockTimer`, `over`. Level is derived: `level()` = 1 + floor(lines/10), `interval()` = max(50, round(1000·0.8^(level-1))) ms. |
+| Logic | `reset()`, `take()` (7-bag, Fisher–Yates on `Math.random`), `spawn(k)` (x = floor((10 - box)/2), y 0, zeroes `dropAcc` and `lockTimer`; collision → `over`), `spawnNext()`, `fits(m,x,y)`, `tryMove(dx,dy)` (a move down resets `lockTimer`; sideways moves don't), `rotate()` (clockwise in its box, kicks 0, -1, +1, never up; does not touch the timers), `ghostY()`, `lock()` (write cells, drop full rows, score × level before the clear, re-enable hold, spawn next), `hold()` (first hold takes `nextK` and one bag piece; a swap uses `spawn(holdK)` and leaves the bag alone; a blocked respawn ends the game), `step(dt)` (falls every `interval()` while it can and zeroes `dropAcc` on landing; when resting, zeroes `dropAcc`, `lockTimer += dt`, lock at 500; air time neither counts nor resets the lock timer), `onKey(e)` |
+| Render | `render()` only reads state: well and grid, locked cells, ghost outline (`strokeRect`, hidden while over), piece, the side panel (`Next`, `Hold` greyed while used, `Score:`/`Lines:`/`Level:`), then a `Game over` + score + `Press R to restart` overlay. `setText()` updates `#status`. |
+| Loop | `frame(t)`: `step(min(dt,100))` then `render()` |
+| Input | keydown only. Arrows and Space get `preventDefault` (always, even while over). While over only R acts (`reset()`). ←/→/↓ accept key repeat; ↑ rotate, Space hard drop and C/Shift hold ignore it. A successful soft drop zeroes `dropAcc`; drops score nothing. `String(e.code)` guards events with no `code`; modifier keys are not filtered. |
+| Persistence | None (by spec) |
+| A11y | Canvas `role="img"` with `aria-label`; `#status` is `aria-live="polite"` and reads `Level N.` or `Game over. Score: N. Press R to restart.`, written only when the text changes. |
+| Layout | Canvas `width="450" height="600"`, CSS `box-sizing:border-box` (so the 2 px border stays inside `max-width:100%`), `max-height:80vh`; `body` `min-height:100vh`. Keyboard only: no pointer or touch handlers. |
+
+### twofold.html
+
+**Purpose**: Original sliding-merge number puzzle on a 4×4 board. DOM-based: the board is a CSS grid of 16 static `.cell`s with absolutely positioned `.tile` elements that slide via `transition: transform`. Own name and teal→violet→coral→gold palette.
+**Entry point**: open the file in a browser. The script ends with `reset(); render();`. There is no `step(dt)` and no rAF loop: `move()`, `undo()` and the button/key handlers call `render()` directly.
+
+| Item | Detail |
+|---|---|
+| Constants | `SIZE=4`, `GOAL=2048`, `SWIPE=30` px, `BEST_KEY='twofoldBest'`, `DIRS` (`left/right/up/down`), `KEYS` (Arrow codes → dir), `CONTINUE_KEYS` (`Enter`, `NumpadEnter`, `KeyC`) |
+| Pure rules | No DOM or globals; inputs never mutated. `emptyBoard()`, `lines(dir)` (cells of each line ordered from the edge tiles slide toward), `track(board, dir)` → `{board, gained, moved, moves}` (compress, then merge equal neighbours with a skip after each merge), `slide(board, dir)` → `{board, gained, moved}`, `addTile(board, rand)` (first `rand()` picks a uniform empty cell, second gives 2 if < 0.9 else 4; full board → unchanged copy), `canMove(board)`, `hasTile(board, value)` |
+| State | Top-level `let`s: `board` (4×4 numbers, 0 empty), `score`, `best`, `won`, `keepPlaying`, `over`, `prev` (`{board, score, ids, won, keepPlaying}` or `null`), `undone`, `ids` (tile id per cell), `ghosts` (tiles merged away last move), `nextId` (never reset, so a new game never reuses an element), `swipeFrom` (`{id, x, y}` of the pointer that started a swipe, or `null`) |
+| Shell | `reset()` (empty board + two `addTile`, clears flags and `prev`), `move(dir)` (ignored while over or on the win message; no-op if nothing moved; else saves `prev`, carries ids via `track().moves`, spawns, scores, saves best, sets `won` on the first 2048 and `over` when `!canMove`, renders, then focuses `#continue` on the first 2048), `keepGoing()` (sets `keepPlaying`), `undo()` (restores `prev` once, including `won` and `keepPlaying`, so undoing past a Continue shows the 2048 message again; clears `over`), `onKey(e)`. `reset()` does not render; callers follow it with `render()`. |
+| Render | `render()` reads game state and writes only the DOM: one element per tile id in an `els` Map (created on first sight, removed when gone), class `tile v<value or big> d<digits>`, `transform: translate(calc(c * (100% + var(--gap))), …)`. Merged-away tiles stay one move as `.gone` under their partner. `setText()` updates `#score`, `#best`, `#message-text`, `#status`; `#message`/`#continue` toggle `hidden`, `#undo` `disabled`. It reads `document.activeElement` first and, if that control ends up hidden or disabled, focuses `#new` (Chrome drops focus to body as soon as a focused control is hidden). The win message wins over game over when both happen in one move. |
+| Input | keydown: arrows `preventDefault` + move (repeat moves again), N new game, U undo; while the win message is up, Enter, numpad Enter or C continue (with `preventDefault`, so the keypress can't click the newly focused button). Other keys untouched; modifiers are not filtered. Any handled key clears a pending swipe. Swipe on `document`: `pointerdown` from a primary pointer records `{id, x, y}` only for button 0 inside `.wrap` and not on a button (any other primary press clears it; a second finger is ignored); `pointercancel` with the same id clears it; `pointerup` with the same id moves if the drag length (`Math.hypot`) is ≥ 30 px, along the larger component, ties vertical. `click` on `document` delegates by `e.target.id` (`new`, `undo`, `continue`, the last with the same guard as the keys), since harness stub elements have no `addEventListener`. |
+| Persistence | `localStorage['twofoldBest']`, read at load, written whenever score beats it; every access in try/catch. Undo never lowers best. The game in progress is not saved. |
+| A11y | `#board` `role="grid"` with `aria-label`; `#status` `aria-live="polite"` written only on change: win, game over, `Move undone.`, else empty. `prefers-reduced-motion` drops the transitions. |
+| Layout | `#game-container` `min(400px, 92vw)`; board `aspect-ratio: 1`; the 16 tile uses dark text for contrast; needs a browser from about 2022 (`scale` in keyframes, `aspect-ratio`, `Object.hasOwn`); `.wrap` `touch-action: none` so swipes on the board don't scroll; `body` `min-height:100vh`. |
+
+### harness.mjs, test-bricklash.mjs, test-gapwing.mjs, test-minefield.mjs, test-molebop.mjs, test-pairflip.mjs, test-snake.mjs, test-stackfall.mjs, test-twofold.mjs
 
 **harness.mjs** exports `load(file, globals = {})`. It:
 - regex-extracts the single bare `<script>`;
@@ -275,6 +275,8 @@ retro-games/
 - `key(code, repeat=false)`
 - `listeners`
 - `texts`
+
+**test-bricklash.mjs** covers each row of the Bricklash spec's I/O matrix and the three review passes: markup (canvas 480x640, one script, no named-game branding), the opening serve (60 bricks, ball on the paddle, HUD text), serve follow and keyup, launch angle and speed with repeat and right-click ignored, launch re-seating the ball after a pointer move, paddle bounce at centre and both edges (normal and wide), no bounce while rising or once the previous bottom was below the paddle top, the 1 px reach cutoff, misses past either side, paddle clamp by keys and pointer (half-size rect, wide paddle at the wall), walls and ceiling, bricks from below / left / right, one brick per tick at a seam, the corner double flip, flip-away when already leaving, row values, losing a life (the 640/642/645 boundary) and multi-ball loss, game over with `step()` frozen and Space/click restart (right-click ignored), level clear with power-ups cleared, level 2 speed and the 720 cap, the 120 Hz step and 100 ms dt cap, capsule rolls through a queued `Math.random` stub, the wide timer (1200 ticks, restart, wall clamp, centre-kept shrink), multi-ball angles, the capsule catch box (edges inclusive) and a missed capsule falling off, power-ups cleared on life loss and game over, `preventDefault` scope, arrow release and `onblur`, rAF wiring, read-only `render()`, HUD values and `#status` writes (change-only, "1 life"). Helpers: `play(balls, more)` resets into play with given balls, `ball(i)` spreads a ball into a host array (vm arrays fail `deepEqual`), `near()` for float tolerance, `hold` parks a ball, `snap()` JSON-snapshots state. It builds custom documents for the pointer clamp (Proxy context, mutable `getBoundingClientRect`) and for `#status` write counts, and loads with a `Math` stub (`Object.create(Math)` with a queued `rq`) and a recording rAF. Run it with `node test-bricklash.mjs`.
 
 **test-gapwing.mjs** covers Gapwing:
 - the still ready screen and its hint
@@ -296,19 +298,17 @@ It loads the game several times with different `globals`: a `Math` built with `O
 
 Run it with `node test-gapwing.mjs`. It uses only Node built-ins plus `node:assert/strict`.
 
-**test-snake.mjs** covers each row of the Snake spec's I/O matrix (wrap-off and wrap-on variants of the death and tail rules): start state, 125 ms tick timing, steering and reverse/double-key rules, eating and uniform food (a pinned `Math.random`), the speed-up, wall/self/tail-cell deaths, wrap on all four edges, the T and P toggles with repeat, the game-over and win screens, Space-only restart, `preventDefault` scope, the dt cap, rAF wiring, read-only `render()`, high score with a `localStorage` stub (live HUD best, win save, another-tab re-read, tick-driven death save, junk value, and a store that throws), inherited key names and events with no `code`, the `#status` text written once per state change, and every `getElementById` id existing in the markup. `memStorage(obj)` builds storage stubs backed by a plain object the test can edit. Run it with `node test-snake.mjs`.
-
-**test-stackfall.mjs** covers each row of the Stackfall spec's I/O matrix: page markup, start state and HUD, spawn columns per shape, the 7-bag (two groups, and order driven by a pinned `Math.random`), move/wall/stack blocking, clockwise rotation and the kick order (x, x-1, x+1, all blocked), soft and hard drop with repeat rules, gravity and the level/interval table, lock delay (including a mid-step landing and the floor-stall rule), 1–4 row clears with the pre-clear level, next preview, hold and swap, rotation limits (flat piece on the floor, upright I flush at either wall), air time not counted by the lock timer, `dropAcc` resets after soft drops, landings and resting steps, fresh timers on spawn, refilled rows as separate arrays, panel HUD text after clears and level-ups, hold queue accounting, drawing checks through a `document` whose context records `fillRect` and `strokeRect` (ghost row, live piece, Next and Hold boxes, `#555` grey hold, nothing but the stack while over), game over, R-only restart, `preventDefault` scope, the dt cap (exactly 100 ms), the first-frame guard, rAF wiring, read-only `render()`, `#status` writes, and every `getElementById` id existing in the markup. `put(k, x, y, m)` places a piece by hand and zeroes both timers. Run it with `node test-stackfall.mjs`.
-
-**test-twofold.mjs** covers each row of the Twofold spec's I/O matrix: page markup (one script, no canvas/rAF/setInterval, grid role, aria-live), the pure functions called directly through `run()` (slide cases in all four directions, no double merge, three and four equal, `moved` false, result keys, purity, `addTile` value and cell draws and full board, `canMove`, `hasTile`), start state, spawn only on change, tile element identity and ghosts across a move, read-only `render()`, arrow keys with repeat and `preventDefault` scope, `canMove` per direction, a seeded 400-board property loop (tile sum kept, `moved` exact, `canMove` exact), tile transforms off the diagonal, ghost text, swipe length threshold and axis, swipe edge cases (button and outside starts, second finger, `pointercancel` per id, other-id `pointerup`, stray `pointerup`, keys clearing a pending drag), win + Continue by click, Enter, numpad Enter or C (message not shown again, except after undoing past it), focus moves (`#continue` on win, `#new` when a focused control hides or disables), win and game over in one move, lose with moves ignored, N and the New game button, one-step undo (also out of game over and the win message), New game clearing every flag and using fresh tile elements, `#status` writes, and best score with `memStorage`, junk, throwing and missing storage. `makeDoc()` builds a `document` with persistent per-id elements (asserting each id exists in the markup), `createElement`, `appendChild`/`remove`, a `focus()` that rejects hidden elements and a `hidden` setter that drops focus like Chrome; `setBoard(b)` places a board with fresh tile ids. Run it with `node test-twofold.mjs`.
-
 **test-minefield.mjs** covers each row of the Minefield spec's I/O matrix: page markup (one script, no canvas/setInterval/sound/assets/face, grid role, aria-live), the opening Easy board, the model through `run()` (`newBoard`, `neighbours` at edges, seeded `placeMines` over all three sizes and several safe cells with counts recomputed, flood with its border, a flag and a question mark in the way, number, blocked reveal, mine, win, mark cycle, chord match/mismatch/loss, a 300x300 flood that would overflow a recursive fill), the shell (first click at four `Math.random` values, cell classes and labels, right-click marks and a negative counter, blocked clicks, the timer before/while playing and its 999 cap, rAF re-queue and the 100 ms dt cap, loss and win screens with input ignored and the timer stopped, chord by click, `#status` writes, difficulty switches including Hard 30x16, New game and N, F and modifier keys, long press timing/slop/cancel/pointer type and click suppression, a late or early `contextmenu` marking once, keys during or after a long press, another pointer's release, Mac versus Windows Ctrl+click and Ctrl+Enter, the first click ringed by flags, chord next to open cells, labels (`1 mine nearby`, `question mark`, unexploded `mine`), the 1-second win message, frame rendering only on a new second, context menu scope, read-only `render()`). Its `makeDoc()` adds `setAttribute`/`getAttribute` and `createElement(tag)`; `setBoard(w,h,mines)` puts a hand-placed board in play. Run it with `node test-minefield.mjs`.
 
 **test-molebop.mjs** covers each row of the Molebop spec's I/O matrix: page markup (one script, no canvas/setInterval/audio/assets, title, aria-live, field role and label, Start button, rAF), the opening page, input ignored outside `playing` (with a mole-still-up check, since the 0 score floor would hide a whack), Start by button, Space, Enter and NumpadEnter (prevent counts, repeats, modifiers), spawn timing (first pop at 500 ms, 800 then 450 ms, a whole-round pop trace in 50 ms steps, overshoot carry 794/444), up-time range, random empty-hole choice, kind rolls, a full field, hits and misses (score floor, right button, `detail` 0 vs 1, press plus click whacks once), the bomb end and the 500 ms end lock, time-up and a step past 0 (60 fps loop), the countdown `ceil`, looks and labels (a mole keeps its look while sliding down), change-only render writes, rAF re-queue / 100 ms cap / render only on change, the Digit and Numpad maps, and best score with `memStorage`, junk, throwing and missing storage. Its `makeDoc()` adds `className`, `hidden` and `inert` setters and a write counter `w.n`; the `Math` stub takes queued values from `rq` and counts draws in `calls` (3 per pop); `put(i, kind, up)` places a mole by hand. Run it with `node test-molebop.mjs`.
 
 **test-pairflip.mjs** covers the Pairflip spec's I/O matrix and the review-pass fixes: page markup (one script; no `setTimeout`, `setInterval`, canvas, audio, `src=`, `href=`, `@import`, `url(`, `localStorage` or emoji; CSS strings for the flip, `attr(data-face)`, the hover media query and reduced motion), `shuffle` outputs for fixed `rand` values and in-place, every letter exactly twice over 50 seeded deals per mode, the opening page (no `data-face`, `tabindex` 0), timer start on first flip, mismatch still up at 799 ms and down at 800 ms through `frame`, third click and re-clicks ignored, the 100 ms dt cap, matches (`tabindex` -1), the win (inert board, `#again` focused, frozen timer), held-key prevents, Play again / Restart / R (reshuffle, stale `data-face`, focus rules, Hard kept), Hard 6x6 and back, mode-click focus, and `clock()`. Its own `makeDoc()` asserts each id exists in the markup, tracks `focused.el` behind `document.activeElement`, and counts writes (`touches.n`/`touches.sets`, per-id `writes`) so quiet frames and unchanged renders must write nothing; `tick(ms)` asserts `frame` re-queued itself; `stubMath` takes a swappable `rand`. Run it with `node test-pairflip.mjs`.
 
-**test-bricklash.mjs** covers each row of the Bricklash spec's I/O matrix and the three review passes: markup (canvas 480x640, one script, no named-game branding), the opening serve (60 bricks, ball on the paddle, HUD text), serve follow and keyup, launch angle and speed with repeat and right-click ignored, launch re-seating the ball after a pointer move, paddle bounce at centre and both edges (normal and wide), no bounce while rising or once the previous bottom was below the paddle top, the 1 px reach cutoff, misses past either side, paddle clamp by keys and pointer (half-size rect, wide paddle at the wall), walls and ceiling, bricks from below / left / right, one brick per tick at a seam, the corner double flip, flip-away when already leaving, row values, losing a life (the 640/642/645 boundary) and multi-ball loss, game over with `step()` frozen and Space/click restart (right-click ignored), level clear with power-ups cleared, level 2 speed and the 720 cap, the 120 Hz step and 100 ms dt cap, capsule rolls through a queued `Math.random` stub, the wide timer (1200 ticks, restart, wall clamp, centre-kept shrink), multi-ball angles, the capsule catch box (edges inclusive) and a missed capsule falling off, power-ups cleared on life loss and game over, `preventDefault` scope, arrow release and `onblur`, rAF wiring, read-only `render()`, HUD values and `#status` writes (change-only, "1 life"). Helpers: `play(balls, more)` resets into play with given balls, `ball(i)` spreads a ball into a host array (vm arrays fail `deepEqual`), `near()` for float tolerance, `hold` parks a ball, `snap()` JSON-snapshots state. It builds custom documents for the pointer clamp (Proxy context, mutable `getBoundingClientRect`) and for `#status` write counts, and loads with a `Math` stub (`Object.create(Math)` with a queued `rq`) and a recording rAF. Run it with `node test-bricklash.mjs`.
+**test-snake.mjs** covers each row of the Snake spec's I/O matrix (wrap-off and wrap-on variants of the death and tail rules): start state, 125 ms tick timing, steering and reverse/double-key rules, eating and uniform food (a pinned `Math.random`), the speed-up, wall/self/tail-cell deaths, wrap on all four edges, the T and P toggles with repeat, the game-over and win screens, Space-only restart, `preventDefault` scope, the dt cap, rAF wiring, read-only `render()`, high score with a `localStorage` stub (live HUD best, win save, another-tab re-read, tick-driven death save, junk value, and a store that throws), inherited key names and events with no `code`, the `#status` text written once per state change, and every `getElementById` id existing in the markup. `memStorage(obj)` builds storage stubs backed by a plain object the test can edit. Run it with `node test-snake.mjs`.
+
+**test-stackfall.mjs** covers each row of the Stackfall spec's I/O matrix: page markup, start state and HUD, spawn columns per shape, the 7-bag (two groups, and order driven by a pinned `Math.random`), move/wall/stack blocking, clockwise rotation and the kick order (x, x-1, x+1, all blocked), soft and hard drop with repeat rules, gravity and the level/interval table, lock delay (including a mid-step landing and the floor-stall rule), 1–4 row clears with the pre-clear level, next preview, hold and swap, rotation limits (flat piece on the floor, upright I flush at either wall), air time not counted by the lock timer, `dropAcc` resets after soft drops, landings and resting steps, fresh timers on spawn, refilled rows as separate arrays, panel HUD text after clears and level-ups, hold queue accounting, drawing checks through a `document` whose context records `fillRect` and `strokeRect` (ghost row, live piece, Next and Hold boxes, `#555` grey hold, nothing but the stack while over), game over, R-only restart, `preventDefault` scope, the dt cap (exactly 100 ms), the first-frame guard, rAF wiring, read-only `render()`, `#status` writes, and every `getElementById` id existing in the markup. `put(k, x, y, m)` places a piece by hand and zeroes both timers. Run it with `node test-stackfall.mjs`.
+
+**test-twofold.mjs** covers each row of the Twofold spec's I/O matrix: page markup (one script, no canvas/rAF/setInterval, grid role, aria-live), the pure functions called directly through `run()` (slide cases in all four directions, no double merge, three and four equal, `moved` false, result keys, purity, `addTile` value and cell draws and full board, `canMove`, `hasTile`), start state, spawn only on change, tile element identity and ghosts across a move, read-only `render()`, arrow keys with repeat and `preventDefault` scope, `canMove` per direction, a seeded 400-board property loop (tile sum kept, `moved` exact, `canMove` exact), tile transforms off the diagonal, ghost text, swipe length threshold and axis, swipe edge cases (button and outside starts, second finger, `pointercancel` per id, other-id `pointerup`, stray `pointerup`, keys clearing a pending drag), win + Continue by click, Enter, numpad Enter or C (message not shown again, except after undoing past it), focus moves (`#continue` on win, `#new` when a focused control hides or disables), win and game over in one move, lose with moves ignored, N and the New game button, one-step undo (also out of game over and the win message), New game clearing every flag and using fresh tile elements, `#status` writes, and best score with `memStorage`, junk, throwing and missing storage. `makeDoc()` builds a `document` with persistent per-id elements (asserting each id exists in the markup), `createElement`, `appendChild`/`remove`, a `focus()` that rejects hidden elements and a `hidden` setter that drops focus like Chrome; `setBoard(b)` places a board with fresh tile ids. Run it with `node test-twofold.mjs`.
 
 ### _bmad-output/implementation-artifacts
 
@@ -349,7 +349,7 @@ sequenceDiagram
     participant render
     Browser->>frame: requestAnimationFrame(t)
     frame->>step: step(min(dt,100))
-    Note over step: gapwing: tick() every 1000/60 ms while playing<br/>snake: tick() every 1000/speed ms unless paused or over<br/>stackfall: fall every interval() ms, or lock 500 ms after resting<br/>bricklash: tick() every 1000/120 ms unless over<br/>first frame only renders
+    Note over step: bricklash: tick() every 1000/120 ms unless over<br/>gapwing: tick() every 1000/60 ms while playing<br/>snake: tick() every 1000/speed ms unless paused or over<br/>stackfall: fall every interval() ms, or lock 500 ms after resting<br/>first frame only renders
     frame->>render: render() (read-only)
     frame->>Browser: requestAnimationFrame(frame)
     Note over Browser,step: keydown → onKey(e) mutates state (e.code), pointerdown → flap()
@@ -393,12 +393,12 @@ sequenceDiagram
 - **`listeners[type]` keeps only the last listener per event type**, and the default `getElementById` returns a fresh element on every call, so `setText` writes can't be observed without a custom `document` in `globals`. `globals` are spread after the defaults, so they replace `Math`, `document` or `requestAnimationFrame` wholesale.
 - **Stubbed `Math` must be `Object.create(Math)`** with overrides on top; spreading `Math` gives an empty object because its properties are non-enumerable.
 - **The default `getElementById` stub accepts any id**, so a renamed element id won't fail a test unless the test passes its own `document` (test-snake and test-stackfall check this; test-gapwing doesn't).
-- **Snake ticks only through `step()`.** Tests that call `tick()` directly bypass pause and timing. Food is parked at (0,0) in many tests to avoid accidental eating.
-- **Stackfall kicks only sideways.** A piece resting flat on the floor or a flat stack cannot rotate, and an upright I flush against either wall cannot rotate from one of its two vertical positions. The lock timer counts only resting time: air time pauses it, sideways moves and rotations don't reset it, only a fall does. A swap with the held piece bypasses the 7-bag. The bag-order asserts (`ILJZSTO`, `LJZSTOI`) depend on the shuffle and `KEYS` order.
-- **Molebop's CSS carries behaviour the node tests can't see.** `#panel[hidden] { display: none }` (the panel's `display: flex` would beat `hidden`), `.mole { pointer-events: none }` (so taps land on the hole button that `holeEls.indexOf` looks up) and `.up .mole` (the rise). Removing any of them breaks play with every test green. Other non-obvious rules: the pop gap is chosen at the previous pop, so the first 450 ms gap starts up to 350 ms after the 10 s mark; a whacked or expired mole keeps its look while it slides down (a press in that 120 ms costs 1); the end lock counts down only in `step` while over.
-- **Pairflip's `data-face` is stale on face-down cards by design.** `render()` writes it only while a card is up, so a card turning back keeps its old letter instead of flashing the new deck after a reshuffle. Read a card's state from its class or `aria-label`, not `data-face`. The 100 ms dt cap also stretches the 800 ms flip-back after a long frame, and `frame` renders only when the shown second or `open.length` changes, so a new step-driven visual needs that condition extended. Its CSS (`#win[hidden]`, the 3D flip, `:focus-visible`) is checked only as text; headless Chrome and Firefox render it, Safari is unchecked.
 - **Bricklash's `onblur` is a bare global, not a listener.** It never appears in `listeners`; tests call `run('onblur()')`. Hand-built balls have no `px`/`py` until their first `tick()`, so calling `paddleHit` or `brickHit` on them directly skips the previous-position rules (NaN compares false). Its tests read `balls`, `bricks`, `capsules`, `wide`, `acc`, `last`, `keyL`, `keyR`, `paddleX`, `paddleW`, `COLORS` and `WIDE_W` by name, so renames break them.
 - **Gapwing has no ceiling.** The bird can fly above the canvas; a pillar column there still kills it. Caps and beak are drawn outside the hitbox on purpose.
+- **Molebop's CSS carries behaviour the node tests can't see.** `#panel[hidden] { display: none }` (the panel's `display: flex` would beat `hidden`), `.mole { pointer-events: none }` (so taps land on the hole button that `holeEls.indexOf` looks up) and `.up .mole` (the rise). Removing any of them breaks play with every test green. Other non-obvious rules: the pop gap is chosen at the previous pop, so the first 450 ms gap starts up to 350 ms after the 10 s mark; a whacked or expired mole keeps its look while it slides down (a press in that 120 ms costs 1); the end lock counts down only in `step` while over.
+- **Pairflip's `data-face` is stale on face-down cards by design.** `render()` writes it only while a card is up, so a card turning back keeps its old letter instead of flashing the new deck after a reshuffle. Read a card's state from its class or `aria-label`, not `data-face`. The 100 ms dt cap also stretches the 800 ms flip-back after a long frame, and `frame` renders only when the shown second or `open.length` changes, so a new step-driven visual needs that condition extended. Its CSS (`#win[hidden]`, the 3D flip, `:focus-visible`) is checked only as text; headless Chrome and Firefox render it, Safari is unchecked.
+- **Snake ticks only through `step()`.** Tests that call `tick()` directly bypass pause and timing. Food is parked at (0,0) in many tests to avoid accidental eating.
+- **Stackfall kicks only sideways.** A piece resting flat on the floor or a flat stack cannot rotate, and an upright I flush against either wall cannot rotate from one of its two vertical positions. The lock timer counts only resting time: air time pauses it, sideways moves and rotations don't reset it, only a fall does. A swap with the held piece bypasses the 7-bag. The bag-order asserts (`ILJZSTO`, `LJZSTOI`) depend on the shuffle and `KEYS` order.
 - **The skill trees are triplicated, not symlinked.** Hand edits drift, so customize through `_bmad/custom/<skill>.toml`. The installer rewrites all three on every update.
 - **gds `primary_platform = "other"`** (web, set with `--set`). `gds-test-framework` still targets Unity, Unreal and Godot, not this harness.
 - **Installer-managed, do not edit:** `_bmad/config*.toml`, `_bmad/*/config.yaml`, `_bmad/_config/*`, `*/module-help.csv`, and every skill's `customize.toml`.
@@ -410,15 +410,16 @@ sequenceDiagram
   1. Copy the shape of `gapwing.html`.
   2. Add `test-<name>.mjs` that calls `load('./<name>.html')`.
   3. Optionally add `_bmad-output/implementation-artifacts/spec-<name>.md`.
+  4. List it in alphabetical order everywhere games are listed (`CLAUDE.md`, `README.md`, this map).
+- **Change Bricklash speeds, sizes or power-ups:** the constants and `speed()` are at the top of `bricklash.html`; `tick()` runs one 120 Hz step, `paddleHit()` sets the bounce angle, `brickHit()` scores and drops capsules, `catchCapsule()` applies them, `serve()`/`loseLife()` clear power-ups, `onKey`/`onKeyUp`/`onPointerMove`/`onblur` handle input. Then update `test-bricklash.mjs`.
 - **Change Gapwing physics, spawn or ramp:** the constants are at the top of `gapwing.html`; `tick()` runs one frame, `gapFor()` sets the ramp, `hits()` the hitbox. Then update `test-gapwing.mjs`.
-- **Change Stackfall shapes, speed, scoring or lock delay:** the constants and `level()`/`interval()` are at the top of `stackfall.html`; `step()` owns gravity and the lock timer, `lock()` clears rows and scores. Then update `test-stackfall.mjs`.
-- **Change Snake speed, scoring or rules:** the constants are at the top of `snake.html`; `tick()` does one move (collision, growth, speed-up), `end()` saves the high score. Then update `test-snake.mjs`.
 - **Change Minefield rules:** the board model (`newBoard`, `placeMines`, `openCell`, `reveal`, `cycleMark`, `chord`, `status`) is at the top of `minefield.html`; `open()`, `mark()` and `step()` wire it to the page. Then update `test-minefield.mjs`.
 - **Change Molebop timing, scoring or kinds:** the constants are at the top of `molebop.html`; `step()` owns the clock, pops and end lock, `pop()` picks hole and kind, `whack()` scores, `end()` saves the best. Then update `test-molebop.mjs`.
 - **Change Pairflip modes, flip-back delay or focus handling:** `MODES` and `FLIP_BACK` are at the top of `pairflip.html`; `reset()` deals, `flip()` scores and focuses `#again` on a win, `step()` owns the clock and flip-back, `restart()` handles focus. Then update `test-pairflip.mjs`.
-- **Change Bricklash speeds, sizes or power-ups:** the constants and `speed()` are at the top of `bricklash.html`; `tick()` runs one 120 Hz step, `paddleHit()` sets the bounce angle, `brickHit()` scores and drops capsules, `catchCapsule()` applies them, `serve()`/`loseLife()` clear power-ups, `onKey`/`onKeyUp`/`onPointerMove`/`onblur` handle input. Then update `test-bricklash.mjs`.
+- **Change Snake speed, scoring or rules:** the constants are at the top of `snake.html`; `tick()` does one move (collision, growth, speed-up), `end()` saves the high score. Then update `test-snake.mjs`.
+- **Change Stackfall shapes, speed, scoring or lock delay:** the constants and `level()`/`interval()` are at the top of `stackfall.html`; `step()` owns gravity and the lock timer, `lock()` clears rows and scores. Then update `test-stackfall.mjs`.
 - **Change Twofold rules:** the pure functions (`track`, `slide`, `addTile`, `canMove`) are at the top of `twofold.html`; `move()` wires them to state. Then update `test-twofold.mjs`.
-- **Run the tests:** `node test-gapwing.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs && node test-minefield.mjs && node test-molebop.mjs && node test-pairflip.mjs && node test-bricklash.mjs`. Nothing in the repo drives the games in a real browser.
+- **Run the tests:** `node test-bricklash.mjs && node test-gapwing.mjs && node test-minefield.mjs && node test-molebop.mjs && node test-pairflip.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs`. Nothing in the repo drives the games in a real browser.
 - **Customize a BMAD agent or workflow:** use `_bmad/custom/<skill>.toml` (team) or `.user.toml` (personal). The `bmad-customize` skill helps with this.
 - **Change BMAD output paths:** set `[core].output_folder` and `[modules.<mod>].*_artifacts` in `_bmad/custom/config.toml`.
 - **Add or remove BMAD modules:** `npx bmad-method@6.12.4 install --directory . --modules bmm,gds,cis,tea,bmb,bmad-loop --tools claude-code,opencode,qwen --set gds.primary_platform=other --action update --yes`. Leaving a module out of `--modules` does not delete its skill directories; remove those by hand.
