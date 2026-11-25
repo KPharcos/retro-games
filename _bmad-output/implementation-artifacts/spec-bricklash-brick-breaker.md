@@ -295,4 +295,4 @@ Status: done
 
 **Verification:** all eight suites pass, `node test-bricklash.mjs` included. The new reach test fails on the 20 px cutoff mutant.
 
-**Residual risks:** phone-width layout, touch drag and window blur not played in a real browser; "edge = steeper" and the name are open decisions for the user; `docs/CODEBASE_MAP.md` lags the code (deferred).
+**Residual risks:** phone-width layout, touch drag and window blur not played in a real browser; `docs/CODEBASE_MAP.md` lags the code (deferred). The user kept the name Bricklash and the edge angle as built (60° from vertical).
