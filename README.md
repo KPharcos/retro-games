@@ -92,9 +92,9 @@ Pairflip needs a browser from about 2021 or later (it uses `?.`, `min()` and `in
 | ↑ / ↓ | Move the right paddle while held (2-player mode only) |
 | Space | Serve from the centre; after the match, start a new one at 0-0 |
 | 2 players checkbox | Switch between playing the AI and a second player on the same keyboard |
-| AI speed slider | Set how fast the AI paddle can move, 2 to 8 px per frame (default 4) |
+| AI speed slider | Set how fast the AI paddle can move, 2 to 8 px per 1/60 s step (default 4) |
 
-The game runs on a fixed 60 Hz step, so speeds are per frame on any display. Each serve leaves the centre at 5 px per frame, at a random angle up to 30° from horizontal, toward a random side. Every paddle hit makes the ball 5% faster, with no cap, and where it meets the paddle sets its angle: the centre sends it back flat, the edges up to 60°. The top and bottom walls bounce it. A ball that passes a paddle and leaves the court scores for the other side, and the next serve is back at 5 px per frame. First to 7 wins. The AI moves its paddle toward the ball at up to the slider's speed, so steep edge shots can beat it. Changing the mode or the AI speed takes effect at once without resetting the match; the slider is disabled in 2-player mode. Space on the focused checkbox toggles it instead of serving. There is no pause, sound, touch control or saved score.
+The game runs on a fixed step of 1/60 s whatever the display's refresh rate, and all speeds are per step. Each serve leaves the centre at 5 px per step, at a random angle up to 30° from horizontal, toward a random side. Every paddle hit makes the ball 5% faster, with no cap, and where it meets the paddle sets its angle: the centre sends it back flat, the edges up to 60°. The top and bottom walls bounce it. A ball that passes a paddle and leaves the court scores for the other side, and the next serve is back at 5 px per step. First to 7 wins. The AI moves its paddle toward the ball at up to the slider's speed, so steep edge shots can beat it. Changing the mode or the AI speed takes effect at once without resetting the match; the slider is disabled in 2-player mode. Space on the focused checkbox toggles it instead of serving. There is no pause, sound, touch control or saved score.
 
 ### Snake controls
 

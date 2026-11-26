@@ -5,7 +5,8 @@ created: '2026-11-26'
 status: 'done'
 baseline_revision: '81050303b0a3e628aad8b214f2c56bea3c74129a'
 review_loop_iteration: 0
-followup_review_recommended: true
+followup_review_recommended: false
+followup_pass: true
 context: ['{project-root}/CLAUDE.md']
 warnings: ['oversized']
 deferred:
@@ -15,6 +16,20 @@ deferred:
       Review pass 1 (blind-hunter, edge-case-hunter). CODEBASE_MAP is an agent-context doc linked from CLAUDE.md, so the fix is deferred; a cartographer re-map refreshes it, as after earlier games.
     location: >-
       docs/CODEBASE_MAP.md
+    severity: low
+  - summary: >-
+      docs/CODEBASE_MAP.md's getElementById gotcha names only test-rallyline, test-snake and test-stackfall as checking element ids; the Minefield, Molebop, Pairflip and Twofold tests check them too.
+    evidence: |-
+      Follow-up pass (blind-hunter). Each of those four tests asserts that every requested id exists in the markup. The sentence already left them out on main (8105030). Agent-context doc, so deferred.
+    location: >-
+      docs/CODEBASE_MAP.md (Gotchas, default getElementById stub)
+    severity: low
+  - summary: >-
+      docs/CODEBASE_MAP.md's data-flow diagram note and Conventions section do not mention Rallyline's document-level input listener for page controls.
+    evidence: |-
+      Follow-up pass (blind-hunter). The diagram note (keydown, pointerdown to flap()) is unchanged from main and Conventions has no mention of the listener; the Rallyline module section does describe it. Agent-context doc, so deferred.
+    location: >-
+      docs/CODEBASE_MAP.md (data-flow diagram note, Conventions)
     severity: low
 ---
 
@@ -117,6 +132,45 @@ deferred:
   - `[false]` `[reject]` stretch controls tested through stubs, not real widgets (intent-alignment) — the implementer drove the real checkbox and range in Chrome over DevTools; Firefox/Safari carried to residual risk.
   - `[false]` `[reject]` extra files beyond a single HTML file (intent-alignment) — the game is one file; the test and docs follow repo convention.
 
+### 2026-11-26 — Review pass (follow-up)
+- verdicts: 35 findings — high 0, medium 3, low 28, false 4, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` wall bounce and paddle face in the same tick: crossing y ignores the wall (blind-hunter) — reproduced: three covered balls missed and one took its angle from y 2.8; the pass-1 patch caused it by moving paddleHit ahead of the wall checks. The crossing y is now mirrored off the wall before overlap and angle; top and bottom tests pin the y, the velocity and the call order.
+  - `[low]` `[patch]` tests miss the paddle-before-wall order, paddles staying after a point and held keys surviving reset (blind-hunter) — the wall tests pin the order; the other two have new tests.
+  - `[low]` `[patch]` tests never check the drawing (blind-hunter) — the stub records fillRect and text positions; paddles, ball, a centre dash and both scores asserted.
+  - `[low]` `[patch]` aria-live, autocomplete="off" and the repeat guard on the checkbox are unasserted (blind-hunter) — asserts added; a checkbox-only repeat mutant now fails.
+  - `[false]` `[reject]` readControls() never runs at load (blind-hunter) — carried: both inputs have autocomplete="off", which stops form restoration, and a bfcache restore keeps the JS state with the DOM.
+  - `[low]` `[reject]` onInput blurs the checkbox on any activation, not just the mouse (blind-hunter) — real for assistive-technology or switch clicks; focus can be tabbed back, and the fix adds pointer-detection logic.
+  - `[low]` `[reject]` after tabbing to the checkbox, Space keeps toggling it while the screen says "Press Space to serve" (blind-hunter) — normal behaviour for a focused checkbox and what the contract asks; Tab moves off it; not worth more hint text.
+  - `[low]` `[reject]` onKey ignores Ctrl, Meta and Alt (blind-hunter) — a modified key is unlikely mid-rally, blur or another keyup frees a stuck key, and the fix adds a guard.
+  - `[low]` `[patch]` README says speeds are per frame on any display (blind-hunter) — now stated per 1/60 s step in the table and the rules paragraph.
+  - `[low]` `[reject]` AI speed slider shows no number (blind-hunter) — the thumb shows the level; a readout adds an element and update code the intent did not ask for.
+  - `[low]` `[reject]` winner label changes if the mode is toggled after the match (blind-hunter) — carried: needs a tick of the box after the match ends; the fix adds stored mode state.
+  - `[low]` `[defer]` CODEBASE_MAP spec-status line and totals stale (blind-hunter) — carried: already in the deferred map entry.
+  - `[low]` `[defer]` CODEBASE_MAP element-id gotcha omits four tests that check ids (blind-hunter) — verified; the omission is on main; agent-context doc.
+  - `[low]` `[defer]` CODEBASE_MAP diagram note and Conventions omit the input listener (blind-hunter) — verified; agent-context doc.
+  - `[medium]` `[patch]` ball crossing a wall and the paddle face in one tick misses a covering paddle (edge-case-hunter) — same entry as the blind-hunter wall row; mirrored rather than clamped, so the y matches the bounce.
+  - `[low]` `[reject]` a ball that just misses a paddle end can then overlap the paddle body (edge-case-hunter) — visual only, the ball is already past the face and goes on to score; the contract limits hits to a front-face crossing and side collision adds a branch.
+  - `[low]` `[reject]` winner label changes if the mode is toggled on the over screen (edge-case-hunter) — carried: as the blind-hunter winner row.
+  - `[low]` `[reject]` Ctrl, Meta or Alt keydown moves paddles or serves (edge-case-hunter) — as the blind-hunter modifier row.
+  - `[low]` `[reject]` mouse press dragged off the checkbox leaves it focused, so Space toggles it (edge-case-hunter) — rare gesture, the box visibly changes and Space again restores it; the fix adds a pointer listener.
+  - `[low]` `[reject]` non-mouse checkbox activation loses focus (edge-case-hunter) — as the blind-hunter blur row.
+  - `[low]` `[defer]` CODEBASE_MAP totals stale (edge-case-hunter) — carried: already in the deferred map entry.
+  - `[low]` `[patch]` no test for a ball passing above a paddle (verification-gap) — left and right cases added.
+  - `[low]` `[patch]` no test that paddles, ball or centre line are drawn (verification-gap) — fillRect asserts added.
+  - `[low]` `[patch]` right-hand canvas score and hiding the serve prompt untested (verification-gap) — in-play canvas text asserted as exactly 2 and 4 at their positions.
+  - `[low]` `[patch]` no test for a held key carrying through a restart (verification-gap) — test added.
+  - `[low]` `[patch]` no test that paddles stay put after a point (verification-gap) — test added.
+  - `[medium]` `[patch]` ball passes through a paddle when it reaches a wall and the face in one tick, including at serve speed (verification-gap) — same entry as the blind-hunter wall row.
+  - `[low]` `[defer]` CODEBASE_MAP spec-status line outdated (verification-gap) — carried: already in the deferred map entry.
+  - `[low]` `[reject]` the 0.5 ms snap lets 58.3-61.8 Hz displays tick at their refresh rate, not exactly 60 Hz (intent-alignment) — at most about 3% in speed, unlikely to be noticed; a narrower window brings jitter back and interpolation adds code.
+  - `[false]` `[reject]` restarting takes two Space presses (intent-alignment) — the matrix row "Space → 0-0 serve" names the serve state, and the restarted screen shows "Space to serve".
+  - `[low]` `[reject]` a finished match can be relabelled by the mode toggle (intent-alignment) — carried: as the blind-hunter winner row.
+  - `[low]` `[patch]` tests do not see drawing or score placement (intent-alignment) — covered by the new fillRect and text-position asserts.
+  - `[false]` `[reject]` displayed size may be under 800x500 (intent-alignment) — carried: the canvas is 800x500; CSS only shrinks it on small viewports.
+  - `[false]` `[reject]` controls tested through stubs, not real widgets (intent-alignment) — carried: real-browser checks cover them; this auditor reports Chrome and Firefox matching the contract.
+  - `[low]` `[defer]` CODEBASE_MAP spec-status line and totals (intent-alignment) — carried: already in the deferred map entry.
+
 ## Design Notes
 
 At speed 5 and 60°, vy ≈ 4.33 px/tick, already faster than the default AI's 4, and speed grows each hit, so edge shots beat the AI. Front-face crossing (prev leading edge on the near side, new one past it) stops fast balls tunnelling through the 12 px paddle without a cap.
@@ -150,3 +204,26 @@ Status: done
 **Verification:** `node test-bricklash.mjs && node test-gapwing.mjs && node test-minefield.mjs && node test-molebop.mjs && node test-pairflip.mjs && node test-rallyline.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs` -- all nine pass. The implementer broke four rules on purpose (step guard, jitter snap, crossing y, flush y) and each made the suite fail. Before the patches, a headless Chrome screenshot of the serve screen showed the paddles, ball, centre line, 0-0 and "Space to serve", and real Chrome checks via DevTools showed that Space on the checkbox and a mouse click on it behave as specified.
 
 **Residual risks:** Space on the focused checkbox not checked in Firefox or Safari; real-browser play not re-checked after the collision patch; Gapwing keeps the same 60 Hz jitter (other games out of scope); `docs/CODEBASE_MAP.md` totals stale (deferred).
+
+### Follow-up pass 2026-11-26
+
+**Summary:** A fresh review pass (`followup_pass`) on the committed change, run from `done`. Four reviewers, 35 findings (high 0, medium 3, low 28, false 4). It found one real gameplay bug: if the ball bounced off the top or bottom wall and reached a paddle face in the same tick, the paddle could miss a ball it covered, which scored a wrong point. The pass-1 collision patch had introduced it. It happened at serve speed with a paddle close to, but not touching, a wall, and with a paddle flush on the wall once the ball was fast.
+
+**Patched:** 8 entries (high 0, medium 1, low 7).
+- `rallyline.html`: the crossing y is mirrored off the wall before the overlap test and the bounce angle (medium).
+- `test-rallyline.mjs`: ball above a paddle; paddle, ball and centre-dash drawing; in-play scores and their positions; a held key through a restart; paddles staying after a point; the aria-live, autocomplete and checkbox-repeat guards. Top and bottom wall cases cover the fix.
+- `README.md`: speeds are stated per 1/60 s step, not per frame.
+
+**Files changed:** `rallyline.html`, `test-rallyline.mjs`, `README.md`, `docs/CODEBASE_MAP.md` (one clause on the mirrored y), and this spec.
+
+**Deferred:** two new `docs/CODEBASE_MAP.md` entries (element-id gotcha; input listener missing from the diagram note and Conventions). The earlier totals and status-line entry is carried.
+
+**Rejected:** carried: controls not read at load; the winner label following a mode change after the match; display size; stub-tested controls. New: a non-mouse checkbox activation losing focus (needs pointer detection); Space toggling a tabbed-to checkbox (normal checkbox behaviour, per the contract); Ctrl/Meta/Alt not filtered (unlikely, adds a guard); no number on the AI slider (not asked for); overlap with a paddle body after a miss (visual only, front-face hits per the contract); a drag-off leaving the checkbox focused (rare, adds a listener); 58.3-61.8 Hz displays ticking at refresh rate (about 3% at most); two presses to restart (false: the matrix says Space goes to the serve state).
+
+**Follow-up review recommendation:** false. Follow-up pass converged: no high patched (high 0, medium 1, low 7).
+
+**Verification:** all nine suites pass (the command under Verification), run after the patches. The three missed-ball repros and the off-court-angle repro now hit inside the court. On a scratch copy, removing the mirror, moving the paddle checks after the wall checks, and letting a repeat Space toggle the checkbox each failed the suite.
+
+**Process notes:** the harness only runs subagents in the background, so the run waited for their completion notices instead of making blocking calls. This pass left the spec out of the review diff; the pass-1 diff had included it. Even so, reviewers other than the edge-case layer saw it: the intent auditor said it opened the file, and the blind hunter cited its contents.
+
+**Residual risks:** no real-browser rally played since either collision change. The intent auditor reports one toggle per Space on the checkbox in Chrome and Firefox; Safari is unchecked. A ball bouncing off both walls in one tick is not handled; by the speed formula that needs roughly 97 paddle hits. `docs/CODEBASE_MAP.md` still lags in the deferred places.

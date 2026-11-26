@@ -11,15 +11,21 @@ const DEG = Math.PI / 180;
 assert.match(html, /<canvas[^>]*\bwidth="800"[^>]*\bheight="500"/);
 assert.equal(html.match(/<script/g).length, 1);
 assert.ok(!/pong|atari/i.test(html), 'named-game branding');
-assert.match(html, /<input type="checkbox" id="two"/);
-assert.match(html, /<input type="range" id="ai" min="2" max="8" step="1" value="4"/);
+assert.match(html, /<input type="checkbox" id="two" autocomplete="off">/);
+assert.match(html, /<input type="range" id="ai" min="2" max="8" step="1" value="4" autocomplete="off">/);
+assert.match(html, /<div id="status" aria-live="polite">/);
 
 // A document stub with real-ish #two / #ai elements, a focus tracker and per-id write counts
 let rq = [];
 const stubMath = Object.assign(Object.create(Math), { random: () => rq.shift() ?? 0.5 }); // spread would be empty: Math's props are non-enumerable
 function makeDoc() {
-  const pctx = new Proxy({}, { get: (_, k) => (k === 'fillText' ? (t) => texts.push(t) : () => {}), set: () => true });
-  const texts = [], listeners = {}, writes = {}, focus = { el: null };
+  // texts: strings only; textAt: [text, x, y]; rects: fillRect arguments
+  const pctx = new Proxy({}, {
+    get: (_, k) => (k === 'fillText' ? (t, x, y) => { texts.push(t); textAt.push([t, x, y]); }
+      : k === 'fillRect' ? (...a) => rects.push(a) : () => {}),
+    set: () => true,
+  });
+  const texts = [], textAt = [], rects = [], listeners = {}, writes = {}, focus = { el: null };
   const els = {
     two: { id: 'two', checked: false, blur() { if (focus.el === this) focus.el = null; } },
     ai: { id: 'ai', value: '4', disabled: false },
@@ -42,10 +48,10 @@ function makeDoc() {
     return prevented;
   };
   const up = (code) => listeners.keyup({ code, preventDefault() {} });
-  return { ...g, key, up, listeners, els, writes, focus, texts };
+  return { ...g, key, up, listeners, els, writes, focus, texts, textAt, rects };
 }
 
-const { run, key, up, listeners, els, writes, focus, texts } = makeDoc();
+const { run, key, up, listeners, els, writes, focus, texts, textAt, rects } = makeDoc();
 const ball = () => [...run('[ball.x, ball.y, ball.vx, ball.vy]')]; // spread: vm arrays fail deepEqual across realms
 const play = (b, more = '') => run(`reset(); state = 'playing'; ball = ${b}; ${more}`);
 
@@ -153,6 +159,9 @@ assert.deepEqual(ball(), [775, 250, 5, 0], 'right: already past the face');
 play('{ x: 761, y: 296, vx: 5, vy: 0 }');
 run('tick()');
 assert.deepEqual(ball(), [766, 296, 5, 0], 'right: below the paddle');
+play('{ x: 761, y: 204, vx: 5, vy: 0 }');
+run('tick()');
+assert.deepEqual(ball(), [766, 204, 5, 0], 'right: above the paddle');
 play('{ x: 740, y: 250, vx: 40, vy: 0 }', 'speed = 40');
 run('tick()');
 assert.equal(ball()[0], 763);
@@ -167,6 +176,9 @@ assert.deepEqual(ball(), [25, 250, -5, 0], 'already past the face');
 play('{ x: 39, y: 296, vx: -5, vy: 0 }');
 run('tick()');
 assert.deepEqual(ball(), [34, 296, -5, 0], 'below the paddle');
+play('{ x: 39, y: 204, vx: -5, vy: 0 }');
+run('tick()');
+assert.deepEqual(ball(), [34, 204, -5, 0], 'above the paddle');
 // Fast ball does not tunnel: 40 px/tick from x 60 crosses the face and is returned
 play('{ x: 60, y: 250, vx: -40, vy: 0 }', 'speed = 40');
 run('tick()');
@@ -180,6 +192,18 @@ assert.ok(ball()[2] > 0, 'returned');
 play('{ x: 39, y: 300, vx: -10, vy: -10 }');
 run('tick()');
 assert.deepEqual(ball(), [29, 290, -10, -10], 'crossing y 298 outside, end y 290 inside: miss');
+
+// Wall bounce before the face in the same tick: crossing y is mirrored off the wall (2.8 -> 7.2, 497.2 -> 492.8)
+for (const [top, b, y] of [[0, '{ x: 39, y: 6, vx: -5, vy: -8 }', 7.2], [420, '{ x: 39, y: 494, vx: -5, vy: 8 }', 492.8]]) {
+  play(b, `leftY = ${top}; speed = 5`);
+  run('tick()');
+  const deg = 60 * (y - (top + 40)) / 45;
+  const [bx, by, vx, vy] = ball();
+  assert.equal(bx, 37, `wall hit at top ${top}`);
+  near(by, y, `mirrored y at top ${top}`);
+  near(vx, 5.25 * Math.cos(deg * DEG), `vx after wall hit at top ${top}`);
+  near(vy, 5.25 * Math.sin(deg * DEG), `vy after wall hit at top ${top}`);
+}
 
 // Speed up: two hits -> 5 × 1.05²
 play('{ x: 39, y: 250, vx: -5, vy: 0 }', 'aiSpeed = 0; rightY = 210');
@@ -197,6 +221,18 @@ play('{ x: 400, y: 493, vx: 3, vy: 4 }');
 run('tick()');
 assert.deepEqual(ball().slice(1), [495, 3, -4]);
 
+// Drawing: paddles, ball and a centre dash at their positions
+play('{ x: 123, y: 77, vx: 0, vy: 0 }', 'leftY = 50; rightY = 300');
+rects.length = 0;
+run('render()');
+for (const r of [[20, 50, 12, 80], [768, 300, 12, 80], [118, 72, 10, 10], [398, 10, 4, 16]])
+  assert.ok(rects.some((x) => x.join() === r.join()), `fillRect ${r}`);
+// Playing: only the two scores, each in its place
+run('scoreL = 2; scoreR = 4');
+textAt.length = 0;
+run('render()');
+assert.deepEqual(textAt, [['2', 320, 70], ['4', 480, 70]]);
+
 // Point: fully past the right edge -> left +1, serve, speed 5; past the left edge -> right +1
 play('{ x: 804, y: 100, vx: 6, vy: 0 }', 'speed = 6');
 run('tick()');
@@ -208,6 +244,11 @@ assert.equal(run('scoreL'), 0, 'edge still on screen');
 play('{ x: -4, y: 100, vx: -6, vy: 0 }');
 run('tick()');
 assert.deepEqual([...run('[scoreL, scoreR, state]')], [0, 1, 'serve']);
+// Paddles stay put after a point
+play('{ x: 804, y: 100, vx: 6, vy: 0 }', 'leftY = 50; rightY = 300; aiSpeed = 0');
+run('tick()');
+assert.deepEqual([...run('[scoreL, state, leftY, rightY]')], [1, 'serve', 50, 300]);
+run('aiSpeed = 4');
 play('{ x: -4, y: 100, vx: -1, vy: 0 }');
 run('tick()');
 assert.equal(run('scoreR'), 0, 'left edge still on screen');
@@ -236,8 +277,12 @@ assert.ok(texts.includes('Right wins'));
 run('scoreL = 7; scoreR = 5; render()');
 assert.ok(texts.includes('Left wins'));
 run('twoPlayer = false');
+key('KeyS');
 key('Space');
 assert.deepEqual([...run('[state, scoreL, scoreR, leftY, rightY]')], ['serve', 0, 0, 210, 210]);
+run('tick()');
+assert.equal(run('leftY'), 216, 'held key survives the restart');
+up('KeyS');
 
 // 2 players via #two: arrows move the right paddle 6/tick, AI off; unchecking hands back to AI
 els.two.checked = true;
@@ -275,6 +320,8 @@ els.two.checked = true;
 listeners.input({ target: els.two });
 assert.equal(focus.el, null, 'mouse change loses focus');
 focus.el = els.two;
+key('Space', { target: els.two, repeat: true });
+assert.equal(els.two.checked, true, 'repeat Space on the checkbox does not toggle');
 assert.equal(key('Space', { target: els.two }), true, 'Space prevented on the checkbox');
 assert.deepEqual([els.two.checked, run('twoPlayer'), els.ai.disabled, run('state')], [false, false, false, 'serve']);
 key('Space', { target: els.two });

@@ -105,7 +105,9 @@ function paddleHit(px, py, face, top, dir) {
   const lead = ball.x - dir * HALF, prevLead = px - dir * HALF; // edge facing the paddle
   if (Math.sign(ball.vx) !== -dir) return;
   if (dir * (prevLead - face) < 0 || dir * (lead - face) > 0) return;
-  const y = py + ball.vy * (prevLead - face) / (prevLead - lead);
+  let y = py + ball.vy * (prevLead - face) / (prevLead - lead);
+  if (y < HALF) y = 2 * HALF - y; // bounced off a wall before reaching the face this tick
+  else if (y > H - HALF) y = 2 * (H - HALF) - y;
   if (y + HALF < top || y - HALF > top + PH) return;
   speed *= SPEED_UP;
   const a = MAX_BOUNCE * clamp((y - (top + PH / 2)) / (PH / 2 + HALF), -1, 1); // ball edge on paddle edge = 60°
