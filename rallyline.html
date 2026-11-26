@@ -130,8 +130,9 @@ function tick() {
   ball.x += ball.vx; ball.y += ball.vy;
   paddleHit(px, py, LX + PW, leftY, 1);
   paddleHit(px, py, RX, rightY, -1);
-  if (ball.y - HALF < 0) { ball.y = HALF; ball.vy = Math.abs(ball.vy); }
-  if (ball.y + HALF > H) { ball.y = H - HALF; ball.vy = -Math.abs(ball.vy); }
+  // Reflect, keeping the overshoot (as paddleHit's mirror does); the clamp keeps an extreme overshoot on court
+  if (ball.y - HALF < 0) { ball.y = Math.min(2 * HALF - ball.y, H - HALF); ball.vy = Math.abs(ball.vy); }
+  if (ball.y + HALF > H) { ball.y = Math.max(2 * (H - HALF) - ball.y, HALF); ball.vy = -Math.abs(ball.vy); }
   if (ball.x + HALF < 0) point(false);
   else if (ball.x - HALF > W) point(true);
 }

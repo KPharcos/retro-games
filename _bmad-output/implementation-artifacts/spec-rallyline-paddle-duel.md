@@ -31,6 +31,13 @@ deferred:
     location: >-
       docs/CODEBASE_MAP.md (data-flow diagram note, Conventions)
     severity: low
+  - summary: >-
+      docs/CODEBASE_MAP.md's Rallyline gotcha says #two and #ai are read only through the input listener, but the Space toggle also calls readControls(); the navigation bullet omits that call too.
+    evidence: |-
+      Follow-up pass 2 (blind-hunter, verification-gap). The Space branch of onKey calls readControls() as well as the input listener does. Agent-context doc, so deferred to the cartographer re-map.
+    location: >-
+      docs/CODEBASE_MAP.md (Rallyline gotchas and navigation)
+    severity: low
 ---
 
 <intent-contract>
@@ -171,6 +178,44 @@ deferred:
   - `[false]` `[reject]` controls tested through stubs, not real widgets (intent-alignment) — carried: real-browser checks cover them; this auditor reports Chrome and Firefox matching the contract.
   - `[low]` `[defer]` CODEBASE_MAP spec-status line and totals (intent-alignment) — carried: already in the deferred map entry.
 
+### 2026-11-26 — Review pass (follow-up 2)
+- verdicts: 34 findings — high 0, medium 0, low 25, false 8, maybe-false 1
+- findings:
+  - `[low]` `[patch]` walls clamp the overshoot while paddleHit mirrors it, so a wall bounce is not a reflection (blind-hunter) — walls now reflect: top `min(2 * HALF - y, H - HALF)`, bottom `max(2 * (H - HALF) - y, HALF)`, so an extreme overshoot stays on court. Pinned expectations are now [7, 3, 4] and [493, 3, -4], derived from the inputs. The map's Logic row also now says walls reflect; that is an agent-context edit routing would defer, kept so the map does not describe the old clamp (flagged in the Auto Run Result).
+  - `[low]` `[reject]` carried: the 0.5 ms snap makes the tick rate follow 59 and 61 Hz displays (blind-hunter) — carried: same row as the first follow-up pass (intent-alignment): about 3% in the 58.3-61.8 Hz band; a narrower window brings jitter back, and a carry changes the snap that fixed it.
+  - `[low]` `[reject]` carried: Space on the focused checkbox keeps focus, so the next Space toggles it again (blind-hunter) — carried: the spec says Space toggles the focused box and only a mouse change loses focus; Tab moves off it.
+  - `[maybe-false]` `[reject]` carried: Space on the checkbox could toggle twice in a browser that also toggles on keyup (blind-hunter) — carried: keydown and keyup are both prevented; Chrome and Firefox show one toggle; Safari unchecked.
+  - `[low]` `[defer]` carried: the map's spec-status line says "in-progress, no review passes yet" (blind-hunter) — carried: already in the deferred map entry.
+  - `[low]` `[defer]` carried: the map's totals (total_files 30, "30 tracked project files") do not count the three new files (blind-hunter) — carried: already in the deferred map entry.
+  - `[low]` `[defer]` the map's Rallyline gotcha says #two and #ai are read only through the input listener, but the Space toggle also calls readControls() (blind-hunter) — new; same entry as the verification-gap gotcha row; agent-context doc, deferred.
+  - `[false]` `[reject]` carried: controls are not read at load, so the page defaults are copied into twoPlayer and aiSpeed (blind-hunter) — carried: both inputs carry autocomplete="off", which stops form restoration; a bfcache restore keeps the JS state with the DOM.
+  - `[false]` `[reject]` the Spec Change Log is empty (blind-hunter) — refuted: the template fills it only on a bad_spec loopback; this pass patched code without one.
+  - `[false]` `[reject]` the bounce-angle clamp in paddleHit is dead code (blind-hunter) — refuted as a defect: the overlap guard bounds the offset to ±45 px, so the clamp never fires; harmless, nothing to fix.
+  - `[false]` `[reject]` onKeyUp reads e.code without String() (blind-hunter) — refuted: onKeyUp only compares and deletes; a missing code matches nothing and does no harm.
+  - `[false]` `[reject]` the second paddleHit reads pre-tick px/py after the first call moved the ball (blind-hunter) — refuted: the right check needs the ball's lead at or past the right face; a left hit leaves it at x 37, so the right check cannot pass today; latent only.
+  - `[low]` `[patch]` no test where a paddle moves into the ball in the same tick (blind-hunter) — verified: a mutant that moves the paddles after the collision checks survived; test added (left paddle at 260 with KeyW held hits the ball).
+  - `[low]` `[patch]` no AI top-bound test (blind-hunter) — same entry as the verification-gap top-bound row; test added.
+  - `[low]` `[patch]` no top/bottom clamp test for the 2-player arrows (blind-hunter) — same entry; tests added at 0 and 420.
+  - `[low]` `[reject]` W/S use e.code, so on AZERTY the letters are not where the hint says (blind-hunter) — repo-wide convention shared with Snake and Stackfall; the key in the W/S position works on any layout; switching to e.key changes three games' convention, more than a direct correction.
+  - `[low]` `[reject]` a vertical step larger than the court mis-places the crossing y (edge-case-hunter) — needs a vertical step above about 490 px per tick, about 97 paddle hits with no point; the AI cannot track a ball that fast; the fix needs a fold helper, more than a direct correction.
+  - `[low]` `[reject]` carried: a ball that has passed the paddle face can overlap the paddle body and still scores (edge-case-hunter) — carried: the I/O matrix says no hit once past the face; visual only.
+  - `[low]` `[reject]` carried: fixed-step drift at 58.3-61.9 Hz (edge-case-hunter) — carried: same as the blind-hunter drift row.
+  - `[false]` `[reject]` carried: the AI moves 2 px per frame on a 120 Hz display (edge-case-hunter) — carried: the contract defines speeds per 60 Hz tick; README says so.
+  - `[low]` `[patch]` the right paddle's top bound (AI and 2-player) is unverified: dropping it leaves the suite green (verification-gap) — pre-verified by the layer's mutant; tests added: the AI reaches 0 after 100 ticks, 2-player reaches 0 and stays at 420.
+  - `[low]` `[patch]` right-paddle motion during serve is unverified: freezing the AI or the 2-player arrows leaves the suite green (verification-gap) — pre-verified; tests added: AI 420 to 210 in 60 serve ticks, ArrowUp in serve moves 6 px per tick. Same entry as the intent row on AI motion in serve.
+  - `[low]` `[patch]` walls clamp instead of reflecting, unlike paddleHit's mirror (verification-gap) — same entry as the blind-hunter wall row.
+  - `[low]` `[defer]` carried: the map's spec-status row is wrong (verification-gap) — carried: already in the deferred map entry.
+  - `[low]` `[defer]` the Rallyline gotcha is overstated (verification-gap) — same entry as the blind-hunter gotcha row.
+  - `[low]` `[defer]` carried: the map's file count is stale (verification-gap) — carried: already in the deferred map entry.
+  - `[low]` `[reject]` carried: the snap makes the tick rate follow 58-62 Hz displays, not the literal 1000/60 ms rule (intent-alignment) — carried: same as the blind-hunter drift row.
+  - `[false]` `[reject]` Space keyup is also prevented, beyond the contract (intent-alignment) — refuted as a defect: the keyup prevent stops a browser that toggles on keyup from flipping the box a second time; tests assert it.
+  - `[low]` `[patch]` AI motion during serve is untested (intent-alignment) — same entry as the verification-gap serve row.
+  - `[low]` `[patch]` Space on the focused checkbox is tested only in serve (intent-alignment) — verified: a mutant limiting the toggle to serve survived; test added (toggle during play, state unchanged).
+  - `[low]` `[reject]` carried: focus stays on the checkbox after a keyboard toggle (intent-alignment) — carried: same as the blind-hunter focus row.
+  - `[low]` `[reject]` carried: the browser tier is covered by stubs (CSS, focus, blur, rAF, canvas pixels) (intent-alignment) — carried: real-browser checks from earlier passes cover it; the repo's tests use stubs by design.
+  - `[false]` `[reject]` the listener count cannot be verified because the stub keeps one listener per type (intent-alignment) — refuted: the game adds keydown, keyup and input once each at load, so each type has one listener.
+  - `[low]` `[defer]` carried: the map's spec-status side note (intent-alignment) — carried: already in the deferred map entry.
+
 ## Design Notes
 
 At speed 5 and 60°, vy ≈ 4.33 px/tick, already faster than the default AI's 4, and speed grows each hit, so edge shots beat the AI. Front-face crossing (prev leading edge on the near side, new one past it) stops fast balls tunnelling through the 12 px paddle without a cap.
@@ -227,3 +272,24 @@ Status: done
 **Process notes:** the harness only runs subagents in the background, so the run waited for their completion notices instead of making blocking calls. This pass left the spec out of the review diff; the pass-1 diff had included it. Even so, reviewers other than the edge-case layer saw it: the intent auditor said it opened the file, and the blind hunter cited its contents.
 
 **Residual risks:** no real-browser rally played since either collision change. The intent auditor reports one toggle per Space on the checkbox in Chrome and Firefox; Safari is unchecked. A ball bouncing off both walls in one tick is not handled; by the speed formula that needs roughly 97 paddle hits. `docs/CODEBASE_MAP.md` still lags in the deferred places.
+
+### Follow-up pass 2026-11-26 (2)
+
+**Summary:** Third review pass (`followup_pass`) on the committed change, run from `done`. Four reviewers, 34 findings (high 0, medium 0, low 25, false 8, maybe-false 1). Nine rows were patched in five entries: walls now reflect instead of clamping, so a wall bounce matches the paddle path; the right paddle's bounds and motion during serve, a same-tick paddle move and the checkbox toggle during play are now tested. One new deferred item: the map's Rallyline gotcha. Everything else was carried, rejected or refuted.
+
+**Patched:** 9 rows (low 9). Entries: walls (rows 1, 23); right-paddle bounds (14, 15, 21); right-paddle motion in serve (22, 29); same-tick paddle move (13); checkbox toggle during play (30).
+- `rallyline.html`: a wall bounce reflects with the overshoot kept, clamped to the court.
+- `test-rallyline.mjs`: asserts for those cases; wall expectations now [7, 3, 4] and [493, 3, -4].
+- `docs/CODEBASE_MAP.md`: the Logic row says walls reflect. Agent-context edit that routing would defer; kept so the map does not describe the old clamp.
+
+**Deferred (new):** the Rallyline gotcha in `docs/CODEBASE_MAP.md` (readControls() also runs on the Space toggle).
+
+**Rejected:** carried from earlier passes: the snap drift band, focus after a keyboard toggle, the double-toggle maybe-false, controls not read at load, the stub-tested browser tier, AI per frame at 120 Hz, a ball past the face overlapping the body. New: a vertical step above the court (about 97 paddle hits, needs a fold helper), the AZERTY letters (convention across three games), the keyup prevent (deliberate), the dead clamp and onKeyUp String() (no outcome), stale px in the second paddleHit (not reachable today), the empty Spec Change Log (filled only on bad_spec loopbacks), listener count (one per type).
+
+**Follow-up review recommendation:** false. No high or medium patched; converged.
+
+**Verification:** all nine suites pass after the patches. Mutants run on a scratch copy: paddles moved after the collision checks (killed), checkbox toggle limited to serve (killed), walls back to a clamp (killed). The implementer reports the AI and 2-player top bounds, the frozen serve motion and the 2-player bottom bound killed too; not rerun here.
+
+**Process notes:** the intent-alignment reviewer opened the spec file, which holds the claims; routing gives the claims to the edge-case layer alone. The spec was left out of the review diff. The map Logic edit above is an agent-context change routing would defer; kept and flagged here.
+
+**Residual risks:** a vertical step above the court needs about 97 paddle hits with no point; the README's "whatever the display's refresh rate" overstates the 58-62 Hz band; real-browser rallies not re-run after the wall and collision patches; Safari unchecked for the checkbox keyup case; W/S follow key position, not the letter.

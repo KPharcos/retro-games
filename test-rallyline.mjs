@@ -125,6 +125,12 @@ run('rightY = 307; tick()');
 assert.equal(run('rightY + 40'), 350, 'gap < aiSpeed lands on ball y');
 run('aiSpeed = 4; ball.y = 495; rightY = 418; tick()');
 assert.equal(run('rightY'), 420, 'AI clamped');
+play('{ x: 400, y: 5, vx: 0, vy: 0 }');
+run('for (let i = 0; i < 100; i++) tick()');
+assert.equal(run('rightY'), 0, 'AI clamped at the top');
+// The AI tracks the ball in serve too: from the bottom (centre 460) back to the centred ball
+run('reset(); rightY = 420; for (let i = 0; i < 60; i++) tick()');
+assert.deepEqual([...run('[state, rightY]')], ['serve', 210], 'AI recentres in serve');
 
 // Paddle hit: left face x 32, paddle 210..290 (centre 250). Centre -> flat right; bottom edge -> 60° down-right; speed 5.25
 for (const [y, deg] of [[250, 0], [295, 60], [205, -60], [268, 24]]) {
@@ -192,6 +198,13 @@ assert.ok(ball()[2] > 0, 'returned');
 play('{ x: 39, y: 300, vx: -10, vy: -10 }');
 run('tick()');
 assert.deepEqual(ball(), [29, 290, -10, -10], 'crossing y 298 outside, end y 290 inside: miss');
+// Paddles move before the ball: W this tick lifts the paddle 260 -> 254, under the ball's span 245..255
+play('{ x: 39, y: 250, vx: -5, vy: 0 }', 'leftY = 260');
+key('KeyW');
+run('tick()');
+up('KeyW');
+assert.equal(ball()[0], 37, 'paddle moved into the ball: hit');
+assert.ok(ball()[2] > 0, 'returned');
 
 // Wall bounce before the face in the same tick: crossing y is mirrored off the wall (2.8 -> 7.2, 497.2 -> 492.8)
 for (const [top, b, y] of [[0, '{ x: 39, y: 6, vx: -5, vy: -8 }', 7.2], [420, '{ x: 39, y: 494, vx: -5, vy: 8 }', 492.8]]) {
@@ -213,13 +226,20 @@ near(run('speed'), 5 * 1.05 ** 2, 'two hits');
 near(ball()[2], -5 * 1.05 ** 2, 'second return');
 run('aiSpeed = 4');
 
-// Walls: top moving up flips down, bottom moving down flips up
+// Walls reflect, keeping the overshoot: top moving up flips down, bottom moving down flips up
 play('{ x: 400, y: 7, vx: 3, vy: -4 }');
 run('tick()');
-assert.deepEqual(ball().slice(1), [5, 3, 4]);
+assert.deepEqual(ball().slice(1), [2 * 5 - (7 - 4), 3, 4]); // y 3 is 2 px past the top limit 5
 play('{ x: 400, y: 493, vx: 3, vy: 4 }');
 run('tick()');
-assert.deepEqual(ball().slice(1), [495, 3, -4]);
+assert.deepEqual(ball().slice(1), [2 * 495 - (493 + 4), 3, -4]); // y 497 is 2 px past the bottom limit 495
+// An overshoot deeper than the court is kept on it
+play('{ x: 400, y: 10, vx: 0, vy: -1000 }');
+run('tick()');
+assert.deepEqual(ball().slice(1), [495, 0, 1000]);
+play('{ x: 400, y: 490, vx: 0, vy: 1000 }');
+run('tick()');
+assert.deepEqual(ball().slice(1), [5, 0, -1000]);
 
 // Drawing: paddles, ball and a centre dash at their positions
 play('{ x: 123, y: 77, vx: 0, vy: 0 }', 'leftY = 50; rightY = 300');
@@ -288,6 +308,19 @@ up('KeyS');
 els.two.checked = true;
 listeners.input({ target: els.two });
 assert.deepEqual([run('twoPlayer'), els.ai.disabled], [true, true]);
+// Arrows clamp at both ends, and move the paddle in serve too
+play('{ x: 400, y: 250, vx: 0, vy: 0 }', 'rightY = 6');
+key('ArrowUp');
+run('tick()');
+assert.equal(run('rightY'), 0, '2 players: clamped at the top');
+run('reset(); tick()');
+assert.deepEqual([...run('[state, rightY]')], ['serve', 204], '2 players: arrows move it in serve');
+up('ArrowUp');
+key('ArrowDown');
+play('{ x: 400, y: 250, vx: 0, vy: 0 }', 'rightY = 420');
+run('tick()');
+assert.equal(run('rightY'), 420, '2 players: clamped at the bottom');
+up('ArrowDown');
 play('{ x: 400, y: 450, vx: 0, vy: 0 }');
 run('tick()');
 assert.equal(run('rightY'), 210, 'AI does not move it');
@@ -326,6 +359,12 @@ assert.equal(key('Space', { target: els.two }), true, 'Space prevented on the ch
 assert.deepEqual([els.two.checked, run('twoPlayer'), els.ai.disabled, run('state')], [false, false, false, 'serve']);
 key('Space', { target: els.two });
 assert.deepEqual([els.two.checked, run('twoPlayer'), run('state')], [true, true, 'serve']);
+// ...during play too, leaving the rally alone
+play('{ x: 400, y: 250, vx: 3, vy: 0 }');
+key('Space', { target: els.two });
+assert.deepEqual([els.two.checked, run('twoPlayer'), run('state'), ball()[2]], [false, false, 'playing', 3]);
+key('Space', { target: els.two });
+run('reset()');
 
 // preventDefault: Space always; arrows only in 2-player mode; others never
 assert.equal(key('ArrowUp'), true);
