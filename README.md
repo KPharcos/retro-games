@@ -9,15 +9,16 @@ Small retro browser games. Each game is one self-contained HTML file with no bui
 | Minefield | `minefield.html` | A mine-sweeping puzzle in three sizes, with a safe first click, flags and question marks, chording and a timer (mouse, touch or keyboard) |
 | Molebop | `molebop.html` | An original 30-second whack-the-mole game on a 3x3 field, with golden moles, bombs and a saved best score (mouse, touch or keyboard) |
 | Pairflip | `pairflip.html` | An original memory game: find the matching letter pairs on a 4x4 or 6x6 board, with a moves counter and a timer (mouse, touch or keyboard) |
+| Rallyline | `rallyline.html` | An original paddle-and-ball duel on an 800x500 court: first to 7, against a beatable AI with a speed slider or a second player (keyboard only) |
 | Snake | `snake.html` | Classic grid snake on a 20x20 board, with a saved high score, optional wrap-around walls (T) and pause (keyboard only) |
 | Stackfall | `stackfall.html` | An original falling-blocks puzzle on a 10x20 board, with a 7-bag, next preview, hold and ghost (keyboard only) |
 | Twofold | `twofold.html` | An original sliding-merge number puzzle on a 4x4 board, with one-step undo and a saved best score (keyboard or swipe) |
 
 ## Play
 
-Play online: [Bricklash](https://kpharcos.github.io/retro-games/bricklash.html) · [Gapwing](https://kpharcos.github.io/retro-games/gapwing.html) · [Minefield](https://kpharcos.github.io/retro-games/minefield.html) · [Molebop](https://kpharcos.github.io/retro-games/molebop.html) · [Pairflip](https://kpharcos.github.io/retro-games/pairflip.html) · [Snake](https://kpharcos.github.io/retro-games/snake.html) · [Stackfall](https://kpharcos.github.io/retro-games/stackfall.html) · [Twofold](https://kpharcos.github.io/retro-games/twofold.html)
+Play online: [Bricklash](https://kpharcos.github.io/retro-games/bricklash.html) · [Gapwing](https://kpharcos.github.io/retro-games/gapwing.html) · [Minefield](https://kpharcos.github.io/retro-games/minefield.html) · [Molebop](https://kpharcos.github.io/retro-games/molebop.html) · [Pairflip](https://kpharcos.github.io/retro-games/pairflip.html) · [Rallyline](https://kpharcos.github.io/retro-games/rallyline.html) · [Snake](https://kpharcos.github.io/retro-games/snake.html) · [Stackfall](https://kpharcos.github.io/retro-games/stackfall.html) · [Twofold](https://kpharcos.github.io/retro-games/twofold.html)
 
-You can also clone the repo and open `bricklash.html`, `gapwing.html`, `minefield.html`, `molebop.html`, `pairflip.html`, `snake.html`, `stackfall.html` or `twofold.html` in a browser.
+You can also clone the repo and open `bricklash.html`, `gapwing.html`, `minefield.html`, `molebop.html`, `pairflip.html`, `rallyline.html`, `snake.html`, `stackfall.html` or `twofold.html` in a browser.
 
 ### Bricklash controls
 
@@ -83,6 +84,18 @@ Pairflip is DOM-based: each card is a `<button>` that turns over with a CSS 3D t
 
 Pairflip needs a browser from about 2021 or later (it uses `?.`, `min()` and `inset`). It also uses `inert` (about 2023) to lock the board under the win panel; an older browser without `inert` still plays the same, Tab just also walks the covered cards. `:focus-visible` (available in all current browsers since March 2022) draws the keyboard focus ring; an older browser still plays the same but shows no ring on a focused card.
 
+### Rallyline controls
+
+| Input | Action |
+|---|---|
+| W / S | Move the left paddle while held |
+| ↑ / ↓ | Move the right paddle while held (2-player mode only) |
+| Space | Serve from the centre; after the match, start a new one at 0-0 |
+| 2 players checkbox | Switch between playing the AI and a second player on the same keyboard |
+| AI speed slider | Set how fast the AI paddle can move, 2 to 8 px per frame (default 4) |
+
+The game runs on a fixed 60 Hz step, so speeds are per frame on any display. Each serve leaves the centre at 5 px per frame, at a random angle up to 30° from horizontal, toward a random side. Every paddle hit makes the ball 5% faster, with no cap, and where it meets the paddle sets its angle: the centre sends it back flat, the edges up to 60°. The top and bottom walls bounce it. A ball that passes a paddle and leaves the court scores for the other side, and the next serve is back at 5 px per frame. First to 7 wins. The AI moves its paddle toward the ball at up to the slider's speed, so steep edge shots can beat it. Changing the mode or the AI speed takes effect at once without resetting the match; the slider is disabled in 2-player mode. Space on the focused checkbox toggles it instead of serving. There is no pause, sound, touch control or saved score.
+
 ### Snake controls
 
 | Input | Action |
@@ -131,7 +144,7 @@ Twofold needs a browser from about 2022 or later (it uses CSS `scale` in keyfram
 The tests need Node 18+ and nothing else:
 
 ```sh
-node test-bricklash.mjs && node test-gapwing.mjs && node test-minefield.mjs && node test-molebop.mjs && node test-pairflip.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs
+node test-bricklash.mjs && node test-gapwing.mjs && node test-minefield.mjs && node test-molebop.mjs && node test-pairflip.mjs && node test-rallyline.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs
 ```
 
 `harness.mjs` loads a game's inline `<script>` into `node:vm` with a stub DOM, so the tests can drive game state and key presses directly.

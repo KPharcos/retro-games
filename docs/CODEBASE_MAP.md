@@ -12,7 +12,7 @@ The totals count the 30 tracked project files. The vendored BMAD install (`_bmad
 
 ## System Overview
 
-The project holds eight standalone browser games, each a single HTML file built on the same testable pattern (four canvas games with a rAF loop; Twofold, a turn-based DOM game; and Minefield, Molebop and Pairflip, DOM games whose rAF loop only drives their clocks). A shared Node harness drives it in `node:vm`, and a BMAD agent-framework install produced the specs. There is no build step and no package.json.
+The project holds nine standalone browser games, each a single HTML file built on the same testable pattern (five canvas games with a rAF loop; Twofold, a turn-based DOM game; and Minefield, Molebop and Pairflip, DOM games whose rAF loop only drives their clocks). A shared Node harness drives it in `node:vm`, and a BMAD agent-framework install produced the specs. There is no build step and no package.json.
 
 ```mermaid
 graph TB
@@ -22,6 +22,7 @@ graph TB
         Mine[minefield.html]
         Mole[molebop.html]
         Pair[pairflip.html]
+        Rally[rallyline.html]
         Snk[snake.html]
         Stk[stackfall.html]
         Two[twofold.html]
@@ -33,6 +34,7 @@ graph TB
         TM[test-minefield.mjs]
         TMB[test-molebop.mjs]
         TPF[test-pairflip.mjs]
+        TRL[test-rallyline.mjs]
         TS[test-snake.mjs]
         TF[test-stackfall.mjs]
         TT[test-twofold.mjs]
@@ -52,6 +54,7 @@ graph TB
     TM --> H
     TMB --> H
     TPF --> H
+    TRL --> H
     TS --> H
     TF --> H
     TT --> H
@@ -60,6 +63,7 @@ graph TB
     H -->|regex-extracts script| Mine
     H -->|regex-extracts script| Mole
     H -->|regex-extracts script| Pair
+    H -->|regex-extracts script| Rally
     H -->|regex-extracts script| Snk
     H -->|regex-extracts script| Stk
     H -->|regex-extracts script| Two
@@ -73,6 +77,7 @@ graph TB
     Specs -.documents.-> Mine
     Specs -.documents.-> Mole
     Specs -.documents.-> Pair
+    Specs -.documents.-> Rally
     Specs -.documents.-> Snk
     Specs -.documents.-> Stk
     Specs -.documents.-> Two
@@ -87,6 +92,7 @@ retro-games/
 ├── minefield.html      # Minefield: mine-sweeping puzzle, DOM button grid, board model + shell, rAF timer
 ├── molebop.html        # Molebop: 30 s whack-the-mole, 3x3 DOM button holes, rAF clock, localStorage best
 ├── pairflip.html       # Pairflip: memory pairs, 4x4 or 6x6 DOM button cards, CSS 3D flip, rAF clock
+├── rallyline.html      # Rallyline: paddle duel, 800x500 canvas, 60 Hz fixed step, AI or 2 players, first to 7
 ├── snake.html          # Snake: 20x20 grid, tick accumulator at `speed` ticks/s, step(dt)
 ├── stackfall.html      # Stackfall: 10x20 falling blocks, gravity + 500 ms lock delay in step(dt)
 ├── twofold.html        # Twofold: 4x4 sliding-merge puzzle, DOM tiles + CSS transitions, no step/rAF
@@ -96,6 +102,7 @@ retro-games/
 ├── test-minefield.mjs  # Minefield self-check (`node test-minefield.mjs`)
 ├── test-molebop.mjs    # Molebop self-check (`node test-molebop.mjs`)
 ├── test-pairflip.mjs   # Pairflip self-check (`node test-pairflip.mjs`)
+├── test-rallyline.mjs  # Rallyline self-check (`node test-rallyline.mjs`)
 ├── test-snake.mjs      # Snake self-check (`node test-snake.mjs`)
 ├── test-stackfall.mjs  # Stackfall self-check (`node test-stackfall.mjs`)
 ├── test-twofold.mjs    # Twofold self-check (`node test-twofold.mjs`)
@@ -107,6 +114,7 @@ retro-games/
 │       ├── spec-minefield-mine-puzzle.md # status: done, three review passes logged
 │       ├── spec-molebop-whack-game.md    # status: done, three review passes logged, end-lock change log
 │       ├── spec-pairflip-memory-game.md  # status: done, three review passes logged, two deferred items
+│       ├── spec-rallyline-paddle-duel.md # status: in-progress, no review passes yet
 │       ├── spec-snake-game.md          # status: done, three review passes logged
 │       ├── spec-stackfall-puzzle.md    # status: done, three review passes logged
 │       └── spec-twofold-merge-puzzle.md # status: done, three review passes logged
@@ -212,6 +220,22 @@ retro-games/
 | 3D flip CSS | `.card` `transform-style: preserve-3d`, `perspective(500px) rotateY(0deg)`, `transition: transform 0.3s`; `.card.up` `rotateY(180deg)`. Back = `::before` (violet stripes), front = `::after` with `content: attr(data-face)` and its own `rotateY(180deg)`; both `backface-visibility: hidden`. `.card.matched::after` turns mint. Hover ring inside `@media (hover: hover)`; amber `:focus-visible` outline; `prefers-reduced-motion` drops the transition. |
 | Layout | `#board` grid with `--size: min(calc((96vw - 24px) / var(--cols) - 8px), var(--max))`; `.normal` 4 cols / 84 px max, `.hard` 6 cols / 60 px max. `#win` is an absolute `inset: 0` overlay inside `.stage`, with `#win[hidden] { display: none }`. Needs about 2021 (`?.`, `min()`, `inset`); `inert` and `:focus-visible` degrade gracefully. |
 
+### rallyline.html
+
+**Purpose**: Original paddle-and-ball duel on an 800×500 canvas: left paddle on W/S, right paddle an AI (or a second player on the arrows), first to 7. Canvas shapes only, teal and amber paddles, a square ball.
+**Entry point**: open the file in a browser. The script ends with `reset(); requestAnimationFrame(frame);`.
+
+| Item | Detail |
+|---|---|
+| Constants | `W=800`, `H=500`, `TICK=1000/60`, paddles `PW=12`×`PH=80` at `LX=20` / `RX=W-LX-PW` (768), `PADDLE_SPEED=6` px/tick, ball half-size `HALF=5` (10x10 square), `SERVE_SPEED=5`, `SPEED_UP=1.05`, `MAX_BOUNCE=π/3`, `WIN=7`, `DEG` |
+| State | Top-level `let`s: `state` (`serve`/`playing`/`over`), `scoreL`, `scoreR`, `leftY`/`rightY` (paddle tops), `ball` (`{x,y,vx,vy}`, px/tick, centre), `speed`, `acc`, `last`; `twoPlayer` and `aiSpeed` (page controls, untouched by `reset()`); `held` (a `Set` of held W/S/arrow codes: `reset()` leaves it, `onblur` clears it). |
+| Logic | `tick()`: `movePaddles()` (W/S; the right paddle is the arrows in 2-player mode, else the AI moves its centre toward `ball.y` by at most `aiSpeed`; both clamped to 0..420); in serve nothing else runs. Otherwise the ball moves, then `paddleHit()` for each side: the ball must move toward the paddle, its leading edge must cross the front face this tick (previous edge on the near side, new edge at or past it, so fast balls can't tunnel) and its y span at the crossing point (interpolated from the previous y) must overlap the paddle; then `speed *= 1.05`, angle `60°·clamp(offset/(PH/2+HALF))` from horizontal, ball placed flush at the crossing point. Then the top/bottom walls set `vy` away with `Math.abs`. `step()` snaps `acc` to `TICK` when within 0.5 ms, so rAF jitter on a 60 Hz display runs one tick per frame. A ball fully past an edge calls `point()`: +1 to the other side, `over` at 7, else `toServe()` (ball at centre, still, speed 5; paddles stay). `launch()` resets from over, ignores playing, and serves at angle `random()*60-30` degrees, right if a second `random() < 0.5`. |
+| Render | `render()` only reads state: court, dashed centre line, both scores in bold 56 px either side of it, paddles, ball, "Space to serve" or the over overlay (`winner()`: `You win`/`AI wins`, or `Left wins`/`Right wins` in 2-player mode, plus "Space to play again"). `setText()` updates `#status`: `Score L-R. Press Space to serve.`, `Playing.`, or `<winner> L-R. Press Space to play again.` |
+| Loop | `frame(t)`: the first frame only renders; later frames call `step(min(dt,100))` then `render()`. `step` returns while over. |
+| Input | `keydown` → `onKey` (`String(e.code)`): Space is always `preventDefault`ed, ArrowUp/Down only in 2-player mode (so the focused range keeps its arrows in 1-player mode); W/S/arrows go into `held`; a non-repeat Space on the focused `#two` toggles it and calls `readControls()` (the prevented keydown stops the native toggle), otherwise `launch()`. `keyup` → `onKeyUp` deletes from `held` and also prevents Space (some browsers toggle a checkbox on keyup). One `input` listener → `onInput`: `readControls()` copies `#two.checked` and `#ai.value` into `twoPlayer`/`aiSpeed` and disables `#ai` in 2-player mode, then blurs `#two` when it was the target, so Space serves next. Window blur is a bare `onblur`, as in Bricklash. No pointer or touch paddle control. |
+| Persistence | None. The inputs carry `autocomplete="off"`, so a reload can't restore a checkbox state the script never read. |
+| Layout | Canvas `width="800" height="500"`, CSS `max-width:100%`, `max-height:80vh`; `#controls` (checkbox and range) and `#hint` under `#status`. |
+
 ### snake.html
 
 **Purpose**: Classic snake on a 400×400 canvas (20×20 cells of 20 px). No ready screen: the run starts moving right on load.
@@ -263,7 +287,7 @@ retro-games/
 | A11y | `#board` `role="grid"` with `aria-label`; `#status` `aria-live="polite"` written only on change: win, game over, `Move undone.`, else empty. `prefers-reduced-motion` drops the transitions. |
 | Layout | `#game-container` `min(400px, 92vw)`; board `aspect-ratio: 1`; the 16 tile uses dark text for contrast; needs a browser from about 2022 (`scale` in keyframes, `aspect-ratio`, `Object.hasOwn`); `.wrap` `touch-action: none` so swipes on the board don't scroll; `body` `min-height:100vh`. |
 
-### harness.mjs, test-bricklash.mjs, test-gapwing.mjs, test-minefield.mjs, test-molebop.mjs, test-pairflip.mjs, test-snake.mjs, test-stackfall.mjs, test-twofold.mjs
+### harness.mjs, test-bricklash.mjs, test-gapwing.mjs, test-minefield.mjs, test-molebop.mjs, test-pairflip.mjs, test-rallyline.mjs, test-snake.mjs, test-stackfall.mjs, test-twofold.mjs
 
 **harness.mjs** exports `load(file, globals = {})`. It:
 - regex-extracts the single bare `<script>`;
@@ -303,6 +327,8 @@ Run it with `node test-gapwing.mjs`. It uses only Node built-ins plus `node:asse
 **test-molebop.mjs** covers each row of the Molebop spec's I/O matrix: page markup (one script, no canvas/setInterval/audio/assets, title, aria-live, field role and label, Start button, rAF), the opening page, input ignored outside `playing` (with a mole-still-up check, since the 0 score floor would hide a whack), Start by button, Space, Enter and NumpadEnter (prevent counts, repeats, modifiers), spawn timing (first pop at 500 ms, 800 then 450 ms, a whole-round pop trace in 50 ms steps, overshoot carry 794/444), up-time range, random empty-hole choice, kind rolls, a full field, hits and misses (score floor, right button, `detail` 0 vs 1, press plus click whacks once), the bomb end and the 500 ms end lock, time-up and a step past 0 (60 fps loop), the countdown `ceil`, looks and labels (a mole keeps its look while sliding down), change-only render writes, rAF re-queue / 100 ms cap / render only on change, the Digit and Numpad maps, and best score with `memStorage`, junk, throwing and missing storage. Its `makeDoc()` adds `className`, `hidden` and `inert` setters and a write counter `w.n`; the `Math` stub takes queued values from `rq` and counts draws in `calls` (3 per pop); `put(i, kind, up)` places a mole by hand. Run it with `node test-molebop.mjs`.
 
 **test-pairflip.mjs** covers the Pairflip spec's I/O matrix and the review-pass fixes: page markup (one script; no `setTimeout`, `setInterval`, canvas, audio, `src=`, `href=`, `@import`, `url(`, `localStorage` or emoji; CSS strings for the flip, `attr(data-face)`, the hover media query and reduced motion), `shuffle` outputs for fixed `rand` values and in-place, every letter exactly twice over 50 seeded deals per mode, the opening page (no `data-face`, `tabindex` 0), timer start on first flip, mismatch still up at 799 ms and down at 800 ms through `frame`, third click and re-clicks ignored, the 100 ms dt cap, matches (`tabindex` -1), the win (inert board, `#again` focused, frozen timer), held-key prevents, Play again / Restart / R (reshuffle, stale `data-face`, focus rules, Hard kept), Hard 6x6 and back, mode-click focus, and `clock()`. Its own `makeDoc()` asserts each id exists in the markup, tracks `focused.el` behind `document.activeElement`, and counts writes (`touches.n`/`touches.sets`, per-id `writes`) so quiet frames and unchanged renders must write nothing; `tick(ms)` asserts `frame` re-queued itself; `stubMath` takes a swappable `rand`. Run it with `node test-pairflip.mjs`.
+
+**test-rallyline.mjs** covers each row of the Rallyline spec's I/O matrix: markup (canvas 800x500, one script, no named-game branding, the `#two` and `#ai` inputs), the opening serve and its text, serve angle and side from a queued `Math.random` (0°, ±30° range, right/left, repeat and Space-while-playing ignored), paddles moving during serve, W/S with clamps, keyup and `onblur`, the AI at 4 and 8 px/tick and landing exactly on the ball, paddle hits on both faces (centre flat, edges 60°, flush, speed 5.25), no hit when moving away, already past the face or outside the paddle, a 40 px/tick ball not tunnelling, two-hit speed-up, both walls, points at the edge boundary, the win (both modes' winner names, frozen `step`, Space restart), the `#two`/`#ai` input handler (AI off and back, range disabled, speed applied mid-match), mouse blur and Space toggling the focused checkbox, `preventDefault` scope, a 60° edge shot that beats the AI at 4 but not at 8, the 60 Hz step and 100 ms cap, read-only `render()`, change-only `#status` writes and rAF wiring. Its `makeDoc()` asserts each id exists in the markup, gives `#two`/`#ai` `checked`/`value`/`disabled`/`blur()` and tracks focus in `focus.el`. Run it with `node test-rallyline.mjs`.
 
 **test-snake.mjs** covers each row of the Snake spec's I/O matrix (wrap-off and wrap-on variants of the death and tail rules): start state, 125 ms tick timing, steering and reverse/double-key rules, eating and uniform food (a pinned `Math.random`), the speed-up, wall/self/tail-cell deaths, wrap on all four edges, the T and P toggles with repeat, the game-over and win screens, Space-only restart, `preventDefault` scope, the dt cap, rAF wiring, read-only `render()`, high score with a `localStorage` stub (live HUD best, win save, another-tab re-read, tick-driven death save, junk value, and a store that throws), inherited key names and events with no `code`, the `#status` text written once per state change, and every `getElementById` id existing in the markup. `memStorage(obj)` builds storage stubs backed by a plain object the test can edit. Run it with `node test-snake.mjs`.
 
@@ -349,7 +375,7 @@ sequenceDiagram
     participant render
     Browser->>frame: requestAnimationFrame(t)
     frame->>step: step(min(dt,100))
-    Note over step: bricklash: tick() every 1000/120 ms unless over<br/>gapwing: tick() every 1000/60 ms while playing<br/>snake: tick() every 1000/speed ms unless paused or over<br/>stackfall: fall every interval() ms, or lock 500 ms after resting<br/>first frame only renders
+    Note over step: bricklash: tick() every 1000/120 ms unless over<br/>gapwing: tick() every 1000/60 ms while playing<br/>rallyline: tick() every 1000/60 ms unless over<br/>snake: tick() every 1000/speed ms unless paused or over<br/>stackfall: fall every interval() ms, or lock 500 ms after resting<br/>first frame only renders
     frame->>render: render() (read-only)
     frame->>Browser: requestAnimationFrame(frame)
     Note over Browser,step: keydown → onKey(e) mutates state (e.code), pointerdown → flap()
@@ -376,10 +402,10 @@ sequenceDiagram
   - `reset()` starts a game, and `step(dt)` owns all timing.
   - `render()` only reads state.
   - `onKey(e)` uses `e.code`, is registered with `document.addEventListener('keydown')`, and calls `preventDefault` only for game keys.
-  - Pointer input, if any, also goes on `document` (the harness's stub elements have no `addEventListener`). The one exception is Bricklash's window blur, a bare top-level `onblur` assignment.
+  - Pointer input, if any, also goes on `document` (the harness's stub elements have no `addEventListener`). The one exception is the window blur in Bricklash and Rallyline, a bare top-level `onblur` assignment.
   - A `frame(t)` rAF loop caps dt at 100ms. The script ends with `reset(); requestAnimationFrame(frame);`.
 - **DOM games** (Twofold) are turn-based: no canvas, `step(dt)` or rAF loop; actions mutate state and call `render()`, which reuses one element per tile so CSS transitions animate it. Minefield, Molebop and Pairflip are DOM-based too but keep `step(dt)` and the rAF loop for their clocks (Minefield's timer and long press; Molebop's round, pops and end lock; Pairflip's timer and 800 ms flip-back), rendering from the loop only when what they show changes.
-- Canvas 2D draws the board in the canvas games. DOM HUD text goes through `setText()`, which skips unchanged values so `aria-live` doesn't re-announce them. The four canvas games draw their score on the canvas and use `setText()` only for `#status`; Twofold writes `#score`, `#best`, `#message-text` and `#status`, Minefield `#mines`, `#time` and `#status`, Molebop `#score`, `#time`, `#best`, `#message` and `#status`, and Pairflip `#moves`, `#time`, `#result` and `#status`, through `setText()`.
+- Canvas 2D draws the board in the canvas games. DOM HUD text goes through `setText()`, which skips unchanged values so `aria-live` doesn't re-announce them. The five canvas games draw their score on the canvas and use `setText()` only for `#status`; Twofold writes `#score`, `#best`, `#message-text` and `#status`, Minefield `#mines`, `#time` and `#status`, Molebop `#score`, `#time`, `#best`, `#message` and `#status`, and Pairflip `#moves`, `#time`, `#result` and `#status`, through `setText()`.
 - Each game gets a test file `test-<name>.mjs` that uses `load()` from `harness.mjs`.
 - Specs go to `_bmad-output/implementation-artifacts/spec-<name>.md`. Record changes in a Spec Change Log rather than rewriting history.
 
@@ -392,11 +418,12 @@ sequenceDiagram
 - **Only the stubbed DOM surface works at load time:** `getElementById().getContext()`, `.textContent`, `addEventListener` and `requestAnimationFrame`. Anything else, such as `.style`, `window` or `setInterval`, needs a stub passed via `load(file, globals)`.
 - **`listeners[type]` keeps only the last listener per event type**, and the default `getElementById` returns a fresh element on every call, so `setText` writes can't be observed without a custom `document` in `globals`. `globals` are spread after the defaults, so they replace `Math`, `document` or `requestAnimationFrame` wholesale.
 - **Stubbed `Math` must be `Object.create(Math)`** with overrides on top; spreading `Math` gives an empty object because its properties are non-enumerable.
-- **The default `getElementById` stub accepts any id**, so a renamed element id won't fail a test unless the test passes its own `document` (test-snake and test-stackfall check this; test-gapwing doesn't).
+- **The default `getElementById` stub accepts any id**, so a renamed element id won't fail a test unless the test passes its own `document` (test-rallyline, test-snake and test-stackfall check this; test-gapwing doesn't).
 - **Bricklash's `onblur` is a bare global, not a listener.** It never appears in `listeners`; tests call `run('onblur()')`. Hand-built balls have no `px`/`py` until their first `tick()`, so calling `paddleHit` or `brickHit` on them directly skips the previous-position rules (NaN compares false). Its tests read `balls`, `bricks`, `capsules`, `wide`, `acc`, `last`, `keyL`, `keyR`, `paddleX`, `paddleW`, `COLORS` and `WIDE_W` by name, so renames break them.
 - **Gapwing has no ceiling.** The bird can fly above the canvas; a pillar column there still kills it. Caps and beak are drawn outside the hitbox on purpose.
 - **Molebop's CSS carries behaviour the node tests can't see.** `#panel[hidden] { display: none }` (the panel's `display: flex` would beat `hidden`), `.mole { pointer-events: none }` (so taps land on the hole button that `holeEls.indexOf` looks up) and `.up .mole` (the rise). Removing any of them breaks play with every test green. Other non-obvious rules: the pop gap is chosen at the previous pop, so the first 450 ms gap starts up to 350 ms after the 10 s mark; a whacked or expired mole keeps its look while it slides down (a press in that 120 ms costs 1); the end lock counts down only in `step` while over.
 - **Pairflip's `data-face` is stale on face-down cards by design.** `render()` writes it only while a card is up, so a card turning back keeps its old letter instead of flashing the new deck after a reshuffle. Read a card's state from its class or `aria-label`, not `data-face`. The 100 ms dt cap also stretches the 800 ms flip-back after a long frame, and `frame` renders only when the shown second or `open.length` changes, so a new step-driven visual needs that condition extended. Its CSS (`#win[hidden]`, the 3D flip, `:focus-visible`) is checked only as text; headless Chrome and Firefox render it, Safari is unchecked.
+- **Rallyline reads `#two` and `#ai` only through the `input` listener.** `twoBox`/`aiRange` are fetched once at load, so with the default harness `document` they are blank stubs; tests that drive the controls pass `makeDoc()`. The game assumes the markup defaults (1 player, AI speed 4) at load, which `autocomplete="off"` keeps true across reloads. Space on the focused checkbox is toggled by `onKey`, not the browser, and fires no `input` event; this was checked only in headless Chrome (real CDP key and mouse events); a browser that still toggled natively on keyup would toggle twice. Tests read `held`, `twoPlayer`, `aiSpeed`, `leftY`, `rightY`, `speed`, `acc` and `last` by name.
 - **Snake ticks only through `step()`.** Tests that call `tick()` directly bypass pause and timing. Food is parked at (0,0) in many tests to avoid accidental eating.
 - **Stackfall kicks only sideways.** A piece resting flat on the floor or a flat stack cannot rotate, and an upright I flush against either wall cannot rotate from one of its two vertical positions. The lock timer counts only resting time: air time pauses it, sideways moves and rotations don't reset it, only a fall does. A swap with the held piece bypasses the 7-bag. The bag-order asserts (`ILJZSTO`, `LJZSTOI`) depend on the shuffle and `KEYS` order.
 - **The skill trees are triplicated, not symlinked.** Hand edits drift, so customize through `_bmad/custom/<skill>.toml`. The installer rewrites all three on every update.
@@ -416,10 +443,11 @@ sequenceDiagram
 - **Change Minefield rules:** the board model (`newBoard`, `placeMines`, `openCell`, `reveal`, `cycleMark`, `chord`, `status`) is at the top of `minefield.html`; `open()`, `mark()` and `step()` wire it to the page. Then update `test-minefield.mjs`.
 - **Change Molebop timing, scoring or kinds:** the constants are at the top of `molebop.html`; `step()` owns the clock, pops and end lock, `pop()` picks hole and kind, `whack()` scores, `end()` saves the best. Then update `test-molebop.mjs`.
 - **Change Pairflip modes, flip-back delay or focus handling:** `MODES` and `FLIP_BACK` are at the top of `pairflip.html`; `reset()` deals, `flip()` scores and focuses `#again` on a win, `step()` owns the clock and flip-back, `restart()` handles focus. Then update `test-pairflip.mjs`.
+- **Change Rallyline speeds, sizes or AI:** the constants are at the top of `rallyline.html`; `tick()` runs one 60 Hz step, `movePaddles()` holds the AI, `paddleHit()` the crossing test and bounce angle, `point()` the scoring and win, `launch()` the serve; `onKey`/`onKeyUp`/`onInput`/`onblur` handle input. Then update `test-rallyline.mjs`.
 - **Change Snake speed, scoring or rules:** the constants are at the top of `snake.html`; `tick()` does one move (collision, growth, speed-up), `end()` saves the high score. Then update `test-snake.mjs`.
 - **Change Stackfall shapes, speed, scoring or lock delay:** the constants and `level()`/`interval()` are at the top of `stackfall.html`; `step()` owns gravity and the lock timer, `lock()` clears rows and scores. Then update `test-stackfall.mjs`.
 - **Change Twofold rules:** the pure functions (`track`, `slide`, `addTile`, `canMove`) are at the top of `twofold.html`; `move()` wires them to state. Then update `test-twofold.mjs`.
-- **Run the tests:** `node test-bricklash.mjs && node test-gapwing.mjs && node test-minefield.mjs && node test-molebop.mjs && node test-pairflip.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs`. Nothing in the repo drives the games in a real browser.
+- **Run the tests:** `node test-bricklash.mjs && node test-gapwing.mjs && node test-minefield.mjs && node test-molebop.mjs && node test-pairflip.mjs && node test-rallyline.mjs && node test-snake.mjs && node test-stackfall.mjs && node test-twofold.mjs`. Nothing in the repo drives the games in a real browser.
 - **Customize a BMAD agent or workflow:** use `_bmad/custom/<skill>.toml` (team) or `.user.toml` (personal). The `bmad-customize` skill helps with this.
 - **Change BMAD output paths:** set `[core].output_folder` and `[modules.<mod>].*_artifacts` in `_bmad/custom/config.toml`.
 - **Add or remove BMAD modules:** `npx bmad-method@6.12.4 install --directory . --modules bmm,gds,cis,tea,bmb,bmad-loop --tools claude-code,opencode,qwen --set gds.primary_platform=other --action update --yes`. Leaving a module out of `--modules` does not delete its skill directories; remove those by hand.
