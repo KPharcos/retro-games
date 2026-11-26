@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rallyline</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #0d1b1e;
+            font-family: Arial, sans-serif;
+            user-select: none;
+        }
+        canvas {
+            box-sizing: border-box;
+            border: 2px solid #2b4a50;
+            background-color: #13282c;
+            max-width: 100%;
+            max-height: 80vh;
+        }
+        #game-container {
+            text-align: center;
+        }
+        #status {
+            color: white;
+            font-size: 16px;
+            min-height: 20px;
+            margin-top: 8px;
+        }
+        #controls, #hint {
+            color: #aaa;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+        #controls label {
+            margin: 0 12px;
+        }
+        #ai {
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="800" height="500" role="img" aria-label="Rallyline game: two paddles return a ball across a court, first to 7 points wins"></canvas>
+        <div id="status" aria-live="polite"></div>
+        <div id="controls">
+            <label><input type="checkbox" id="two" autocomplete="off"> 2 players</label>
+            <label>AI speed <input type="range" id="ai" min="2" max="8" step="1" value="4" autocomplete="off"></label>
+        </div>
+        <div id="hint">W / S: left paddle · ↑ / ↓: right paddle (2 players) · Space: serve</div>
+    </div>
+
+<script>
+const W = 800, H = 500, TICK = 1000 / 60;
+const PW = 12, PH = 80, LX = 20, RX = W - LX - PW, PADDLE_SPEED = 6;
+const HALF = 5, SERVE_SPEED = 5, SPEED_UP = 1.05, MAX_BOUNCE = Math.PI / 3, WIN = 7;
+const DEG = Math.PI / 180;
+
+let state, scoreL, scoreR, leftY, rightY, ball, speed, acc;
+let twoPlayer = false, aiSpeed = 4; // page controls: reset() leaves them
+const held = new Set(); // held movement keys survive a restart
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+function reset() {
+  scoreL = scoreR = 0;
+  leftY = rightY = (H - PH) / 2;
+  acc = 0;
+  toServe();
+}
+
+function toServe() {
+  state = 'serve';
+  ball = { x: W / 2, y: H / 2, vx: 0, vy: 0 };
+  speed = SERVE_SPEED;
+}
+
+function launch() {
+  if (state === 'over') { reset(); return; }
+  if (state !== 'serve') return;
+  const a = (Math.random() * 60 - 30) * DEG;
+  const dir = Math.random() < 0.5 ? 1 : -1;
+  ball.vx = dir * speed * Math.cos(a);
+  ball.vy = speed * Math.sin(a);
+  state = 'playing';
+}
+
+const axis = (up, down) => (held.has(down) ? 1 : 0) - (held.has(up) ? 1 : 0);
+
+function movePaddles() {
+  leftY = clamp(leftY + axis('KeyW', 'KeyS') * PADDLE_SPEED, 0, H - PH);
+  const move = twoPlayer ? axis('ArrowUp', 'ArrowDown') * PADDLE_SPEED
+    : clamp(ball.y - (rightY + PH / 2), -aiSpeed, aiSpeed);
+  rightY = clamp(rightY + move, 0, H - PH);
+}
+
+// Front-face crossing (not overlap), so a fast ball can't tunnel through the 12 px paddle.
+// Runs before the walls, so ball.vy is still this tick's velocity; y is taken where the edge crosses the face.
+function paddleHit(px, py, face, top, dir) {
+  const lead = ball.x - dir * HALF, prevLead = px - dir * HALF; // edge facing the paddle
+  if (Math.sign(ball.vx) !== -dir) return;
+  if (dir * (prevLead - face) < 0 || dir * (lead - face) > 0) return;
+  let y = py + ball.vy * (prevLead - face) / (prevLead - lead);
+  if (y < HALF) y = 2 * HALF - y; // bounced off a wall before reaching the face this tick
+  else if (y > H - HALF) y = 2 * (H - HALF) - y;
+  if (y + HALF < top || y - HALF > top + PH) return;
+  speed *= SPEED_UP;
+  const a = MAX_BOUNCE * clamp((y - (top + PH / 2)) / (PH / 2 + HALF), -1, 1); // ball edge on paddle edge = 60°
+  ball.vx = dir * speed * Math.cos(a);
+  ball.vy = speed * Math.sin(a);
+  ball.x = face + dir * HALF;
+  ball.y = y;
+}
+
+function point(left) {
+  if (left) scoreL++; else scoreR++;
+  if (scoreL === WIN || scoreR === WIN) state = 'over';
+  else toServe();
+}
+
+function tick() {
+  movePaddles();
+  if (state === 'serve') return;
+  const px = ball.x, py = ball.y;
+  ball.x += ball.vx; ball.y += ball.vy;
+  paddleHit(px, py, LX + PW, leftY, 1);
+  paddleHit(px, py, RX, rightY, -1);
+  // Reflect, keeping the overshoot (as paddleHit's mirror does); the clamp keeps an extreme overshoot on court
+  if (ball.y - HALF < 0) { ball.y = Math.min(2 * HALF - ball.y, H - HALF); ball.vy = Math.abs(ball.vy); }
+  if (ball.y + HALF > H) { ball.y = Math.max(2 * (H - HALF) - ball.y, HALF); ball.vy = -Math.abs(ball.vy); }
+  if (ball.x + HALF < 0) point(false);
+  else if (ball.x - HALF > W) point(true);
+}
+
+function step(dt) {
+  if (state === 'over') return;
+  acc += dt;
+  if (Math.abs(acc - TICK) < 0.5) acc = TICK; // rAF jitter on a 60 Hz display: one tick per frame, not 0 then 2
+  while (state !== 'over' && acc >= TICK) { acc -= TICK; tick(); }
+}
+
+const twoBox = document.getElementById('two'), aiRange = document.getElementById('ai');
+
+function readControls() {
+  twoPlayer = twoBox.checked;
+  aiSpeed = Number(aiRange.value);
+  aiRange.disabled = twoPlayer;
+}
+
+function onKey(e) {
+  const code = String(e.code); // String(): synthetic events may lack code
+  if (code === 'Space' || (twoPlayer && (code === 'ArrowUp' || code === 'ArrowDown'))) e.preventDefault();
+  if (['KeyW', 'KeyS', 'ArrowUp', 'ArrowDown'].includes(code)) held.add(code);
+  else if (code === 'Space' && !e.repeat) {
+    // preventDefault above stops the native toggle, so Space on the focused checkbox toggles it here instead of serving
+    if (e.target === twoBox) { twoBox.checked = !twoBox.checked; readControls(); }
+    else launch();
+  }
+}
+
+function onKeyUp(e) {
+  if (e.code === 'Space') e.preventDefault(); // some browsers toggle a focused checkbox on keyup
+  held.delete(e.code);
+}
+
+// keyup never arrives if the window loses focus mid-hold; bare global so the harness (no window) can load it
+onblur = () => { held.clear(); };
+
+// Only a mouse (or label) change fires input on the checkbox: Space toggles it in onKey, which fires none.
+function onInput(e) {
+  readControls();
+  if (e.target === twoBox) twoBox.blur(); // so Space serves next
+}
+
+// ---- rendering (reads state only) ----
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+function setText(id, v) { const el = document.getElementById(id); if (el.textContent !== v) el.textContent = v; }
+
+function winner() {
+  const left = scoreL > scoreR;
+  return twoPlayer ? (left ? 'Left wins' : 'Right wins') : (left ? 'You win' : 'AI wins');
+}
+
+function render() {
+  ctx.fillStyle = '#13282c';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#2b4a50';
+  for (let y = 10; y < H; y += 30) ctx.fillRect(W / 2 - 2, y, 4, 16);
+
+  ctx.fillStyle = '#e9e4d4';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 56px Arial';
+  ctx.fillText(String(scoreL), W / 2 - 80, 70);
+  ctx.fillText(String(scoreR), W / 2 + 80, 70);
+
+  ctx.fillStyle = '#4fd1c5';
+  ctx.fillRect(LX, leftY, PW, PH);
+  ctx.fillStyle = '#f6ad55';
+  ctx.fillRect(RX, rightY, PW, PH);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(ball.x - HALF, ball.y - HALF, HALF * 2, HALF * 2);
+
+  if (state === 'serve') {
+    ctx.font = '22px Arial';
+    ctx.fillText('Space to serve', W / 2, 320);
+  } else if (state === 'over') {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 40px Arial';
+    ctx.fillText(winner(), W / 2, 240);
+    ctx.font = '22px Arial';
+    ctx.fillText('Space to play again', W / 2, 290);
+  }
+
+  const score = scoreL + '-' + scoreR;
+  setText('status', state === 'serve' ? 'Score ' + score + '. Press Space to serve.'
+    : state === 'playing' ? 'Playing.'
+    : winner() + ' ' + score + '. Press Space to play again.');
+}
+
+let last = null;
+function frame(t) {
+  if (last !== null) step(Math.min(t - last, 100)); // cap: a backgrounded tab resumes with at most 100 ms of play
+  last = t;
+  render();
+  requestAnimationFrame(frame);
+}
+
+document.addEventListener('keydown', onKey);
+document.addEventListener('keyup', onKeyUp);
+document.addEventListener('input', onInput);
+reset();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
